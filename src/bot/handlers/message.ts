@@ -1,8 +1,11 @@
 import type { Context } from "grammy";
 import { checkViolation, handleViolation } from "../../services/moderation";
+import { getMilestoneMessage } from "../../services/vocabulary";
 import { checkAndIncrementUsage } from "../../services/usage";
 import { getOrCreateUserByTelegram } from "../../services/users";
 import { runAssistantTurn } from "../../services/conversation";
+import { handleOnboardingResponse, isInOnboarding } from "../../services/onboarding";
+import { supabase } from "../../db/client";
 import { sendStructuredUxResponse } from "./ux-flow";
 
 export async function handleMessage(ctx: Context): Promise<void> {
@@ -18,6 +21,14 @@ export async function handleMessage(ctx: Context): Promise<void> {
     username: from.username ?? null,
     languageCode: from.language_code ?? null,
   });
+
+  if (isInOnboarding(from.id)) {
+    const onboardingDone = await handleOnboardingResponse(ctx, from.id, user.id, text);
+    if (onboardingDone) {
+      return;
+    }
+    return;
+  }
 
   if (user.is_banned) {
     await ctx.reply(
@@ -49,4 +60,15 @@ export async function handleMessage(ctx: Context): Promise<void> {
   );
 
   await sendStructuredUxResponse(ctx, structured, responseVoice);
+
+  const { data: updatedUser } = await supabase
+    .from("users")
+    .select("words_learned_count")
+    .eq("id", user.id)
+    .single();
+  const wordsCount = updatedUser?.words_learned_count ?? 0;
+  const milestoneMessage = getMilestoneMessage(wordsCount);
+  if (milestoneMessage) {
+    await ctx.reply(milestoneMessage);
+  }
 }

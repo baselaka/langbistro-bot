@@ -1,10 +1,67 @@
-import type { Context } from "grammy";
+import { InputFile, type Context } from "grammy";
+import { generateVoice } from "../../ai/openai";
+import { supabase } from "../../db/client";
 import { getCallbackMeta } from "../ux-memory";
 
 export async function handleCallbackQuery(ctx: Context): Promise<void> {
   const data = ctx.callbackQuery?.data;
   if (!data) {
     await ctx.answerCallbackQuery();
+    return;
+  }
+
+  if (data.startsWith("listen_word:")) {
+    const rawId = data.slice("listen_word:".length);
+    const vocabularyId = Number(rawId);
+
+    if (!Number.isFinite(vocabularyId)) {
+      await ctx.answerCallbackQuery({ text: "Invalid word selection." });
+      return;
+    }
+
+    const { data: row, error } = await supabase.from("vocabulary").select("word").eq("id", vocabularyId).single();
+
+    if (error || !row?.word) {
+      await ctx.answerCallbackQuery({ text: "Word not found." });
+      return;
+    }
+
+    try {
+      const audio = await generateVoice(row.word, { voice: "onyx", speed: 0.8 });
+      await ctx.replyWithVoice(new InputFile(audio, "word.mp3"));
+    } catch {
+      await ctx.answerCallbackQuery({ text: "Could not generate audio." });
+      return;
+    }
+
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
+  if (data.startsWith("settings_time:")) {
+    const parts = data.split(":");
+    const hh = parts[1];
+    const mm = parts[2];
+
+    if (!ctx.from || !hh || !mm) {
+      await ctx.answerCallbackQuery({ text: "Invalid time selection." });
+      return;
+    }
+
+    const timeValue = `${hh}:${mm}:00`;
+    const { error } = await supabase
+      .from("users")
+      .update({ preferred_word_time: timeValue })
+      .eq("telegram_id", ctx.from.id);
+
+    await ctx.answerCallbackQuery();
+
+    if (error) {
+      await ctx.reply("I couldn't update your settings right now. Please try again.");
+      return;
+    }
+
+    await ctx.reply(`✅ Got it! You'll receive your daily words at ${hh}:${mm} Eastern Time.`);
     return;
   }
 

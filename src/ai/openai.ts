@@ -106,11 +106,15 @@ export async function generateResponse(
   return response;
 }
 
-export async function generateVoice(text: string): Promise<Buffer> {
+export async function generateVoice(
+  text: string,
+  options?: { voice?: string; speed?: number }
+): Promise<Buffer> {
   const response = await openai.audio.speech.create({
     model: "tts-1",
-    voice: "alloy",
+    voice: (options?.voice ?? "alloy") as "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer",
     input: text,
+    speed: options?.speed ?? 1.0,
   });
 
   const arrayBuffer = await response.arrayBuffer();
