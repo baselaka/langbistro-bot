@@ -1,6 +1,59 @@
-import type { Context } from "grammy";
-import { openai } from "../ai/openai";
+import { randomBytes } from "node:crypto";
+import { InlineKeyboard, InputFile, type Context } from "grammy";
+import { generateVoice, openai } from "../ai/openai";
 import { supabase } from "../db/client";
+
+const ONBOARDING_SENTENCE_1 = "¿Cómo te llamas y cuántos años tienes?";
+const ONBOARDING_SENTENCE_2 = "Ayer fui al mercado y compré frutas frescas. ¿Qué compraste tú?";
+const ONBOARDING_SENTENCE_3 =
+  "Si pudieras vivir en cualquier país del mundo, ¿dónde vivirías y por qué?";
+
+const readPayloadByToken = new Map<string, string>();
+const MAX_READ_PAYLOAD_ENTRIES = 2000;
+
+function buildOnboardingReadCallbackData(text: string): string {
+  const b64 = Buffer.from(text, "utf8").toString("base64");
+  const inline = `read_onboarding:${b64}`;
+  if (Buffer.byteLength(inline, "utf8") <= 64) {
+    return inline;
+  }
+  if (readPayloadByToken.size >= MAX_READ_PAYLOAD_ENTRIES) {
+    const first = readPayloadByToken.keys().next().value;
+    if (first !== undefined) {
+      readPayloadByToken.delete(first);
+    }
+  }
+  let token: string;
+  do {
+    token = randomBytes(5).toString("base64url");
+  } while (readPayloadByToken.has(token));
+  readPayloadByToken.set(token, text);
+  return `read_onboarding:t.${token}`;
+}
+
+/** Resolves read_onboarding callback payload (inline base64 text or t. token map). */
+export function resolveOnboardingReadCallbackData(data: string): string | null {
+  if (!data.startsWith("read_onboarding:")) {
+    return null;
+  }
+  const rest = data.slice("read_onboarding:".length);
+  if (rest.startsWith("t.")) {
+    return readPayloadByToken.get(rest.slice(2)) ?? null;
+  }
+  try {
+    const decoded = Buffer.from(rest, "base64").toString("utf8");
+    return decoded.length > 0 ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
+async function sendVoiceWithRead(ctx: Context, text: string): Promise<void> {
+  const audio = await generateVoice(text);
+  const callbackData = buildOnboardingReadCallbackData(text);
+  const keyboard = new InlineKeyboard().text("📖 Read", callbackData);
+  await ctx.replyWithVoice(new InputFile(audio, "onboarding.mp3"), { reply_markup: keyboard });
+}
 
 export type OnboardingState = {
   step: 0 | 1 | 2;
@@ -43,9 +96,10 @@ export async function startOnboarding(ctx: Context, telegramId: number): Promise
 
 I'll send you 3 short sentences. Just respond naturally — there are no wrong answers!
 
-Sentence 1: "Me llamo [your name] y tengo [your age] años."
-Try to respond to this in Spanish 👆`
+You'll hear each prompt in Spanish (tap 📖 Read under any voice note to see the text). Reply in Spanish after each one!`
   );
+
+  await sendVoiceWithRead(ctx, ONBOARDING_SENTENCE_1);
 }
 
 export async function evaluateOnboarding(
@@ -109,17 +163,13 @@ export async function handleOnboardingResponse(
 
   if (state.step === 0) {
     setOnboardingState(telegramId, { step: 1, responses: nextResponses });
-    await ctx.reply(
-      `Sentence 2: "Ayer fui al mercado y compré frutas frescas. ¿Qué compraste tú?"`
-    );
+    await sendVoiceWithRead(ctx, ONBOARDING_SENTENCE_2);
     return false;
   }
 
   if (state.step === 1) {
     setOnboardingState(telegramId, { step: 2, responses: nextResponses });
-    await ctx.reply(
-      `Sentence 3: "Si pudieras vivir en cualquier país del mundo, ¿dónde vivirías y por qué?"`
-    );
+    await sendVoiceWithRead(ctx, ONBOARDING_SENTENCE_3);
     return false;
   }
 
@@ -131,6 +181,14 @@ export async function handleOnboardingResponse(
   await ctx.reply(
     `Thanks for your answers! Based on what you wrote, I'm placing you at the ${level} level for now. We can always adjust as you improve — let's start practicing!`
   );
+
+  const closingVoiceScripts: Record<"beginner" | "intermediate" | "advanced", string> = {
+    beginner: "¡Hola! Soy Bistro, tu tutor de español. ¡Empecemos! ¿Cómo te llamas?",
+    intermediate: "¡Hola! Soy Bistro. ¡Vamos a practicar! ¿De dónde eres?",
+    advanced: "¡Hola! Soy Bistro. ¡Comencemos! ¿Qué te motivó a aprender español?",
+  };
+  const closingScript = closingVoiceScripts[level] ?? closingVoiceScripts.beginner;
+  await sendVoiceWithRead(ctx, closingScript);
 
   onboardingByTelegramId.delete(telegramId);
   return true;

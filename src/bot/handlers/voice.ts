@@ -8,6 +8,8 @@ import { runAssistantTurn } from "../../services/conversation";
 import { checkAndIncrementUsage } from "../../services/usage";
 import { getOrCreateUserByTelegram } from "../../services/users";
 import { handleOnboardingResponse, isInOnboarding } from "../../services/onboarding";
+import { handleQuizResponse } from "../../services/quizHandler";
+import { isInQuiz } from "../../services/quizState";
 import { sendStructuredUxResponse } from "./ux-flow";
 
 export async function handleVoice(ctx: Context): Promise<void> {
@@ -52,6 +54,26 @@ export async function handleVoice(ctx: Context): Promise<void> {
     if (onboardingDone) {
       return;
     }
+    return;
+  }
+
+  if (isInQuiz(from.id)) {
+    const file = await ctx.api.getFile(voice.file_id);
+    if (!file.file_path) {
+      await ctx.reply("I couldn't process that voice message. Please try again.");
+      return;
+    }
+
+    const telegramFileUrl = `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+    const fileResponse = await fetch(telegramFileUrl);
+    if (!fileResponse.ok) {
+      await ctx.reply("I couldn't download your voice message. Please try again.");
+      return;
+    }
+
+    const audioBuffer = Buffer.from(await fileResponse.arrayBuffer());
+    const transcript = await transcribeVoice(audioBuffer, voice.mime_type ?? "audio/ogg");
+    await handleQuizResponse(ctx, from.id, user.id, transcript, "voice");
     return;
   }
 

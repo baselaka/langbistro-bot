@@ -30,7 +30,7 @@ async function gptGradeSpanishAnswer(
   context: "review" | "fill_blank"
 ): Promise<boolean> {
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     temperature: 0,
     response_format: { type: "json_object" },
     messages: [

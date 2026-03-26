@@ -1,11 +1,23 @@
 import { InputFile, type Context } from "grammy";
 import { generateVoice } from "../../ai/openai";
 import { supabase } from "../../db/client";
+import { resolveOnboardingReadCallbackData } from "../../services/onboarding";
 import { getCallbackMeta } from "../ux-memory";
 
 export async function handleCallbackQuery(ctx: Context): Promise<void> {
   const data = ctx.callbackQuery?.data;
   if (!data) {
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
+  if (data.startsWith("read_onboarding:")) {
+    const spanish = resolveOnboardingReadCallbackData(data);
+    if (!spanish) {
+      await ctx.answerCallbackQuery({ text: "This text is no longer available." });
+      return;
+    }
+    await ctx.reply(spanish);
     await ctx.answerCallbackQuery();
     return;
   }

@@ -5,6 +5,8 @@ import { checkAndIncrementUsage } from "../../services/usage";
 import { getOrCreateUserByTelegram } from "../../services/users";
 import { runAssistantTurn } from "../../services/conversation";
 import { handleOnboardingResponse, isInOnboarding } from "../../services/onboarding";
+import { handleQuizResponse } from "../../services/quizHandler";
+import { isInQuiz } from "../../services/quizState";
 import { supabase } from "../../db/client";
 import { sendStructuredUxResponse } from "./ux-flow";
 
@@ -27,6 +29,11 @@ export async function handleMessage(ctx: Context): Promise<void> {
     if (onboardingDone) {
       return;
     }
+    return;
+  }
+
+  if (isInQuiz(from.id)) {
+    await handleQuizResponse(ctx, from.id, user.id, text);
     return;
   }
 

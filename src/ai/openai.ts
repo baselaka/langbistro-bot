@@ -3,7 +3,7 @@ import { z } from "zod";
 import { env } from "../config/env";
 
 export type ChatMessage = {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
 };
 
@@ -69,13 +69,20 @@ export async function generateResponse(
   languageCode: string
 ): Promise<AssistantResponse> {
   const systemPrompt = buildSystemPrompt(languageCode);
+  const injectedSystem = messages.filter((m) => m.role === "system").map((m) => m.content);
+  const convo = messages.filter((m) => m.role !== "system");
+  const combinedSystem =
+    injectedSystem.length > 0
+      ? `${injectedSystem.join("\n\n")}\n\n---\n\n${systemPrompt}`
+      : systemPrompt;
+
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
     temperature: 0.7,
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: systemPrompt },
-      ...messages.map((message) => ({
+      { role: "system", content: combinedSystem },
+      ...convo.map((message) => ({
         role: message.role,
         content: message.content,
       })),
@@ -84,6 +91,13 @@ export async function generateResponse(
 
   const raw = completion.choices[0]?.message?.content?.trim() || "{}";
   const parsed = JSON.parse(raw);
+  if (parsed.correction && (
+    typeof parsed.correction.explanation !== "string" ||
+    typeof parsed.correction.original !== "string" ||
+    typeof parsed.correction.corrected !== "string"
+  )) {
+    parsed.correction = null;
+  }
   const responseSchema = z.object({
     correction: z
       .object({

@@ -7,6 +7,7 @@ import {
   buildWordMessage,
   getOrCreateDailySession,
 } from "../services/dailySession";
+import { setQuizState } from "../services/quizState";
 import { getDailyWords, getReviewWord } from "../services/vocabulary";
 
 type DeliveryUser = {
@@ -60,6 +61,11 @@ export function startWordDeliveryJob(bot: Bot): void {
             continue;
           }
           await bot.api.sendMessage(user.telegram_id, buildReviewMessage(reviewWord));
+          setQuizState(user.telegram_id, {
+            type: "review",
+            word: reviewWord.word,
+            vocabularyId: reviewWord.id,
+          });
           await supabase
             .from("daily_sessions")
             .update({ engaged: true })
@@ -80,6 +86,12 @@ export function startWordDeliveryJob(bot: Bot): void {
 
         const fillBlankWord = words[Math.floor(Math.random() * words.length)];
         await bot.api.sendMessage(user.telegram_id, buildFillBlankMessage(fillBlankWord));
+        setQuizState(user.telegram_id, {
+          type: "fill_blank",
+          word: fillBlankWord.word,
+          sentence: fillBlankWord.example_sentence ?? undefined,
+          vocabularyId: fillBlankWord.id,
+        });
         await supabase
           .from("daily_sessions")
           .update({ engaged: true })

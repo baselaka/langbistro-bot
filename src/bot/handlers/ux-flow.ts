@@ -6,10 +6,12 @@ function escapeMarkdownV2(value: string): string {
   return value.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
 }
 
-export async function sendStructuredUxResponse(
+export async function sendUxFlow(
   ctx: Context,
   structured: AssistantResponse,
-  responseVoice: Buffer
+  voiceBuffer: Buffer,
+  skipEncouragement = false,
+  explanationOverride?: string
 ): Promise<void> {
   const chatId = ctx.chat?.id;
   if (!chatId) {
@@ -39,21 +41,24 @@ export async function sendStructuredUxResponse(
         `explain_correction:${correctionMessageId}`
       ),
     });
-  } else {
+  } else if (!skipEncouragement) {
     await ctx.reply("¡Muy bien! ¡Sigue asi!");
   }
 
-  const voiceMessage = await ctx.replyWithVoice(new InputFile(responseVoice, "bistro-response.mp3"), {
+  const voiceMessage = await ctx.replyWithVoice(new InputFile(voiceBuffer, "bistro-response.mp3"), {
     reply_markup: new InlineKeyboard()
       .text("📖 Read", "read_reply:pending")
       .text("💡 Explain", "explain_reply:pending"),
   });
 
   const voiceMessageId = voiceMessage.message_id;
-  storeReplyMeta(voiceMessageId, structured.reply, structured.replyExplanation);
+  const explanationToStore = explanationOverride ?? structured.replyExplanation;
+  storeReplyMeta(voiceMessageId, structured.reply, explanationToStore);
   await ctx.api.editMessageReplyMarkup(chatId, voiceMessageId, {
     reply_markup: new InlineKeyboard()
       .text("📖 Read", `read_reply:${voiceMessageId}`)
       .text("💡 Explain", `explain_reply:${voiceMessageId}`),
   });
 }
+
+export const sendStructuredUxResponse = sendUxFlow;
