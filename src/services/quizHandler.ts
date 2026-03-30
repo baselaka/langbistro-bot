@@ -15,6 +15,7 @@ export async function handleQuizResponse(
   telegramId: number,
   userId: number,
   text: string,
+  isSubscribed: boolean,
   messageType: "text" | "voice" = "text"
 ): Promise<void> {
   const state = getQuizState(telegramId);
@@ -84,7 +85,8 @@ Instructions:
     { role: "user" as const, content: text },
   ];
 
-  const structuredResponse = await generateResponse(messagesForGpt, "es");
+  const model = isSubscribed ? "gpt-4o" : "gpt-4o-mini";
+  const structuredResponse = await generateResponse(messagesForGpt, "es", model);
 
   const { error: saveError } = await supabase.from("messages").insert([
     {

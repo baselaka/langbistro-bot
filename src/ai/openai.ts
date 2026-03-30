@@ -65,24 +65,25 @@ export async function transcribeVoice(fileBuffer: Buffer, mimeType: string): Pro
 }
 
 export async function generateResponse(
-  messages: ChatMessage[],
-  languageCode: string
+  convo: ChatMessage[],
+  languageCode: string,
+  model: string = "gpt-4o"
 ): Promise<AssistantResponse> {
   const systemPrompt = buildSystemPrompt(languageCode);
-  const injectedSystem = messages.filter((m) => m.role === "system").map((m) => m.content);
-  const convo = messages.filter((m) => m.role !== "system");
+  const injectedSystem = convo.filter((m) => m.role === "system").map((m) => m.content);
+  const convoMessages = convo.filter((m) => m.role !== "system");
   const combinedSystem =
     injectedSystem.length > 0
       ? `${injectedSystem.join("\n\n")}\n\n---\n\n${systemPrompt}`
       : systemPrompt;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model,
     temperature: 0.7,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: combinedSystem },
-      ...convo.map((message) => ({
+      ...convoMessages.map((message) => ({
         role: message.role,
         content: message.content,
       })),

@@ -12,7 +12,8 @@ export async function runAssistantTurn(
   userId: number,
   languageCode: string,
   userContent: string,
-  userMessageType: MessageType
+  userMessageType: MessageType,
+  isSubscribed: boolean
 ): Promise<AssistantTurnResult> {
   const { data: historyRows, error: historyError } = await supabase
     .from("messages")
@@ -33,9 +34,11 @@ export async function runAssistantTurn(
       content: row.content,
     }));
 
+  const model = isSubscribed ? "gpt-4o" : "gpt-4o-mini";
   const structured = await generateResponse(
     [...history, { role: "user", content: userContent }],
-    languageCode
+    languageCode,
+    model
   );
 
   const { error: saveMessagesError } = await supabase.from("messages").insert([

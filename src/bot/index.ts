@@ -1,5 +1,7 @@
 import { Bot } from "grammy";
 import { env } from "../config/env";
+import { startInactivityJob } from "../jobs/inactivityJob";
+import { startWordDeliveryJob } from "../jobs/wordDelivery";
 import { handleCallbackQuery } from "./handlers/callback";
 import { handleMessage } from "./handlers/message";
 import { handleSettings } from "./handlers/settings";
@@ -16,6 +18,11 @@ export function createBot(): Bot {
   bot.on("callback_query:data", handleCallbackQuery);
 
   return bot;
+}
+
+export function startScheduledJobs(bot: Bot): void {
+  startWordDeliveryJob(bot);
+  startInactivityJob(bot);
 }
 
 export async function startBot(): Promise<Bot> {

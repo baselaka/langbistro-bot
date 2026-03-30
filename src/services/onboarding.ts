@@ -103,10 +103,12 @@ You'll hear each prompt in Spanish (tap 📖 Read under any voice note to see th
 }
 
 export async function evaluateOnboarding(
-  responses: string[]
+  responses: string[],
+  isSubscribed: boolean
 ): Promise<"beginner" | "intermediate" | "advanced"> {
+  const model = isSubscribed ? "gpt-4o" : "gpt-4o-mini";
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model,
     temperature: 0.2,
     messages: [
       {
@@ -152,7 +154,8 @@ export async function handleOnboardingResponse(
   ctx: Context,
   telegramId: number,
   userId: number,
-  text: string
+  text: string,
+  isSubscribed: boolean
 ): Promise<boolean> {
   const state = onboardingByTelegramId.get(telegramId);
   if (!state) {
@@ -175,7 +178,7 @@ export async function handleOnboardingResponse(
 
   // step === 2: this message is the third response
   const allResponses = [...state.responses, text];
-  const level = await evaluateOnboarding(allResponses);
+  const level = await evaluateOnboarding(allResponses, isSubscribed);
   await completeOnboarding(userId, level);
 
   await ctx.reply(

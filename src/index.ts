@@ -1,5 +1,4 @@
-import { createBot } from "./bot";
-import { startWordDeliveryJob } from "./jobs/wordDelivery";
+import { createBot, startScheduledJobs } from "./bot";
 
 async function main(): Promise<void> {
   const bot = createBot();
@@ -8,7 +7,7 @@ async function main(): Promise<void> {
       ?.replace(/\d{8,}:[A-Za-z0-9_-]{35}/g, "[REDACTED_TOKEN]");
     console.error("Bot error:", err.message, safeUpdate);
   });
-  startWordDeliveryJob(bot);
+  startScheduledJobs(bot);
   console.log("Starting LangBistro bot...");
   bot.start({
     onStart: () => console.log("LangBistro bot is running..."),

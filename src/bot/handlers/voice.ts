@@ -49,7 +49,8 @@ export async function handleVoice(ctx: Context): Promise<void> {
       ctx,
       from.id,
       user.id,
-      onboardingTranscript
+      onboardingTranscript,
+      user.is_subscribed
     );
     if (onboardingDone) {
       return;
@@ -73,7 +74,7 @@ export async function handleVoice(ctx: Context): Promise<void> {
 
     const audioBuffer = Buffer.from(await fileResponse.arrayBuffer());
     const transcript = await transcribeVoice(audioBuffer, voice.mime_type ?? "audio/ogg");
-    await handleQuizResponse(ctx, from.id, user.id, transcript, "voice");
+    await handleQuizResponse(ctx, from.id, user.id, transcript, user.is_subscribed, "voice");
     return;
   }
 
@@ -119,7 +120,8 @@ export async function handleVoice(ctx: Context): Promise<void> {
     user.id,
     user.language_code ?? "es",
     transcript,
-    "voice"
+    "voice",
+    user.is_subscribed
   );
 
   await sendStructuredUxResponse(ctx, structured, responseVoice);

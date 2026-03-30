@@ -25,7 +25,7 @@ export async function handleMessage(ctx: Context): Promise<void> {
   });
 
   if (isInOnboarding(from.id)) {
-    const onboardingDone = await handleOnboardingResponse(ctx, from.id, user.id, text);
+    const onboardingDone = await handleOnboardingResponse(ctx, from.id, user.id, text, user.is_subscribed);
     if (onboardingDone) {
       return;
     }
@@ -33,7 +33,7 @@ export async function handleMessage(ctx: Context): Promise<void> {
   }
 
   if (isInQuiz(from.id)) {
-    await handleQuizResponse(ctx, from.id, user.id, text);
+    await handleQuizResponse(ctx, from.id, user.id, text, user.is_subscribed);
     return;
   }
 
@@ -63,7 +63,8 @@ export async function handleMessage(ctx: Context): Promise<void> {
     user.id,
     user.language_code ?? "es",
     text,
-    "text"
+    "text",
+    user.is_subscribed
   );
 
   await sendStructuredUxResponse(ctx, structured, responseVoice);

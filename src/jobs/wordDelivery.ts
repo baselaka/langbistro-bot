@@ -35,7 +35,8 @@ export function startWordDeliveryJob(bot: Bot): void {
       .select("id, telegram_id, preferred_word_timezone, words_learned_count, current_tier")
       .eq("preferred_word_time", dbTime)
       .eq("onboarding_complete", true)
-      .eq("is_subscribed", true);
+      .eq("is_subscribed", true)
+      .eq("inactivity_stage", 0);
 
     if (error) {
       console.error("Word delivery query failed:", error);
