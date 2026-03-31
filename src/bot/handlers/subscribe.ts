@@ -6,18 +6,14 @@ export async function handleSubscribe(ctx: Context): Promise<void> {
     return;
   }
 
-  const encodedTelegramId = encodeURIComponent(String(telegramId));
-  const monthlyUrl = `https://langbistro.com/subscribe?telegram_id=${encodedTelegramId}&plan=monthly`;
-  const annualUrl = `https://langbistro.com/subscribe?telegram_id=${encodedTelegramId}&plan=annual`;
+  const subscribeUrl = `https://langbistro.com/subscribe?telegram_id=${telegramId.toString()}`;
 
-  const keyboard = new InlineKeyboard()
-    .url("📅 Monthly — $11.99/mo", monthlyUrl)
-    .url("📆 Annual — $79.99/yr", annualUrl);
+  const keyboard = new InlineKeyboard().url("⚡ Subscribe to Pro", subscribeUrl);
 
   await ctx.reply(
-    "⚡ Ready to go Pro?\n\nUnlock unlimited conversations, all vocabulary tiers, and more capable AI models.\n\nTaxes calculated at checkout.",
+    "Choose your plan and unlock:\n\n✓ Unlimited text & voice messages\n✓ All vocabulary tiers\n✓ More capable AI models\n\nTaxes calculated at checkout.",
     {
-    reply_markup: keyboard,
+      reply_markup: keyboard,
     }
   );
 }
