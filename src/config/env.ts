@@ -14,6 +14,18 @@ const envSchema = z.object({
   SUPABASE_ANON_KEY: z
     .string()
     .min(1, "SUPABASE_ANON_KEY is required and cannot be empty"),
+  PADDLE_API_KEY: z
+    .string()
+    .min(1, "PADDLE_API_KEY is required and cannot be empty"),
+  PADDLE_WEBHOOK_SECRET: z
+    .string()
+    .min(1, "PADDLE_WEBHOOK_SECRET is required and cannot be empty"),
+  PADDLE_MONTHLY_PRICE_ID: z
+    .string()
+    .min(1, "PADDLE_MONTHLY_PRICE_ID is required and cannot be empty"),
+  PADDLE_YEARLY_PRICE_ID: z
+    .string()
+    .min(1, "PADDLE_YEARLY_PRICE_ID is required and cannot be empty"),
 });
 
 const parsed = envSchema.safeParse(process.env);

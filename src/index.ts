@@ -1,4 +1,5 @@
 import { createBot, startScheduledJobs } from "./bot";
+import { startServer } from "./server";
 
 async function main(): Promise<void> {
   const bot = createBot();
@@ -8,6 +9,7 @@ async function main(): Promise<void> {
     console.error("Bot error:", err.message, safeUpdate);
   });
   startScheduledJobs(bot);
+  startServer();
   console.log("Starting LangBistro bot...");
   bot.start({
     onStart: () => console.log("LangBistro bot is running..."),

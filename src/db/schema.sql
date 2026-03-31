@@ -66,8 +66,8 @@ CREATE TABLE IF NOT EXISTS word_sets (
 CREATE TABLE IF NOT EXISTS subscriptions (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-  stripe_customer_id TEXT,
-  stripe_subscription_id TEXT,
+  paddle_customer_id TEXT,
+  paddle_subscription_id TEXT,
   status TEXT,
   current_period_end TIMESTAMPTZ
 );

@@ -6,6 +6,7 @@ import { handleCallbackQuery } from "./handlers/callback";
 import { handleMessage } from "./handlers/message";
 import { handleSettings } from "./handlers/settings";
 import { handleStart } from "./handlers/start";
+import { handleSubscribe } from "./handlers/subscribe";
 import { handleVoice } from "./handlers/voice";
 
 export function createBot(): Bot {
@@ -13,6 +14,7 @@ export function createBot(): Bot {
 
   bot.command("start", handleStart);
   bot.command("settings", handleSettings);
+  bot.command("subscribe", handleSubscribe);
   bot.on("message:voice", handleVoice);
   bot.on("message:text", handleMessage);
   bot.on("callback_query:data", handleCallbackQuery);
