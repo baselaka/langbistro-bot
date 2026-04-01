@@ -1,5 +1,9 @@
 import { InlineKeyboard, type Context } from "grammy";
+import { Paddle } from "@paddle/paddle-node-sdk";
+import { env } from "../../config/env";
 import { supabase } from "../../db/client";
+
+const paddle = new Paddle(env.PADDLE_API_KEY);
 
 export async function handleSettings(ctx: Context): Promise<void> {
   const telegramId = ctx.from?.id;
@@ -16,7 +20,7 @@ export async function handleSettings(ctx: Context): Promise<void> {
   const { data: subscription } = user
     ? await supabase
         .from("subscriptions")
-        .select("status, current_period_end, paddle_customer_id")
+        .select("status, current_period_end, paddle_customer_id, paddle_subscription_id")
         .eq("user_id", user.id)
         .single()
     : { data: null };
@@ -34,12 +38,19 @@ export async function handleSettings(ctx: Context): Promise<void> {
       });
       lines.push(`Renews on ${renewal}`);
     }
-    if (subscription?.paddle_customer_id) {
-      keyboard.url(
-        "Manage subscription",
-        `https://subscriptions.paddle.com/customer/portal/${subscription.paddle_customer_id}`
-      );
-      keyboard.row();
+    if (subscription?.paddle_customer_id && subscription?.paddle_subscription_id) {
+      try {
+        const portalSession = await paddle.customerPortalSessions.create(
+          subscription.paddle_customer_id,
+          [subscription.paddle_subscription_id]
+        );
+        const portalUrl = portalSession.urls.general.overview;
+        keyboard.url("Manage subscription", portalUrl);
+        keyboard.row();
+      } catch (error) {
+        console.error("Failed to create Paddle portal session:", error);
+        lines.push("To manage your subscription, contact us at support@langbistro.com");
+      }
     }
   } else {
     lines.push("🆓 Free plan");
