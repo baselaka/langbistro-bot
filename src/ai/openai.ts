@@ -59,6 +59,7 @@ export async function transcribeVoice(fileBuffer: Buffer, mimeType: string): Pro
   const result = await openai.audio.transcriptions.create({
     file,
     model: "whisper-1",
+    language: "es",
   });
 
   return result.text;
