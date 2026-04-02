@@ -40,6 +40,10 @@ export async function handleSettings(ctx: Context): Promise<void> {
     }
     if (subscription?.paddle_customer_id && subscription?.paddle_subscription_id) {
       try {
+        console.log("Creating portal session with:", {
+          customerId: subscription.paddle_customer_id,
+          subscriptionId: subscription.paddle_subscription_id,
+        });
         const portalSession = await paddle.customerPortalSessions.create(
           subscription.paddle_customer_id,
           [subscription.paddle_subscription_id]
