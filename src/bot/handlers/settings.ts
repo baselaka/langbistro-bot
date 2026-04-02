@@ -1,8 +1,6 @@
 import { InlineKeyboard, type Context } from "grammy";
 import { supabase } from "../../db/client";
 
-const PADDLE_CUSTOMER_PORTAL_URL = "https://customer-portal.paddle.com";
-
 export async function handleSettings(ctx: Context): Promise<void> {
   const telegramId = ctx.from?.id;
   if (!telegramId) {
@@ -36,8 +34,6 @@ export async function handleSettings(ctx: Context): Promise<void> {
       });
       lines.push(`Renews on ${renewal}`);
     }
-    keyboard.url("Manage subscription", PADDLE_CUSTOMER_PORTAL_URL);
-    keyboard.row();
   } else {
     lines.push("🆓 Free plan");
     keyboard.url("⚡ Upgrade to Pro", "https://t.me/langbistro_bot?start=subscribe");
