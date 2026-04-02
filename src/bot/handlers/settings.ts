@@ -27,9 +27,6 @@ export async function handleSettings(ctx: Context): Promise<void> {
 
   const keyboard = new InlineKeyboard();
   const lines: string[] = ["⚙️ Settings"];
-  const normalizedLevel = (user?.level ?? "beginner").toLowerCase();
-  const formattedLevel = normalizedLevel.charAt(0).toUpperCase() + normalizedLevel.slice(1);
-  lines.push(`📊 Level: ${formattedLevel}`);
 
   if (user?.is_subscribed) {
     lines.push("✅ Pro subscriber");
@@ -61,13 +58,21 @@ export async function handleSettings(ctx: Context): Promise<void> {
     keyboard.row();
   }
 
+  const normalizedLevel = (user?.level ?? "beginner").toLowerCase();
+  const formattedLevel = normalizedLevel.charAt(0).toUpperCase() + normalizedLevel.slice(1);
+  lines.push(`📊 Level: ${formattedLevel}`);
+  lines.push("", "What is your Spanish level?");
+
   keyboard
     .text("🌱 Beginner", "settings_level:beginner")
     .text("📈 Intermediate", "settings_level:intermediate")
     .text("🎓 Advanced", "settings_level:advanced")
     .row();
 
-  lines.push("", "What time would you like to receive your daily words?");
+  lines.push(
+    "",
+    "What time would you like to receive your daily words? Times are in Eastern Time (ET)."
+  );
 
   keyboard
     .text("🌅 8:00 AM (ET)", "settings_time:08:00")
