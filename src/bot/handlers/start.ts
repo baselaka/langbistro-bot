@@ -35,6 +35,6 @@ export async function handleStart(ctx: Context): Promise<void> {
   }
 
   await ctx.reply(
-    "¡Bienvenido de nuevo! Ready to practice your Spanish? Send me a message or a voice note to get started! 🎙️"
+    "¡Bienvenido de nuevo! Ready to practice? Send me a message or voice note to continue! 🎙️"
   );
 }

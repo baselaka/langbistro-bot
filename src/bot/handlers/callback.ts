@@ -1,7 +1,11 @@
 import { InputFile, type Context } from "grammy";
 import { generateVoice } from "../../ai/openai";
 import { supabase } from "../../db/client";
-import { resolveOnboardingReadCallbackData } from "../../services/onboarding";
+import {
+  handleOnboardingLevelCallback,
+  handleOnboardingTimeCallback,
+  resolveOnboardingReadCallbackData,
+} from "../../services/onboarding";
 import { getCallbackMeta } from "../ux-memory";
 
 export async function handleCallbackQuery(ctx: Context): Promise<void> {
@@ -47,6 +51,44 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
     }
 
     await ctx.answerCallbackQuery();
+    return;
+  }
+
+  if (data.startsWith("onboarding_level:")) {
+    const level = data.slice("onboarding_level:".length);
+    const telegramId = ctx.from?.id;
+    if (!telegramId) {
+      await ctx.answerCallbackQuery({ text: "User not found." });
+      return;
+    }
+
+    const { data: user, error } = await supabase.from("users").select("id").eq("telegram_id", telegramId).single();
+    if (error || !user) {
+      await ctx.answerCallbackQuery({ text: "Could not find your profile." });
+      return;
+    }
+
+    await ctx.answerCallbackQuery();
+    await handleOnboardingLevelCallback(ctx, telegramId, user.id, level);
+    return;
+  }
+
+  if (data.startsWith("onboarding_time:")) {
+    const time = data.slice("onboarding_time:".length);
+    const telegramId = ctx.from?.id;
+    if (!telegramId) {
+      await ctx.answerCallbackQuery({ text: "User not found." });
+      return;
+    }
+
+    const { data: user, error } = await supabase.from("users").select("id").eq("telegram_id", telegramId).single();
+    if (error || !user) {
+      await ctx.answerCallbackQuery({ text: "Could not find your profile." });
+      return;
+    }
+
+    await ctx.answerCallbackQuery();
+    await handleOnboardingTimeCallback(ctx, telegramId, user.id, time);
     return;
   }
 

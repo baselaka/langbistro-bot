@@ -7,7 +7,7 @@ import { getMilestoneMessage } from "../../services/vocabulary";
 import { runAssistantTurn } from "../../services/conversation";
 import { checkAndIncrementUsage } from "../../services/usage";
 import { getOrCreateUserByTelegram } from "../../services/users";
-import { handleOnboardingResponse, isInOnboarding } from "../../services/onboarding";
+import { isInOnboarding } from "../../services/onboarding";
 import { handleQuizResponse } from "../../services/quizHandler";
 import { isInQuiz } from "../../services/quizState";
 import { sendStructuredUxResponse } from "./ux-flow";
@@ -27,34 +27,7 @@ export async function handleVoice(ctx: Context): Promise<void> {
   });
 
   if (isInOnboarding(from.id)) {
-    const onboardingFile = await ctx.api.getFile(voice.file_id);
-    if (!onboardingFile.file_path) {
-      await ctx.reply("I couldn't process that voice message. Please try again.");
-      return;
-    }
-
-    const onboardingFileUrl = `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${onboardingFile.file_path}`;
-    const onboardingFileResponse = await fetch(onboardingFileUrl);
-    if (!onboardingFileResponse.ok) {
-      await ctx.reply("I couldn't download your voice message. Please try again.");
-      return;
-    }
-
-    const onboardingAudioBuffer = Buffer.from(await onboardingFileResponse.arrayBuffer());
-    const onboardingTranscript = await transcribeVoice(
-      onboardingAudioBuffer,
-      voice.mime_type ?? "audio/ogg"
-    );
-    const onboardingDone = await handleOnboardingResponse(
-      ctx,
-      from.id,
-      user.id,
-      onboardingTranscript,
-      user.is_subscribed
-    );
-    if (onboardingDone) {
-      return;
-    }
+    await ctx.reply("Please use the buttons above to complete your setup first.");
     return;
   }
 

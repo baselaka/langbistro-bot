@@ -4,7 +4,7 @@ import { getMilestoneMessage } from "../../services/vocabulary";
 import { checkAndIncrementUsage } from "../../services/usage";
 import { getOrCreateUserByTelegram } from "../../services/users";
 import { runAssistantTurn } from "../../services/conversation";
-import { handleOnboardingResponse, isInOnboarding } from "../../services/onboarding";
+import { isInOnboarding } from "../../services/onboarding";
 import { handleQuizResponse } from "../../services/quizHandler";
 import { isInQuiz } from "../../services/quizState";
 import { supabase } from "../../db/client";
@@ -25,10 +25,7 @@ export async function handleMessage(ctx: Context): Promise<void> {
   });
 
   if (isInOnboarding(from.id)) {
-    const onboardingDone = await handleOnboardingResponse(ctx, from.id, user.id, text, user.is_subscribed);
-    if (onboardingDone) {
-      return;
-    }
+    await ctx.reply("Please use the buttons above to complete your setup first.");
     return;
   }
 
