@@ -13,8 +13,15 @@ export async function runAssistantTurn(
   languageCode: string,
   userContent: string,
   userMessageType: MessageType,
-  isSubscribed: boolean
+  isSubscribed: boolean,
+  level: string = "beginner"
 ): Promise<AssistantTurnResult> {
+  const { data: userRow, error: userError } = await supabase.from("users").select("level").eq("id", userId).single();
+  if (userError) {
+    throw new Error(`Failed to fetch user level: ${userError.message}`);
+  }
+  const effectiveLevel = userRow?.level ?? level ?? "beginner";
+
   const { data: historyRows, error: historyError } = await supabase
     .from("messages")
     .select("role, content")
@@ -38,7 +45,8 @@ export async function runAssistantTurn(
   const structured = await generateResponse(
     [...history, { role: "user", content: userContent }],
     languageCode,
-    model
+    model,
+    effectiveLevel
   );
 
   const { error: saveMessagesError } = await supabase.from("messages").insert([

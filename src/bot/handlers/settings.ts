@@ -13,7 +13,7 @@ export async function handleSettings(ctx: Context): Promise<void> {
 
   const { data: user } = await supabase
     .from("users")
-    .select("id, is_subscribed")
+    .select("id, is_subscribed, level")
     .eq("telegram_id", telegramId)
     .single();
 
@@ -27,6 +27,9 @@ export async function handleSettings(ctx: Context): Promise<void> {
 
   const keyboard = new InlineKeyboard();
   const lines: string[] = ["⚙️ Settings"];
+  const normalizedLevel = (user?.level ?? "beginner").toLowerCase();
+  const formattedLevel = normalizedLevel.charAt(0).toUpperCase() + normalizedLevel.slice(1);
+  lines.push(`📊 Level: ${formattedLevel}`);
 
   if (user?.is_subscribed) {
     lines.push("✅ Pro subscriber");
@@ -58,14 +61,23 @@ export async function handleSettings(ctx: Context): Promise<void> {
     keyboard.row();
   }
 
+  keyboard
+    .text("🌱 Beginner", "settings_level:beginner")
+    .text("📈 Intermediate", "settings_level:intermediate")
+    .text("🎓 Advanced", "settings_level:advanced")
+    .row();
+
   lines.push("", "What time would you like to receive your daily words?");
 
   keyboard
-    .text("🌅 8:00 AM", "settings_time:08:00")
-    .text("☀️ 12:00 PM", "settings_time:12:00")
+    .text("🌅 8:00 AM (ET)", "settings_time:08:00")
+    .text("☀️ 11:00 AM (ET)", "settings_time:11:00")
     .row()
-    .text("🌆 6:00 PM", "settings_time:18:00")
-    .text("🌙 9:00 PM", "settings_time:21:00");
+    .text("🌇 2:00 PM (ET)", "settings_time:14:00")
+    .text("🌆 5:00 PM (ET)", "settings_time:17:00")
+    .row()
+    .text("🌙 8:00 PM (ET)", "settings_time:20:00")
+    .text("🌃 11:00 PM (ET)", "settings_time:23:00");
 
   await ctx.reply(lines.join("\n"), {
     reply_markup: keyboard,

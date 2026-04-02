@@ -119,6 +119,24 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
     return;
   }
 
+  if (data.startsWith("settings_level:")) {
+    const level = data.slice("settings_level:".length);
+    const telegramId = ctx.from?.id;
+    if (!telegramId) {
+      await ctx.answerCallbackQuery({ text: "User not found." });
+      return;
+    }
+
+    const { error } = await supabase.from("users").update({ level }).eq("telegram_id", telegramId);
+    if (error) {
+      await ctx.answerCallbackQuery({ text: "Could not update level." });
+      return;
+    }
+
+    await ctx.answerCallbackQuery(`Level updated to ${level}!`);
+    return;
+  }
+
   const [action, rawMessageId] = data.split(":");
   const messageId = Number(rawMessageId);
 
