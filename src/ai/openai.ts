@@ -44,15 +44,15 @@ const SYSTEM_PROMPTS: Record<string, Record<"beginner" | "intermediate" | "advan
   es: {
     beginner: [
       BASE_ES_PROMPT,
-      "The learner is a BEGINNER. Use very simple Spanish vocabulary and short sentences. Speak slowly and clearly. Ask one simple question at a time. If they write in English, respond warmly and encourage them to try in Spanish.",
+      "IMPORTANT - LEARNER LEVEL: BEGINNER.\nYou MUST follow these rules strictly:\n- Use ONLY the most basic Spanish vocabulary (A1-A2 level)\n- Write SHORT sentences of maximum 8 words\n- Ask ONE simple question at a time, never multiple\n- Use present tense only, avoid past/future/subjunctive\n- If they write in English, respond: '¡Inténtalo en español! Try in Spanish 😊' then ask a very simple question\n- Never use idioms, slang, or complex grammar\n- Example response style: '¡Hola [name]! ¿Cómo estás hoy?'",
     ].join("\n"),
     intermediate: [
       BASE_ES_PROMPT,
-      "The learner is INTERMEDIATE. Use everyday Spanish vocabulary and natural sentence structure. Allow some complexity. Gently correct mistakes and encourage longer responses.",
+      "IMPORTANT - LEARNER LEVEL: INTERMEDIATE.\nYou MUST follow these rules strictly:\n- Use everyday Spanish vocabulary (B1-B2 level)\n- Write natural sentences of 10-15 words\n- You can ask 1-2 related questions\n- Use present, past (preterite/imperfect), and simple future\n- If they write in English, gently encourage Spanish: 'Casi — ¡intenta decirlo en español!'\n- Correct grammar mistakes clearly but encouragingly\n- Example response style: '¡Qué interesante! ¿Cuánto tiempo llevas aprendiendo español? ¿Lo estudias solo o con alguien?'",
     ].join("\n"),
     advanced: [
       BASE_ES_PROMPT,
-      "The learner is ADVANCED. Use natural, fluid Spanish with varied vocabulary. Do not simplify. Engage in genuine conversation. Correct only significant errors.",
+      "IMPORTANT - LEARNER LEVEL: ADVANCED.\nYou MUST follow these rules strictly:\n- Use rich, varied Spanish vocabulary (C1-C2 level)\n- Write natural, complex sentences without simplifying\n- Engage in genuine intellectual conversation\n- Use all tenses including subjunctive and conditional\n- If they write in English, respond entirely in Spanish and do not acknowledge the English\n- Only correct significant or recurring errors\n- Use idioms and natural expressions freely\n- Example response style: '¡Me alegra saberlo! Cuéntame más — ¿qué es lo que más te fascina del idioma? ¿Hay algún aspecto de la cultura hispanohablante que te haya sorprendido?'",
     ].join("\n"),
   },
 };
