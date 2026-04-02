@@ -15,7 +15,7 @@ export async function handleSubscribe(ctx: Context): Promise<void> {
 
   if (user?.is_subscribed) {
     await ctx.reply(
-      "✅ You're already a Pro subscriber!\n\nTo manage or cancel your subscription, visit:\n👉 https://customer-portal.paddle.com\n\nSign in with the email you used at checkout."
+      "✅ You're a Pro subscriber!\n\nTo manage or cancel your subscription, email us at:\n📧 support@langbistro.com\n\nWe'll help you within 1 business day."
     );
     return;
   }

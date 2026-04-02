@@ -7,38 +7,10 @@ export async function handleSettings(ctx: Context): Promise<void> {
     return;
   }
 
-  const { data: user } = await supabase
-    .from("users")
-    .select("id, is_subscribed, level")
-    .eq("telegram_id", telegramId)
-    .single();
-
-  const { data: subscription } = user
-    ? await supabase
-        .from("subscriptions")
-        .select("current_period_end")
-        .eq("user_id", user.id)
-        .single()
-    : { data: null };
+  const { data: user } = await supabase.from("users").select("level").eq("telegram_id", telegramId).single();
 
   const keyboard = new InlineKeyboard();
   const lines: string[] = ["⚙️ Settings"];
-
-  if (user?.is_subscribed) {
-    lines.push("✅ Pro subscriber");
-    if (subscription?.current_period_end) {
-      const renewal = new Date(subscription.current_period_end).toLocaleDateString("en-US", {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-      });
-      lines.push(`Renews on ${renewal}`);
-    }
-  } else {
-    lines.push("🆓 Free plan");
-    keyboard.url("⚡ Upgrade to Pro", "https://t.me/langbistro_bot?start=subscribe");
-    keyboard.row();
-  }
 
   const normalizedLevel = (user?.level ?? "beginner").toLowerCase();
   const formattedLevel = normalizedLevel.charAt(0).toUpperCase() + normalizedLevel.slice(1);
