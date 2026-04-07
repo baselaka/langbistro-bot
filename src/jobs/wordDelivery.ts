@@ -56,28 +56,15 @@ export function startWordDeliveryJob(bot: Bot): void {
           continue;
         }
 
-        if (user.words_learned_count > 0) {
-          const reviewWord = await getReviewWord(user.id);
-          if (!reviewWord) {
-            continue;
-          }
-          await bot.api.sendMessage(user.telegram_id, buildReviewMessage(reviewWord));
-          setQuizState(user.telegram_id, {
-            type: "review",
-            word: reviewWord.word,
-            vocabularyId: reviewWord.id,
-          });
-          await supabase
-            .from("daily_sessions")
-            .update({ engaged: true })
-            .eq("id", session.id);
-          continue;
-        }
-
         const words = await getDailyWords(user.id, user.current_tier);
         if (words.length === 0) {
           continue;
         }
+
+        await supabase
+          .from("daily_sessions")
+          .update({ engaged: true })
+          .eq("id", session.id);
 
         const { text: wordListText, keyboard: wordListKeyboard } = buildWordMessage(words);
         await bot.api.sendMessage(user.telegram_id, wordListText, {
@@ -87,16 +74,28 @@ export function startWordDeliveryJob(bot: Bot): void {
 
         const fillBlankWord = words[Math.floor(Math.random() * words.length)];
         await bot.api.sendMessage(user.telegram_id, buildFillBlankMessage(fillBlankWord));
-        setQuizState(user.telegram_id, {
-          type: "fill_blank",
+
+        const fillBlankState = {
+          type: "fill_blank" as const,
           word: fillBlankWord.word,
           sentence: fillBlankWord.example_sentence ?? undefined,
           vocabularyId: fillBlankWord.id,
-        });
-        await supabase
-          .from("daily_sessions")
-          .update({ engaged: true })
-          .eq("id", session.id);
+        };
+
+        if (user.words_learned_count > 0) {
+          const reviewWord = await getReviewWord(user.id);
+          if (reviewWord) {
+            await bot.api.sendMessage(user.telegram_id, buildReviewMessage(reviewWord));
+            setQuizState(user.telegram_id, {
+              type: "review",
+              word: reviewWord.word,
+              vocabularyId: reviewWord.id,
+            });
+            continue;
+          }
+        }
+
+        setQuizState(user.telegram_id, fillBlankState);
       } catch (userError) {
         console.error(`Word delivery failed for user ${user.id}:`, userError instanceof Error ? userError.stack : userError);
       }
