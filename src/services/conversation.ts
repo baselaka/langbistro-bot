@@ -1,4 +1,4 @@
-import { AssistantResponse, ChatMessage, generateResponse, generateVoice } from "../ai/openai";
+import { AssistantResponse, ChatMessage, generateResponse, generateVoice, getVoiceSpeedForLevel } from "../ai/openai";
 import { supabase } from "../db/client";
 
 type MessageType = "text" | "voice";
@@ -68,6 +68,8 @@ export async function runAssistantTurn(
     throw new Error(`Failed to save conversation messages: ${saveMessagesError.message}`);
   }
 
-  const responseVoice = await generateVoice(structured.reply);
+  const responseVoice = await generateVoice(structured.reply, {
+    speed: getVoiceSpeedForLevel(effectiveLevel),
+  });
   return { structured, responseVoice };
 }

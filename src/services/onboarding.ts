@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { InlineKeyboard, InputFile, type Context } from "grammy";
-import { generateVoice } from "../ai/openai";
+import { generateVoice, getVoiceSpeedForLevel } from "../ai/openai";
 import { supabase } from "../db/client";
 
 const readPayloadByToken = new Map<string, string>();
@@ -43,8 +43,10 @@ export function resolveOnboardingReadCallbackData(data: string): string | null {
   }
 }
 
-async function sendVoiceWithRead(ctx: Context, text: string): Promise<void> {
-  const audio = await generateVoice(text);
+async function sendVoiceWithRead(ctx: Context, text: string, level: string = "intermediate"): Promise<void> {
+  const audio = await generateVoice(text, {
+    speed: getVoiceSpeedForLevel(level),
+  });
   const callbackData = buildOnboardingReadCallbackData(text);
   const keyboard = new InlineKeyboard().text("📖 Read", callbackData);
   await ctx.replyWithVoice(new InputFile(audio, "onboarding.mp3"), { reply_markup: keyboard });
@@ -174,5 +176,5 @@ export async function handleOnboardingTimeCallback(
   };
   const openingText = openingByLevel[level as "beginner" | "intermediate" | "advanced"] ?? openingByLevel.beginner;
   await ctx.reply(openingText);
-  await sendVoiceWithRead(ctx, openingText);
+  await sendVoiceWithRead(ctx, openingText, level);
 }

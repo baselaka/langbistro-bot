@@ -65,6 +65,14 @@ function normalizeLevel(level: string): "beginner" | "intermediate" | "advanced"
   return "beginner";
 }
 
+export function getVoiceSpeedForLevel(level: string): number {
+  const normalized = normalizeLevel(level);
+  if (normalized === "beginner") {
+    return 0.85;
+  }
+  return 1.0;
+}
+
 export const openai = new OpenAI({
   apiKey: env.OPENAI_API_KEY,
 });
