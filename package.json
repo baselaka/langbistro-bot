@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "seed": "ts-node src/db/seeds/run-seed.ts"
+    "seed": "ts-node src/db/seeds/run-seed.ts",
+    "seed:vocab": "ts-node src/db/seeds/vocabulary-5k.ts"
   },
   "repository": {
     "type": "git",
@@ -33,6 +34,7 @@
     "grammy": "^1.41.1",
     "node-cron": "^4.2.1",
     "openai": "^6.32.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
