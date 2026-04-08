@@ -35,6 +35,15 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Strip non-printable/control chars and characters that could break JSON in plain text; final encoding uses JSON.stringify per word. */
+function sanitizeWordForPrompt(raw: string): string {
+  return raw
+    .replace(/[\x00-\x1F\x7F-\x9F\uFEFF]/g, "")
+    .replace(/\\/g, "")
+    .replace(/"/g, "")
+    .trim();
+}
+
 function parseModelJson(content: string): unknown {
   const cleaned = content
     .trim()
@@ -70,10 +79,8 @@ function readWordsFromExcel(filePath: string): string[] {
 }
 
 function buildUserPrompt(words: string[]): string {
-  return [
-    "Words:",
-    words.join(", "),
-  ].join("\n");
+  const line = words.map((w) => JSON.stringify(w)).join(", ");
+  return ["Words:", line].join("\n");
 }
 
 async function enrichBatch(words: string[]): Promise<z.infer<typeof vocabItemSchema>[]> {
@@ -116,11 +123,12 @@ async function enrichBatch(words: string[]): Promise<z.infer<typeof vocabItemSch
   return out;
 }
 
-async function main(): Promise<void> {
-  const words = readWordsFromExcel(EXCEL_PATH);
+async function main(): Promise<number> {
+  const rawWords = readWordsFromExcel(EXCEL_PATH);
+  const words = rawWords.map(sanitizeWordForPrompt).filter((w) => w.length > 0);
   if (words.length === 0) {
     console.log("[vocabulary-5k] No words found in Excel file.");
-    return;
+    return 0;
   }
 
   const wordsWithRank = words.map((word, index) => ({
@@ -132,47 +140,61 @@ async function main(): Promise<void> {
   const batches = chunk(wordsWithRank, BATCH_SIZE);
   console.log(`[vocabulary-5k] Loaded ${wordsWithRank.length} words, ${batches.length} batches.`);
 
+  let batchesSucceeded = 0;
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
     const batchWords = batch.map((b) => b.word);
     const rankByWord = new Map(batch.map((b) => [b.word, b]));
     console.log(`[vocabulary-5k] Processing batch ${i + 1}/${batches.length} (${batch.length} words)...`);
 
-    const enriched = await enrichBatch(batchWords);
-    if (enriched.length === 0) {
-      console.warn(`[vocabulary-5k] Batch ${i + 1}: no valid items returned; skipping upsert.`);
-      await sleep(BATCH_DELAY_MS);
-      continue;
+    try {
+      const enriched = await enrichBatch(batchWords);
+      if (enriched.length === 0) {
+        console.warn(`[vocabulary-5k] Batch ${i + 1}: no valid items returned; skipping upsert.`);
+        await sleep(BATCH_DELAY_MS);
+        continue;
+      }
+
+      const rows = enriched
+        .map((item) => {
+          const rankMeta = rankByWord.get(item.word);
+          if (!rankMeta) return null;
+          return {
+            word: item.word,
+            translation: item.translation,
+            example_sentence: item.example_sentence,
+            tier: rankMeta.tier,
+            frequency_rank: rankMeta.frequency_rank,
+          };
+        })
+        .filter((row): row is NonNullable<typeof row> => row !== null);
+
+      const { error } = await supabase.from("vocabulary").upsert(rows, { onConflict: "word" });
+      if (error) {
+        console.error(`[vocabulary-5k] Batch ${i + 1} upsert failed:`, error.message);
+        await sleep(BATCH_DELAY_MS);
+        continue;
+      }
+
+      batchesSucceeded++;
+      console.log(`[vocabulary-5k] Batch ${i + 1}: upserted ${rows.length} rows.`);
+    } catch (error) {
+      console.error(`[vocabulary-5k] Batch ${i + 1} failed:`, error);
     }
 
-    const rows = enriched
-      .map((item) => {
-        const rankMeta = rankByWord.get(item.word);
-        if (!rankMeta) return null;
-        return {
-          word: item.word,
-          translation: item.translation,
-          example_sentence: item.example_sentence,
-          tier: rankMeta.tier,
-          frequency_rank: rankMeta.frequency_rank,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row !== null);
-
-    const { error } = await supabase.from("vocabulary").upsert(rows, { onConflict: "word" });
-    if (error) {
-      throw new Error(`Batch ${i + 1} upsert failed: ${error.message}`);
-    }
-
-    console.log(`[vocabulary-5k] Batch ${i + 1}: upserted ${rows.length} rows.`);
     await sleep(BATCH_DELAY_MS);
   }
 
   console.log("[vocabulary-5k] Done.");
+  if (batches.length > 0 && batchesSucceeded === 0) {
+    console.error("[vocabulary-5k] No batches completed successfully.");
+    return 1;
+  }
+  return 0;
 }
 
 main()
-  .then(() => process.exit(0))
+  .then((code) => process.exit(code))
   .catch((error) => {
     console.error("[vocabulary-5k] Fatal error:", error);
     process.exit(1);
