@@ -10,22 +10,24 @@ export type Vocabulary = {
   frequency_rank: number;
 };
 
-const MILESTONES = [50, 100, 200, 300, 400, 493] as const;
+const MILESTONES = [50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 4000] as const;
 
 const MILESTONE_MESSAGES: Record<number, string> = {
   50: "¡Muy bien! You've learned your first 50 words — you can already understand basic greetings and everyday phrases!",
-  100:
-    "¡Felicidades! You know the 100 most used Spanish words — you can introduce yourself and understand simple conversations!",
-  200: "¡Increíble! 200 words down. You can now handle basic shopping, directions, and small talk!",
-  300: "¡Excelente! 300 words — you're approaching conversational territory. Keep going!",
-  400: "¡Fantástico! 400 words learned. You can now express opinions and understand most everyday Spanish!",
-  493:
-    "¡Increíble! You've mastered all the core Spanish words. You can now hold real conversations — ¡enhorabuena!",
+  100: "¡Felicidades! 100 words down — you can introduce yourself and understand simple conversations!",
+  250: "¡Genial! 250 words learned. You can now handle basic shopping, directions, and small talk!",
+  500: "¡Increíble! 500 words — you're building real conversational ability. Keep going!",
+  750: "¡Excelente! 750 words learned. You can now express opinions and understand most everyday Spanish!",
+  1000: "¡Fantástico! 1,000 words — you've crossed a major milestone. Most conversations are within reach!",
+  1500: "¡Impresionante! 1,500 words. You're approaching intermediate fluency — ¡sigue así!",
+  2000: "¡Asombroso! 2,000 words learned. You can read simple Spanish texts and hold extended conversations!",
+  3000: "¡Sobresaliente! 3,000 words — you're in advanced territory now. Most native content is accessible!",
+  4000: "¡Eres increíble! 4,000 words mastered. You're fluent in the most essential Spanish vocabulary — ¡enhorabuena!",
 };
 
 export function getMilestoneMessage(wordsCount: number): string | null {
   if (MILESTONES.includes(wordsCount as (typeof MILESTONES)[number])) {
-    return MILESTONE_MESSAGES[wordsCount] ?? null;
+    return MILESTONE_MESSAGES[wordsCount as (typeof MILESTONES)[number]] ?? null;
   }
   return null;
 }
