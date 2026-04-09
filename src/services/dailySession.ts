@@ -111,17 +111,50 @@ export function buildWordMessage(words: Vocabulary[]): {
   };
 }
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+type FillBlankSentence = {
+  sentence: string;
+  blanked: string;
+};
+
+export async function generateFillBlankSentence(word: string): Promise<FillBlankSentence> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a Spanish language teacher. Generate a natural Spanish sentence that uses the exact word form provided. The sentence should be 8-12 words long and appropriate for language learners. Return JSON only: {\"sentence\": \"your sentence here\", \"blanked\": \"same sentence with the target word replaced by _____\"}",
+        },
+        {
+          role: "user",
+          content: `Generate a sentence using this exact Spanish word: ${word}`,
+        },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content?.trim() ?? "{}";
+    const parsed = JSON.parse(raw) as Partial<FillBlankSentence>;
+    const sentence = typeof parsed.sentence === "string" ? parsed.sentence.trim() : "";
+    const blanked = typeof parsed.blanked === "string" ? parsed.blanked.trim() : "";
+    if (sentence && blanked) {
+      return { sentence, blanked };
+    }
+  } catch {
+    // Fall through to deterministic fallback message.
+  }
+
+  return {
+    sentence: "",
+    blanked: `Complete this sentence using: ${word}\n_____`,
+  };
 }
 
-/** Replaces first case-insensitive occurrence of `word` with blanks */
-export function buildFillBlankMessage(word: Vocabulary): string {
-  const sentence = word.example_sentence ?? "";
-  const pattern = new RegExp(escapeRegExp(word.word), "i");
-  const blanked = sentence.replace(pattern, "_____");
-
-  return `Now try this! Fill in the blank:\n"${blanked}"\n(use your voice or type your answer!)`;
+export async function buildFillBlankMessage(word: Vocabulary): Promise<string> {
+  const { blanked } = await generateFillBlankSentence(word.word);
+  return `Fill in the blank:\n"${blanked}"\n(Reply by voice or text!)`;
 }
 
 export function buildReviewMessage(word: Vocabulary): string {

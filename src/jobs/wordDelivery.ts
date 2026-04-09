@@ -3,12 +3,11 @@ import type { Bot } from "grammy";
 import { supabase } from "../db/client";
 import {
   buildFillBlankMessage,
-  buildReviewMessage,
   buildWordMessage,
   getOrCreateDailySession,
 } from "../services/dailySession";
 import { setQuizState } from "../services/quizState";
-import { getDailyWords, getReviewWord } from "../services/vocabulary";
+import { getDailyWords } from "../services/vocabulary";
 
 type DeliveryUser = {
   id: number;
@@ -73,7 +72,7 @@ export function startWordDeliveryJob(bot: Bot): void {
         });
 
         const fillBlankWord = words[Math.floor(Math.random() * words.length)];
-        await bot.api.sendMessage(user.telegram_id, buildFillBlankMessage(fillBlankWord));
+        await bot.api.sendMessage(user.telegram_id, await buildFillBlankMessage(fillBlankWord));
 
         const fillBlankState = {
           type: "fill_blank" as const,
@@ -81,19 +80,6 @@ export function startWordDeliveryJob(bot: Bot): void {
           sentence: fillBlankWord.example_sentence ?? undefined,
           vocabularyId: fillBlankWord.id,
         };
-
-        if (user.words_learned_count > 0) {
-          const reviewWord = await getReviewWord(user.id);
-          if (reviewWord) {
-            await bot.api.sendMessage(user.telegram_id, buildReviewMessage(reviewWord));
-            setQuizState(user.telegram_id, {
-              type: "review",
-              word: reviewWord.word,
-              vocabularyId: reviewWord.id,
-            });
-            continue;
-          }
-        }
 
         setQuizState(user.telegram_id, fillBlankState);
       } catch (userError) {
