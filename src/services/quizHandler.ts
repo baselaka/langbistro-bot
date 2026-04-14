@@ -109,7 +109,9 @@ Instructions:
 
   clearQuizState(telegramId);
 
-  await markWordsLearned(userId, [state.vocabularyId]);
+  if (isCorrect) {
+    await markWordsLearned(userId, [state.vocabularyId]);
+  }
 
   const { data: userRow } = await supabase.from("users").select("words_learned_count").eq("id", userId).single();
   const wordsLearnedCount = userRow?.words_learned_count ?? 0;
