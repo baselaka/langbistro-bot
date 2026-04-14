@@ -29,6 +29,17 @@ export function startScheduledJobs(bot: Bot): void {
 
 export async function startBot(): Promise<Bot> {
   const bot = createBot();
+  process.on("SIGTERM", async () => {
+    console.log("[Bot] SIGTERM received — stopping bot gracefully");
+    bot.stop();
+    process.exit(0);
+  });
+
+  process.on("SIGINT", async () => {
+    console.log("[Bot] SIGINT received — stopping bot gracefully");
+    bot.stop();
+    process.exit(0);
+  });
   await bot.start();
   console.log("LangBistro bot is running...");
   return bot;
