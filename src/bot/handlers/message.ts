@@ -27,6 +27,13 @@ export async function handleMessage(ctx: Context): Promise<void> {
     languageCode: from.language_code ?? null,
   });
 
+  if (user.is_banned) {
+    await ctx.reply(
+      "Your account is currently suspended. Please contact @langbistro_support if you believe this is a mistake."
+    );
+    return;
+  }
+
   if (isInOnboarding(from.id)) {
     await ctx.reply("Please use the buttons above to complete your setup first.");
     return;
@@ -37,10 +44,10 @@ export async function handleMessage(ctx: Context): Promise<void> {
     return;
   }
 
-  if (user.is_banned) {
-    await ctx.reply(
-      "Your account is currently suspended. Please contact @langbistro_support if you believe this is a mistake."
-    );
+  const moderation = await checkViolation(text);
+  if (moderation.flagged) {
+    const violationReply = await handleViolation(user.id, moderation.violationType ?? "restricted_content");
+    await ctx.reply(violationReply);
     return;
   }
 
@@ -62,13 +69,6 @@ export async function handleMessage(ctx: Context): Promise<void> {
     await ctx.reply(
       "You reached today's free text limit (10/day). Upgrade to continue unlimited practice."
     );
-    return;
-  }
-
-  const moderation = await checkViolation(text);
-  if (moderation.flagged) {
-    const violationReply = await handleViolation(user.id, moderation.violationType ?? "restricted_content");
-    await ctx.reply(violationReply);
     return;
   }
 
