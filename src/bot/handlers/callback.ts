@@ -115,6 +115,34 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
     return;
   }
 
+  if (data.startsWith("settings_language:")) {
+    const newLang = data.slice("settings_language:".length);
+    const telegramId = ctx.from?.id;
+    if (!telegramId) {
+      await ctx.answerCallbackQuery({ text: "User not found." });
+      return;
+    }
+
+    const langLabel = newLang === "fr" ? "French 🇫🇷" : "Spanish 🇪🇸";
+
+    const { error } = await supabase.from("users").update({
+      target_language: newLang,
+      level: "beginner",
+      current_tier: 1,
+    }).eq("telegram_id", telegramId);
+
+    if (error) {
+      await ctx.answerCallbackQuery({ text: "Could not switch language." });
+      return;
+    }
+
+    await ctx.answerCallbackQuery();
+    await ctx.reply(
+      `✅ Switched to ${langLabel}!\n\nYour level has been reset to Beginner and you'll start from Tier 1 vocabulary. Your progress in the previous language is saved.`
+    );
+    return;
+  }
+
   if (data.startsWith("settings_time:")) {
     const parts = data.split(":");
     const hh = parts[1];

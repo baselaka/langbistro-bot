@@ -7,21 +7,31 @@ export async function handleSettings(ctx: Context): Promise<void> {
     return;
   }
 
-  const { data: user } = await supabase.from("users").select("level").eq("telegram_id", telegramId).single();
+  const { data: user } = await supabase.from("users").select("level, target_language").eq("telegram_id", telegramId).single();
 
   const keyboard = new InlineKeyboard();
   const lines: string[] = ["⚙️ Settings"];
 
   const normalizedLevel = (user?.level ?? "beginner").toLowerCase();
   const formattedLevel = normalizedLevel.charAt(0).toUpperCase() + normalizedLevel.slice(1);
+  const lang = user?.target_language ?? "es";
+  const langLabel = lang === "fr" ? "🇫🇷 French" : "🇪🇸 Spanish";
+  lines.push(`🌍 Language: ${langLabel}`);
   lines.push(`📊 Level: ${formattedLevel}`);
-  lines.push("", "What is your Spanish level?");
+  lines.push("", lang === "fr" ? "Quel est ton niveau de français ?" : "What is your Spanish level?");
 
   keyboard
     .text("🌱 Beginner", "settings_level:beginner")
     .text("📈 Intermediate", "settings_level:intermediate")
     .text("🎓 Advanced", "settings_level:advanced")
     .row();
+
+  lines.push("", "Switch your learning language:");
+  if (lang === "es") {
+    keyboard.text("🇫🇷 Switch to French", "settings_language:fr").row();
+  } else {
+    keyboard.text("🇪🇸 Switch to Spanish", "settings_language:es").row();
+  }
 
   lines.push(
     "",
