@@ -6,6 +6,7 @@ import {
   handleOnboardingTimeCallback,
   resolveOnboardingReadCallbackData,
 } from "../../services/onboarding";
+import { etToUtc } from "../../utils/timeConvert";
 import { getCallbackMeta } from "../ux-memory";
 
 export async function handleCallbackQuery(ctx: Context): Promise<void> {
@@ -102,7 +103,8 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       return;
     }
 
-    const timeValue = `${hh}:${mm}:00`;
+    const utcHHMM = etToUtc(`${hh}:${mm}`);
+    const timeValue = `${utcHHMM}:00`;
     const { error } = await supabase
       .from("users")
       .update({ preferred_word_time: timeValue })

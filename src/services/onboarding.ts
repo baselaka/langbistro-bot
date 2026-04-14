@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { InlineKeyboard, InputFile, type Context } from "grammy";
 import { generateVoice, getVoiceSpeedForLevel } from "../ai/openai";
 import { supabase } from "../db/client";
+import { etToUtc } from "../utils/timeConvert";
 
 const readPayloadByToken = new Map<string, string>();
 const MAX_READ_PAYLOAD_ENTRIES = 2000;
@@ -153,7 +154,8 @@ export async function handleOnboardingTimeCallback(
     throw new Error(`Failed to read onboarding level: ${userError.message}`);
   }
 
-  const timeValue = `${time}:00`;
+  const utcHHMM = etToUtc(time);
+  const timeValue = `${utcHHMM}:00`;
   const { error } = await supabase
     .from("users")
     .update({
