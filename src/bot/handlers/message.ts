@@ -51,8 +51,9 @@ export async function handleMessage(ctx: Context): Promise<void> {
     return;
   }
 
-  const isSpanish = await isTargetLanguage(text, "es");
-  if (!isSpanish) {
+  const targetLanguage = (user.target_language ?? "es") as "es" | "fr";
+  const isExpectedLanguage = await isTargetLanguage(text, targetLanguage);
+  if (!isExpectedLanguage) {
     const nudge = "¡Inténtalo en español! 😊 No importa si cometes errores.";
     const structured: AssistantResponse = {
       correction: null,
@@ -74,7 +75,7 @@ export async function handleMessage(ctx: Context): Promise<void> {
 
   const { structured, responseVoice } = await runAssistantTurn(
     user.id,
-    user.language_code ?? "es",
+    user.target_language ?? "es",
     text,
     "text",
     user.is_subscribed

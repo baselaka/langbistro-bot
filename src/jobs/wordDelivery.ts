@@ -15,6 +15,7 @@ type DeliveryUser = {
   preferred_word_timezone: string;
   words_learned_count: number;
   current_tier: number;
+  target_language: string | null;
 };
 
 function getUtcHHMM(date: Date = new Date()): string {
@@ -31,7 +32,7 @@ export function startWordDeliveryJob(bot: Bot): void {
 
     const { data: users, error } = await supabase
       .from("users")
-      .select("id, telegram_id, preferred_word_timezone, words_learned_count, current_tier")
+      .select("id, telegram_id, preferred_word_timezone, words_learned_count, current_tier, target_language")
       .eq("preferred_word_time", dbTime)
       .eq("onboarding_complete", true)
       .eq("inactivity_stage", 0);
@@ -54,7 +55,7 @@ export function startWordDeliveryJob(bot: Bot): void {
           continue;
         }
 
-        const words = await getDailyWords(user.id, user.current_tier);
+        const words = await getDailyWords(user.id, user.current_tier, user.target_language ?? "es");
         if (words.length === 0) {
           continue;
         }
@@ -71,7 +72,7 @@ export function startWordDeliveryJob(bot: Bot): void {
         });
 
         const fillBlankWord = words[Math.floor(Math.random() * words.length)];
-        await bot.api.sendMessage(user.telegram_id, await buildFillBlankMessage(fillBlankWord));
+        await bot.api.sendMessage(user.telegram_id, await buildFillBlankMessage(fillBlankWord, user.target_language ?? "es"));
 
         const fillBlankState = {
           type: "fill_blank" as const,

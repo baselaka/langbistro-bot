@@ -152,8 +152,41 @@ export async function generateFillBlankSentence(word: string): Promise<FillBlank
   };
 }
 
-export async function buildFillBlankMessage(word: Vocabulary): Promise<string> {
-  const { blanked } = await generateFillBlankSentence(word.word);
+export async function buildFillBlankMessage(word: Vocabulary, language: string = "es"): Promise<string> {
+  const { blanked } = await (async () => {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: 0.3,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              language === "fr"
+                ? "You are a French language teacher. Write a natural French sentence using the exact word form provided. The sentence should be 8-12 words long and appropriate for language learners. Return JSON only: {\"sentence\": \"your sentence here\", \"blanked\": \"same sentence with the target word replaced by _____\"}"
+                : "You are a Spanish language teacher. Write a natural Spanish sentence using the exact word form provided. The sentence should be 8-12 words long and appropriate for language learners. Return JSON only: {\"sentence\": \"your sentence here\", \"blanked\": \"same sentence with the target word replaced by _____\"}",
+          },
+          {
+            role: "user",
+            content: `Generate a sentence using this exact ${language === "fr" ? "French" : "Spanish"} word: ${word.word}`,
+          },
+        ],
+      });
+
+      const raw = completion.choices[0]?.message?.content?.trim() ?? "{}";
+      const parsed = JSON.parse(raw) as Partial<FillBlankSentence>;
+      const sentence = typeof parsed.sentence === "string" ? parsed.sentence.trim() : "";
+      const blanked = typeof parsed.blanked === "string" ? parsed.blanked.trim() : "";
+      if (sentence && blanked) {
+        return { sentence, blanked };
+      }
+    } catch {
+      // Fall back to shared deterministic message below.
+    }
+
+    return await generateFillBlankSentence(word.word);
+  })();
   return `Fill in the blank:\n"${blanked}"\n(Reply by voice or text!)`;
 }
 

@@ -14,11 +14,7 @@ function shouldBypassDetection(text: string): boolean {
   return false;
 }
 
-export async function isTargetLanguage(text: string, targetLang: "es"): Promise<boolean> {
-  if (targetLang !== "es") {
-    return true;
-  }
-
+export async function isTargetLanguage(text: string, targetLang: "es" | "fr"): Promise<boolean> {
   if (shouldBypassDetection(text)) {
     return true;
   }
@@ -34,7 +30,7 @@ export async function isTargetLanguage(text: string, targetLang: "es"): Promise<
         },
         {
           role: "user",
-          content: `Is the following message written in Spanish? Message: ${text}`,
+          content: `Is the following message written in ${targetLang === "fr" ? "French" : "Spanish"}? Message: ${text}`,
         },
       ],
     });

@@ -36,7 +36,7 @@ export function checkAnswerMatch(userAnswer: string, expectedWord: string): bool
   return normalizeText(userAnswer) === normalizeText(expectedWord);
 }
 
-export async function getDailyWords(userId: number, tier: number): Promise<Vocabulary[]> {
+export async function getDailyWords(userId: number, tier: number, language: string = "es"): Promise<Vocabulary[]> {
   const { data: learnedRows, error: learnedError } = await supabase
     .from("user_vocabulary")
     .select("vocabulary_id")
@@ -51,7 +51,8 @@ export async function getDailyWords(userId: number, tier: number): Promise<Vocab
   const { data: candidates, error: vocabError } = await supabase
     .from("vocabulary")
     .select("id, word, translation, example_sentence, tier, frequency_rank")
-    .eq("tier", tier);
+    .eq("tier", tier)
+    .eq("language", language);
 
   if (vocabError) {
     throw new Error(`Failed to fetch vocabulary: ${vocabError.message}`);

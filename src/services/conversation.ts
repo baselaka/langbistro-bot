@@ -10,7 +10,7 @@ type AssistantTurnResult = {
 
 export async function runAssistantTurn(
   userId: number,
-  languageCode: string,
+  targetLanguage: string,
   userContent: string,
   userMessageType: MessageType,
   isSubscribed: boolean,
@@ -44,7 +44,7 @@ export async function runAssistantTurn(
   const model = isSubscribed ? "gpt-4o" : "gpt-4o-mini";
   const structured = await generateResponse(
     [...history, { role: "user", content: userContent }],
-    languageCode,
+    targetLanguage,
     model,
     effectiveLevel
   );

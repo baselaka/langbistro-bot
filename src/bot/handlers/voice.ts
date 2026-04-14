@@ -55,7 +55,11 @@ export async function handleVoice(ctx: Context): Promise<void> {
     }
 
     const audioBuffer = Buffer.from(await fileResponse.arrayBuffer());
-    const transcript = await transcribeVoice(audioBuffer, voice.mime_type ?? "audio/ogg");
+    const transcript = await transcribeVoice(
+      audioBuffer,
+      voice.mime_type ?? "audio/ogg",
+      user.target_language ?? "es"
+    );
     await handleQuizResponse(ctx, from.id, user.id, transcript, user.is_subscribed, "voice");
     return;
   }
@@ -74,7 +78,11 @@ export async function handleVoice(ctx: Context): Promise<void> {
   }
 
   const audioBuffer = Buffer.from(await fileResponse.arrayBuffer());
-  const transcript = await transcribeVoice(audioBuffer, voice.mime_type ?? "audio/ogg");
+  const transcript = await transcribeVoice(
+    audioBuffer,
+    voice.mime_type ?? "audio/ogg",
+    user.target_language ?? "es"
+  );
 
   const moderation = await checkViolation(transcript);
   if (moderation.flagged) {
@@ -83,8 +91,9 @@ export async function handleVoice(ctx: Context): Promise<void> {
     return;
   }
 
-  const isSpanish = await isTargetLanguage(transcript, "es");
-  if (!isSpanish) {
+  const targetLanguage = (user.target_language ?? "es") as "es" | "fr";
+  const isExpectedLanguage = await isTargetLanguage(transcript, targetLanguage);
+  if (!isExpectedLanguage) {
     const nudge = "¡Inténtalo en español! 😊 No importa si cometes errores.";
     const structured: AssistantResponse = {
       correction: null,
@@ -106,7 +115,7 @@ export async function handleVoice(ctx: Context): Promise<void> {
 
   const { structured, responseVoice } = await runAssistantTurn(
     user.id,
-    user.language_code ?? "es",
+    user.target_language ?? "es",
     transcript,
     "voice",
     user.is_subscribed
