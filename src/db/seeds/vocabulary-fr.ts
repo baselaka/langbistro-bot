@@ -6,7 +6,7 @@ import { supabase } from "../../db/client";
 
 const SHEET_NAME = "10,000 words";
 const EXCEL_PATH = path.resolve(__dirname, "french_vocabulary.xlsx");
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 100;
 const BATCH_DELAY_MS = 500;
 
 const vocabItemSchema = z.object({
