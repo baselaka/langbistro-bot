@@ -1,4 +1,4 @@
-import { Bot } from "grammy";
+import { Bot, GrammyError } from "grammy";
 import { env } from "../config/env";
 import { startInactivityJob } from "../jobs/inactivityJob";
 import { startWordDeliveryJob } from "../jobs/wordDelivery";
@@ -40,7 +40,20 @@ export async function startBot(): Promise<Bot> {
     bot.stop();
     process.exit(0);
   });
-  await bot.start();
+  async function startBot(): Promise<void> {
+    try {
+      await bot.start();
+    } catch (err) {
+      if (err instanceof GrammyError && err.error_code === 409) {
+        console.warn("[Bot] 409 conflict — another instance still connected. Waiting 35s before retry...");
+        await new Promise((resolve) => setTimeout(resolve, 35_000));
+        return startBot();
+      }
+      throw err;
+    }
+  }
+
+  await startBot();
   console.log("LangBistro bot is running...");
   return bot;
 }
