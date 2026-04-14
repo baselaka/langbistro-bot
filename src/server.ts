@@ -59,7 +59,7 @@ async function upsertSubscription(
   status: string
 ): Promise<void> {
   const currentPeriodEnd = payload.currentBillingPeriod?.endsAt ?? payload.nextBilledAt ?? null;
-  await supabase.from("subscriptions").upsert(
+  const { error } = await supabase.from("subscriptions").upsert(
     {
       user_id: userId,
       paddle_customer_id: payload.customerId ?? null,
@@ -69,6 +69,9 @@ async function upsertSubscription(
     },
     { onConflict: "user_id" }
   );
+  if (error) {
+    throw new Error(`Failed to upsert subscription: ${error.message}`);
+  }
 }
 
 export function startServer(): void {
@@ -106,31 +109,56 @@ export function startServer(): void {
         return;
       }
 
-      if (eventType === "subscription.activated") {
-        await supabase.from("users").update({ is_subscribed: true }).eq("id", userId);
-        await upsertSubscription(userId, payload, payload.status ?? "active");
-      } else if (eventType === "subscription.updated") {
-        const nextStatus = payload.status ?? "updated";
-        await supabase
-          .from("users")
-          .update({ is_subscribed: nextStatus === "active" })
-          .eq("id", userId);
-        await upsertSubscription(userId, payload, nextStatus);
-      } else if (eventType === "subscription.canceled") {
-        await supabase.from("users").update({ is_subscribed: false }).eq("id", userId);
-        await supabase
-          .from("subscriptions")
-          .update({ status: "canceled" })
-          .eq("user_id", userId);
-      } else if (eventType === "subscription.past_due") {
-        await supabase.from("users").update({ is_subscribed: false }).eq("id", userId);
-        await supabase
-          .from("subscriptions")
-          .update({ status: "past_due" })
-          .eq("user_id", userId);
-      }
+      try {
+        if (eventType === "subscription.activated") {
+          const { error } = await supabase.from("users").update({ is_subscribed: true }).eq("id", userId);
+          if (error) {
+            throw new Error(`Failed to activate user subscription: ${error.message}`);
+          }
+          await upsertSubscription(userId, payload, payload.status ?? "active");
+        } else if (eventType === "subscription.updated") {
+          const nextStatus = payload.status ?? "updated";
+          const { error } = await supabase
+            .from("users")
+            .update({ is_subscribed: nextStatus === "active" })
+            .eq("id", userId);
+          if (error) {
+            throw new Error(`Failed to update user subscription flag: ${error.message}`);
+          }
+          await upsertSubscription(userId, payload, nextStatus);
+        } else if (eventType === "subscription.canceled") {
+          await upsertSubscription(userId, payload, "canceled");
+          const currentPeriodEnd = payload.currentBillingPeriod?.endsAt ?? payload.nextBilledAt ?? null;
+          const shouldRevokeNow = (() => {
+            if (!currentPeriodEnd) return true;
+            const endMs = Date.parse(currentPeriodEnd);
+            return Number.isFinite(endMs) && endMs <= Date.now();
+          })();
+          if (shouldRevokeNow) {
+            const { error } = await supabase.from("users").update({ is_subscribed: false }).eq("id", userId);
+            if (error) {
+              throw new Error(`Failed to revoke canceled subscription access: ${error.message}`);
+            }
+          }
+        } else if (eventType === "subscription.past_due") {
+          const { error: userError } = await supabase.from("users").update({ is_subscribed: false }).eq("id", userId);
+          if (userError) {
+            throw new Error(`Failed to set past_due subscription access: ${userError.message}`);
+          }
+          const { error: subError } = await supabase
+            .from("subscriptions")
+            .update({ status: "past_due" })
+            .eq("user_id", userId);
+          if (subError) {
+            throw new Error(`Failed to set past_due subscription status: ${subError.message}`);
+          }
+        }
 
-      res.status(200).send("OK");
+        res.status(200).send("OK");
+      } catch (dbError) {
+        console.error("[Paddle webhook] DB write failed:", dbError);
+        res.status(500).send("DB write failed");
+      }
     }
   );
 

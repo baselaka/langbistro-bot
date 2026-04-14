@@ -44,10 +44,39 @@ export async function getOrCreateUserByTelegram(input: TelegramUserInput): Promi
     throw new Error(`Failed to load user after upsert: ${userError?.message ?? "unknown"}`);
   }
 
-  if (user.inactivity_stage > 0) {
-    await supabase.from("users").update({ inactivity_stage: 0 }).eq("telegram_id", input.telegramId);
-    return { ...user, inactivity_stage: 0 } as AppUser;
+  let normalizedUser = user as AppUser;
+  if (normalizedUser.is_subscribed) {
+    const { data: subscriptionRow, error: subscriptionError } = await supabase
+      .from("subscriptions")
+      .select("status, current_period_end")
+      .eq("user_id", normalizedUser.id)
+      .single();
+
+    if (subscriptionError && subscriptionError.code !== "PGRST116") {
+      throw new Error(`Failed to read subscription for user: ${subscriptionError.message}`);
+    }
+
+    const isCanceled = subscriptionRow?.status === "canceled";
+    const periodEnd = subscriptionRow?.current_period_end;
+    const periodEndMs = periodEnd ? Date.parse(periodEnd) : Number.NaN;
+    const isExpired = Number.isFinite(periodEndMs) && periodEndMs < Date.now();
+
+    if (isCanceled && isExpired) {
+      const { error: revokeError } = await supabase
+        .from("users")
+        .update({ is_subscribed: false })
+        .eq("id", normalizedUser.id);
+      if (revokeError) {
+        throw new Error(`Failed to revoke expired canceled subscription: ${revokeError.message}`);
+      }
+      normalizedUser = { ...normalizedUser, is_subscribed: false };
+    }
   }
 
-  return user as AppUser;
+  if (normalizedUser.inactivity_stage > 0) {
+    await supabase.from("users").update({ inactivity_stage: 0 }).eq("telegram_id", input.telegramId);
+    return { ...normalizedUser, inactivity_stage: 0 } as AppUser;
+  }
+
+  return normalizedUser;
 }
