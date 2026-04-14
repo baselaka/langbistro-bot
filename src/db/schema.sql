@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   preferred_word_timezone TEXT NOT NULL DEFAULT 'America/New_York',
   last_active_at TIMESTAMPTZ,
   inactivity_stage INTEGER NOT NULL DEFAULT 0,
+  target_language TEXT NOT NULL DEFAULT 'es',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -86,6 +87,7 @@ CREATE TABLE IF NOT EXISTS vocabulary (
   example_sentence TEXT,
   tier INTEGER NOT NULL DEFAULT 1,
   frequency_rank INTEGER NOT NULL,
+  language TEXT NOT NULL DEFAULT 'es',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -111,6 +113,7 @@ CREATE TABLE IF NOT EXISTS daily_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_vocabulary_tier ON vocabulary(tier);
 CREATE INDEX IF NOT EXISTS idx_vocabulary_rank ON vocabulary(frequency_rank);
+CREATE INDEX IF NOT EXISTS idx_vocabulary_language_tier ON vocabulary(language, tier);
 CREATE INDEX IF NOT EXISTS idx_user_vocabulary_user_id ON user_vocabulary(user_id);
 CREATE INDEX IF NOT EXISTS idx_daily_sessions_user_date ON daily_sessions(user_id, date);
 
@@ -222,6 +225,7 @@ DROP INDEX IF EXISTS idx_daily_sessions_user_date;
 DROP INDEX IF EXISTS idx_user_vocabulary_user_id;
 DROP INDEX IF EXISTS idx_vocabulary_rank;
 DROP INDEX IF EXISTS idx_vocabulary_tier;
+DROP INDEX IF EXISTS idx_vocabulary_language_tier;
 
 DROP TABLE IF EXISTS daily_sessions;
 DROP TABLE IF EXISTS user_vocabulary;
@@ -253,4 +257,16 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS inactivity_stage INTEGER NOT NULL DEF
 -- DOWN
 ALTER TABLE users DROP COLUMN IF EXISTS last_active_at;
 ALTER TABLE users DROP COLUMN IF EXISTS inactivity_stage;
+*/
+
+-- MIGRATION 003
+/*
+-- UP
+ALTER TABLE users ADD COLUMN IF NOT EXISTS target_language TEXT NOT NULL DEFAULT 'es';
+ALTER TABLE vocabulary ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'es';
+CREATE INDEX IF NOT EXISTS idx_vocabulary_language_tier ON vocabulary(language, tier);
+-- DOWN
+DROP INDEX IF EXISTS idx_vocabulary_language_tier;
+ALTER TABLE vocabulary DROP COLUMN IF EXISTS language;
+ALTER TABLE users DROP COLUMN IF EXISTS target_language;
 */
