@@ -81,21 +81,19 @@ export async function startOnboarding(ctx: Context, telegramId: number): Promise
   addToOnboarding(telegramId);
 
   await ctx.reply(
-    `¡Hola! I'm Bistro, your Spanish tutor 🇪🇸
+    `Hi! I'm Bistro, your AI language tutor 🍽️
 
-Here's how I work:
-- Chat with me like a real person — in Spanish
-- I'll correct your mistakes and explain them
-- Every day I'll send you new words to learn
-- Reply by voice note 🎙️ or text
+I'll help you build real conversational skills through:
+- Daily chats in your target language
+- Instant corrections and explanations
+- Daily vocabulary words
+- Voice practice 🎙️
 
-Let's get you set up. What's your Spanish level?`,
+Which language would you like to learn?`,
     {
       reply_markup: new InlineKeyboard()
-        .text("🌱 Beginner", "onboarding_level:beginner")
-        .text("📈 Intermediate", "onboarding_level:intermediate")
-        .row()
-        .text("🎓 Advanced", "onboarding_level:advanced"),
+        .text("🇪🇸 Spanish", "onboarding_language:es")
+        .text("🇫🇷 French", "onboarding_language:fr"),
     }
   );
 }
@@ -143,13 +141,40 @@ export async function handleOnboardingLevelCallback(
   addToOnboarding(telegramId);
 }
 
+export async function handleOnboardingLanguageCallback(
+  ctx: Context,
+  telegramId: number,
+  userId: number,
+  lang: string
+): Promise<void> {
+  const { error } = await supabase.from("users").update({ target_language: lang }).eq("id", userId);
+
+  if (error) {
+    throw new Error(`Failed to save onboarding language: ${error.message}`);
+  }
+
+  addToOnboarding(telegramId);
+
+  await ctx.reply(lang === "es" ? "Great! What's your Spanish level?" : "Super ! Quel est ton niveau de français ?", {
+    reply_markup: new InlineKeyboard()
+      .text("🌱 Beginner", "onboarding_level:beginner")
+      .text("📈 Intermediate", "onboarding_level:intermediate")
+      .row()
+      .text("🎓 Advanced", "onboarding_level:advanced"),
+  });
+}
+
 export async function handleOnboardingTimeCallback(
   ctx: Context,
   telegramId: number,
   userId: number,
   time: string
 ): Promise<void> {
-  const { data: userRow, error: userError } = await supabase.from("users").select("level").eq("id", userId).single();
+  const { data: userRow, error: userError } = await supabase
+    .from("users")
+    .select("level, target_language")
+    .eq("id", userId)
+    .single();
   if (userError) {
     throw new Error(`Failed to read onboarding level: ${userError.message}`);
   }
@@ -171,12 +196,20 @@ export async function handleOnboardingTimeCallback(
   removeFromOnboarding(telegramId);
 
   const level = (userRow?.level ?? "beginner").toLowerCase();
-  const openingByLevel: Record<"beginner" | "intermediate" | "advanced", string> = {
-    beginner: "¡Hola! Soy Bistro. ¿Cómo te llamas?",
-    intermediate: "¡Hola! Soy Bistro. ¿Cómo te llamas y de dónde eres?",
-    advanced: "¡Buenas! Soy Bistro. Cuéntame — ¿cómo te llamas y qué te trae aquí?",
+  const openingByLang: Record<string, Record<string, string>> = {
+    es: {
+      beginner: "¡Hola! Soy Bistro. ¿Cómo te llamas?",
+      intermediate: "¡Hola! Soy Bistro. ¿Cómo te llamas y de dónde eres?",
+      advanced: "¡Buenas! Soy Bistro. Cuéntame — ¿cómo te llamas y qué te trae aquí?",
+    },
+    fr: {
+      beginner: "Bonjour ! Je suis Bistro. Comment tu t'appelles ?",
+      intermediate: "Bonjour ! Je suis Bistro. Comment tu t'appelles et d'où viens-tu ?",
+      advanced: "Bonjour ! Je suis Bistro. Raconte-moi — comment tu t'appelles et qu'est-ce qui t'amène ici ?",
+    },
   };
-  const openingText = openingByLevel[level as "beginner" | "intermediate" | "advanced"] ?? openingByLevel.beginner;
+  const targetLang = (userRow?.target_language ?? "es") as string;
+  const openingText = openingByLang[targetLang]?.[level] ?? openingByLang["es"]["beginner"];
   await ctx.reply(openingText);
   await sendVoiceWithRead(ctx, openingText, level);
 }
