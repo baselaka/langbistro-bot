@@ -139,13 +139,14 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
 
   const [action, rawMessageId] = data.split(":");
   const messageId = Number(rawMessageId);
+  const chatId = ctx.chat?.id;
 
-  if (!Number.isFinite(messageId)) {
+  if (!Number.isFinite(messageId) || !chatId) {
     await ctx.answerCallbackQuery({ text: "This action is no longer available." });
     return;
   }
 
-  const meta = getCallbackMeta(messageId);
+  const meta = getCallbackMeta(chatId, messageId);
   await ctx.answerCallbackQuery();
 
   if (!meta) {

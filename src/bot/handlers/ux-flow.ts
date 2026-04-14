@@ -33,7 +33,7 @@ export async function sendUxFlow(
     });
 
     const correctionMessageId = correctionMessage.message_id;
-    storeCorrectionExplanation(correctionMessageId, structured.correction.explanation);
+    storeCorrectionExplanation(chatId, correctionMessageId, structured.correction.explanation);
 
     await ctx.api.editMessageReplyMarkup(chatId, correctionMessageId, {
       reply_markup: new InlineKeyboard().text(
@@ -53,7 +53,7 @@ export async function sendUxFlow(
 
   const voiceMessageId = voiceMessage.message_id;
   const explanationToStore = explanationOverride ?? structured.replyExplanation;
-  storeReplyMeta(voiceMessageId, structured.reply, explanationToStore);
+  storeReplyMeta(chatId, voiceMessageId, structured.reply, explanationToStore);
   await ctx.api.editMessageReplyMarkup(chatId, voiceMessageId, {
     reply_markup: new InlineKeyboard()
       .text("📖 Read", `read_reply:${voiceMessageId}`)
