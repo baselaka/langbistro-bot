@@ -270,3 +270,32 @@ DROP INDEX IF EXISTS idx_vocabulary_language_tier;
 ALTER TABLE vocabulary DROP COLUMN IF EXISTS language;
 ALTER TABLE users DROP COLUMN IF EXISTS target_language;
 */
+
+-- MIGRATION 004
+
+-- MIGRATION 005
+/*
+-- UP
+UPDATE users
+SET preferred_word_time = (
+  (
+    (CURRENT_DATE::text || ' ' || preferred_word_time::text)::timestamp
+    AT TIME ZONE 'America/New_York'
+  )
+  AT TIME ZONE 'UTC'
+)::time
+WHERE preferred_word_time IS NOT NULL
+  AND onboarding_complete = true;
+
+-- DOWN
+UPDATE users
+SET preferred_word_time = (
+  (
+    (CURRENT_DATE::text || ' ' || preferred_word_time::text)::timestamp
+    AT TIME ZONE 'UTC'
+  )
+  AT TIME ZONE 'America/New_York'
+)::time
+WHERE preferred_word_time IS NOT NULL
+  AND onboarding_complete = true;
+*/
