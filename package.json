@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "seed": "ts-node src/db/seeds/run-seed.ts",
-    "seed:vocab": "ts-node src/db/seeds/vocabulary-5k.ts"
+    "seed:vocab": "ts-node src/db/seeds/vocabulary-5k.ts",
+    "seed:fr": "ts-node -r tsconfig-paths/register src/db/seeds/run-seed-fr.ts"
   },
   "repository": {
     "type": "git",
