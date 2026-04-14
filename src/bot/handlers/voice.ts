@@ -1,5 +1,6 @@
 import type { Context } from "grammy";
-import { transcribeVoice } from "../../ai/openai";
+import type { AssistantResponse } from "../../ai/openai";
+import { generateVoice, transcribeVoice } from "../../ai/openai";
 import { env } from "../../config/env";
 import { supabase } from "../../db/client";
 import { checkViolation, handleViolation } from "../../services/moderation";
@@ -10,6 +11,7 @@ import { getOrCreateUserByTelegram } from "../../services/users";
 import { isInOnboarding } from "../../services/onboarding";
 import { handleQuizResponse } from "../../services/quizHandler";
 import { isInQuiz } from "../../services/quizState";
+import { isTargetLanguage } from "../../utils/languageDetect";
 import { sendStructuredUxResponse } from "./ux-flow";
 
 export async function handleVoice(ctx: Context): Promise<void> {
@@ -58,14 +60,6 @@ export async function handleVoice(ctx: Context): Promise<void> {
     return;
   }
 
-  const usage = await checkAndIncrementUsage(user.id, "voice");
-  if (!usage.allowed) {
-    await ctx.reply(
-      "You reached today's free voice limit (3/day). Upgrade to continue unlimited voice practice."
-    );
-    return;
-  }
-
   const file = await ctx.api.getFile(voice.file_id);
   if (!file.file_path) {
     await ctx.reply("I couldn't process that voice message. Please try again.");
@@ -81,6 +75,27 @@ export async function handleVoice(ctx: Context): Promise<void> {
 
   const audioBuffer = Buffer.from(await fileResponse.arrayBuffer());
   const transcript = await transcribeVoice(audioBuffer, voice.mime_type ?? "audio/ogg");
+
+  const isSpanish = await isTargetLanguage(transcript, "es");
+  if (!isSpanish) {
+    const nudge = "¡Inténtalo en español! 😊 No importa si cometes errores.";
+    const structured: AssistantResponse = {
+      correction: null,
+      reply: nudge,
+      replyExplanation: "I encouraged you to try replying in Spanish.",
+    };
+    const responseVoice = await generateVoice(nudge);
+    await sendStructuredUxResponse(ctx, structured, responseVoice, true);
+    return;
+  }
+
+  const usage = await checkAndIncrementUsage(user.id, "voice");
+  if (!usage.allowed) {
+    await ctx.reply(
+      "You reached today's free voice limit (3/day). Upgrade to continue unlimited voice practice."
+    );
+    return;
+  }
 
   const moderation = await checkViolation(transcript);
   if (moderation.flagged) {

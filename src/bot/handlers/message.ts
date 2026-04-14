@@ -1,4 +1,6 @@
 import type { Context } from "grammy";
+import type { AssistantResponse } from "../../ai/openai";
+import { generateVoice } from "../../ai/openai";
 import { checkViolation, handleViolation } from "../../services/moderation";
 import { getMilestoneMessage } from "../../services/vocabulary";
 import { checkAndIncrementUsage } from "../../services/usage";
@@ -8,6 +10,7 @@ import { isInOnboarding } from "../../services/onboarding";
 import { handleQuizResponse } from "../../services/quizHandler";
 import { isInQuiz } from "../../services/quizState";
 import { supabase } from "../../db/client";
+import { isTargetLanguage } from "../../utils/languageDetect";
 import { sendStructuredUxResponse } from "./ux-flow";
 
 export async function handleMessage(ctx: Context): Promise<void> {
@@ -38,6 +41,19 @@ export async function handleMessage(ctx: Context): Promise<void> {
     await ctx.reply(
       "Your account is currently suspended. Please contact @langbistro_support if you believe this is a mistake."
     );
+    return;
+  }
+
+  const isSpanish = await isTargetLanguage(text, "es");
+  if (!isSpanish) {
+    const nudge = "¡Inténtalo en español! 😊 No importa si cometes errores.";
+    const structured: AssistantResponse = {
+      correction: null,
+      reply: nudge,
+      replyExplanation: "I encouraged you to try replying in Spanish.",
+    };
+    const responseVoice = await generateVoice(nudge);
+    await sendStructuredUxResponse(ctx, structured, responseVoice, true);
     return;
   }
 
