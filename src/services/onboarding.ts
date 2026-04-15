@@ -125,7 +125,7 @@ export async function handleOnboardingLevelCallback(
   }
 
   await ctx.reply(
-    "Great! When would you like to receive your daily Spanish words?",
+    "Great! When would you like to receive your daily words?",
     {
       reply_markup: new InlineKeyboard()
         .text("🌅 8:00 AM (ET)", "onboarding_time:08:00")
