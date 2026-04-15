@@ -26,12 +26,7 @@ export async function handleSettings(ctx: Context): Promise<void> {
     .text("🎓 Advanced", "settings_level:advanced")
     .row();
 
-  lines.push("", "Switch your learning language:");
-  if (lang === "es") {
-    keyboard.text("🇫🇷 Switch to French", "settings_language:fr").row();
-  } else {
-    keyboard.text("🇪🇸 Switch to Spanish", "settings_language:es").row();
-  }
+  keyboard.text("🌍 Change Language", "settings_language_menu").row();
 
   lines.push(
     "",

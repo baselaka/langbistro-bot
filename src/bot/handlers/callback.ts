@@ -1,4 +1,4 @@
-import { InputFile, type Context } from "grammy";
+import { InlineKeyboard, InputFile, type Context } from "grammy";
 import { generateVoice } from "../../ai/openai";
 import { supabase } from "../../db/client";
 import {
@@ -7,6 +7,7 @@ import {
   handleOnboardingTimeCallback,
   resolveOnboardingReadCallbackData,
 } from "../../services/onboarding";
+import { clearQuizState } from "../../services/quizState";
 import { etToUtc } from "../../utils/timeConvert";
 import { getCallbackMeta } from "../ux-memory";
 
@@ -115,6 +116,36 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
     return;
   }
 
+  if (data === "settings_language_menu") {
+    const telegramId = ctx.from?.id;
+    if (!telegramId) { await ctx.answerCallbackQuery(); return; }
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("target_language")
+      .eq("telegram_id", telegramId)
+      .single();
+
+    const current = user?.target_language ?? "es";
+
+    await ctx.answerCallbackQuery();
+    await ctx.reply(
+      "Which language would you like to learn?",
+      {
+        reply_markup: new InlineKeyboard()
+          .text(
+            current === "es" ? "🇪🇸 Spanish ✓" : "🇪🇸 Spanish",
+            "settings_language:es"
+          )
+          .text(
+            current === "fr" ? "🇫🇷 French ✓" : "🇫🇷 French",
+            "settings_language:fr"
+          ),
+      }
+    );
+    return;
+  }
+
   if (data.startsWith("settings_language:")) {
     const newLang = data.slice("settings_language:".length);
     const telegramId = ctx.from?.id;
@@ -137,6 +168,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
     }
 
     await ctx.answerCallbackQuery();
+    clearQuizState(telegramId);
     await ctx.reply(
       `✅ Switched to ${langLabel}!\n\nYour level has been reset to Beginner and you'll start from Tier 1 vocabulary. Your progress in the previous language is saved.`
     );
