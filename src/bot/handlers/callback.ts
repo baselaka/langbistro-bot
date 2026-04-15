@@ -1,4 +1,4 @@
-import { InlineKeyboard, InputFile, type Context } from "grammy";
+import { InputFile, type Context } from "grammy";
 import { generateVoice } from "../../ai/openai";
 import { supabase } from "../../db/client";
 import {
@@ -113,36 +113,6 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
 
     await ctx.answerCallbackQuery();
     await handleOnboardingTimeCallback(ctx, telegramId, user.id, time);
-    return;
-  }
-
-  if (data === "settings_language_menu") {
-    const telegramId = ctx.from?.id;
-    if (!telegramId) { await ctx.answerCallbackQuery(); return; }
-
-    const { data: user } = await supabase
-      .from("users")
-      .select("target_language")
-      .eq("telegram_id", telegramId)
-      .single();
-
-    const current = user?.target_language ?? "es";
-
-    await ctx.answerCallbackQuery();
-    await ctx.reply(
-      "Which language would you like to learn?",
-      {
-        reply_markup: new InlineKeyboard()
-          .text(
-            current === "es" ? "🇪🇸 Spanish ✓" : "🇪🇸 Spanish",
-            "settings_language:es"
-          )
-          .text(
-            current === "fr" ? "🇫🇷 French ✓" : "🇫🇷 French",
-            "settings_language:fr"
-          ),
-      }
-    );
     return;
   }
 

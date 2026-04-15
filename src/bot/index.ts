@@ -3,6 +3,7 @@ import { env } from "../config/env";
 import { startInactivityJob } from "../jobs/inactivityJob";
 import { startWordDeliveryJob } from "../jobs/wordDelivery";
 import { handleCallbackQuery } from "./handlers/callback";
+import { handleLanguageCommand } from "./handlers/language";
 import { handleMessage } from "./handlers/message";
 import { handleSettings } from "./handlers/settings";
 import { handleStart } from "./handlers/start";
@@ -13,6 +14,7 @@ export function createBot(): Bot {
   const bot = new Bot(env.TELEGRAM_BOT_TOKEN);
 
   bot.command("start", handleStart);
+  bot.command("language", handleLanguageCommand);
   bot.command("settings", handleSettings);
   bot.command("subscribe", handleSubscribe);
   bot.on("message:voice", handleVoice);

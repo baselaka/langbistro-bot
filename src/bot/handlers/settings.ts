@@ -15,8 +15,6 @@ export async function handleSettings(ctx: Context): Promise<void> {
   const normalizedLevel = (user?.level ?? "beginner").toLowerCase();
   const formattedLevel = normalizedLevel.charAt(0).toUpperCase() + normalizedLevel.slice(1);
   const lang = user?.target_language ?? "es";
-  const langLabel = lang === "fr" ? "🇫🇷 French" : "🇪🇸 Spanish";
-  lines.push(`🌍 Language: ${langLabel}`);
   lines.push(`📊 Level: ${formattedLevel}`);
   lines.push("", lang === "fr" ? "Quel est ton niveau de français ?" : "What is your Spanish level?");
 
@@ -25,8 +23,6 @@ export async function handleSettings(ctx: Context): Promise<void> {
     .text("📈 Intermediate", "settings_level:intermediate")
     .text("🎓 Advanced", "settings_level:advanced")
     .row();
-
-  keyboard.text("🌍 Change Language", "settings_language_menu").row();
 
   lines.push(
     "",
