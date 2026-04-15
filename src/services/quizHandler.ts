@@ -8,20 +8,42 @@ import { clearQuizState, getQuizState } from "./quizState";
 
 const QUIZ_MESSAGES = {
   es: {
-    correct: "¡Correcto! 🎉",
-    incorrect: "Not quite!",
-    encouragement: "¡Sigue así! 💪",
+    correct: [
+      "¡Correcto! 🎉",
+      "¡Muy bien! ✨",
+      "¡Exacto! 🌟",
+      "¡Perfecto! 💪",
+      "¡Excelente! 🎯",
+    ],
+    encouragement: [
+      "¡Sigue así! 💪",
+      "¡Tú puedes! 🌟",
+      "¡Casi! Inténtalo de nuevo 😊",
+    ],
   },
   fr: {
-    correct: "Correct ! 🎉",
-    incorrect: "Pas tout à fait !",
-    encouragement: "Continue comme ça ! 💪",
+    correct: [
+      "Correct ! 🎉",
+      "Très bien ! ✨",
+      "Exactement ! 🌟",
+      "Parfait ! 💪",
+      "Excellent ! 🎯",
+    ],
+    encouragement: [
+      "Continue comme ça ! 💪",
+      "Tu y arrives ! 🌟",
+      "Presque ! Réessaie 😊",
+    ],
   },
 };
 
 function getQuizMessages(lang: string) {
   return QUIZ_MESSAGES[lang as keyof typeof QUIZ_MESSAGES]
     ?? QUIZ_MESSAGES.es;
+}
+
+function pickRandom(arr: string[]): string {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function escapeMarkdownV2(text: string): string {
@@ -42,6 +64,8 @@ export async function handleQuizResponse(
   }
   const targetLanguage = state.targetLanguage ?? "es";
   const quizMessages = getQuizMessages(targetLanguage);
+  const randomCorrect = pickRandom(quizMessages.correct);
+  const randomEncouragement = pickRandom(quizMessages.encouragement);
 
   const isCorrect =
     state.type === "fill_blank"
@@ -62,7 +86,7 @@ Target word: ${state.word}
 User answer: ${text}
 
 Instructions:
-- Start with "${quizMessages.correct}" and include "${quizMessages.encouragement}"
+- Start with "${randomCorrect}" and include "${randomEncouragement}"
 - Give brief genuine encouragement in ${targetLanguage === "fr" ? "French" : "Spanish"} (1 sentence max)
 - Naturally transition into a conversational question related to the word topic
 - End with "${targetLanguage === "fr" ? "Ou tu préfères parler d'autre chose ?" : "¿O prefieres hablar de otra cosa?"}" to give them an out
@@ -78,7 +102,7 @@ User answer: ${text}
 Instructions:
 - Do NOT correct grammar — only address the quiz answer
 - Do NOT say anything encouraging — the user got it wrong
-- Start your response with "${quizMessages.incorrect}" and acknowledge they got it wrong, warmly but clearly
+- Start your response with "${randomEncouragement}" and acknowledge they got it wrong, warmly but clearly
 - Naturally transition into a conversational question related to the word topic
 - End with "${targetLanguage === "fr" ? "Ou tu préfères parler d'autre chose ?" : "¿O prefieres hablar de otra cosa?"}" to give them an out
 - Keep it warm and natural, not robotic
@@ -148,8 +172,8 @@ Instructions:
   }
 
   const explanationOverride = isCorrect
-    ? `${quizMessages.correct} "${state.word}" means "${translation}". ${quizMessages.encouragement}`
-    : `${quizMessages.incorrect} The correct answer was "${state.word}" — it means "${translation}".`;
+    ? `${randomCorrect} "${state.word}" means "${translation}". ${randomEncouragement}`
+    : `${randomEncouragement} The correct answer was "${state.word}" — it means "${translation}".`;
 
   const responseVoice = await generateVoice(structuredResponse.reply);
   await sendUxFlow(ctx, structuredResponse, responseVoice, true, explanationOverride);
