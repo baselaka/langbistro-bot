@@ -11,6 +11,7 @@ export type AppUser = {
   is_banned: boolean;
   language_code: string | null;
   target_language: string | null;
+  language_progress: Record<string, { level: string; current_tier: number }> | null;
   is_subscribed: boolean;
   last_active_at: string | null;
   inactivity_stage: number;
@@ -37,7 +38,7 @@ export async function getOrCreateUserByTelegram(input: TelegramUserInput): Promi
 
   const { data: user, error: userError } = await supabase
     .from("users")
-    .select("id, is_banned, language_code, is_subscribed, last_active_at, inactivity_stage, target_language")
+    .select("id, is_banned, language_code, is_subscribed, last_active_at, inactivity_stage, target_language, language_progress")
     .eq("telegram_id", input.telegramId)
     .single();
 

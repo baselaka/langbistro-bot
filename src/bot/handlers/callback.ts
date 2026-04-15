@@ -118,6 +118,10 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
 
   if (data.startsWith("settings_language:")) {
     const newLang = data.slice("settings_language:".length);
+    if (newLang !== "es" && newLang !== "fr") {
+      await ctx.answerCallbackQuery({ text: "Unsupported language." });
+      return;
+    }
     const telegramId = ctx.from?.id;
     if (!telegramId) {
       await ctx.answerCallbackQuery({ text: "User not found." });
@@ -126,10 +130,31 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
 
     const langLabel = newLang === "fr" ? "French 🇫🇷" : "Spanish 🇪🇸";
 
+    const { data: currentUser } = await supabase
+      .from("users")
+      .select("target_language, level, current_tier, language_progress")
+      .eq("telegram_id", telegramId)
+      .single();
+
+    const currentLang = currentUser?.target_language ?? "es";
+    const existingProgress = (currentUser?.language_progress as Record<string, { level: string; current_tier: number }>) ?? {};
+    const updatedProgress: Record<string, { level: string; current_tier: number }> = {
+      ...existingProgress,
+      [currentLang]: {
+        level: currentUser?.level ?? "beginner",
+        current_tier: currentUser?.current_tier ?? 1,
+      },
+    };
+
+    const newLangProgress = updatedProgress[newLang];
+    const restoredLevel = newLangProgress?.level ?? "beginner";
+    const restoredTier = newLangProgress?.current_tier ?? 1;
+
     const { error } = await supabase.from("users").update({
       target_language: newLang,
-      level: "beginner",
-      current_tier: 1,
+      level: restoredLevel,
+      current_tier: restoredTier,
+      language_progress: updatedProgress,
     }).eq("telegram_id", telegramId);
 
     if (error) {
@@ -137,11 +162,14 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       return;
     }
 
+    const isRestored = !!newLangProgress;
+    const statusLine = isRestored
+      ? `Your ${langLabel} progress has been restored (Level: ${restoredLevel}, Tier ${restoredTier}).`
+      : "Starting fresh at Beginner, Tier 1.";
+
     await ctx.answerCallbackQuery();
     clearQuizState(telegramId);
-    await ctx.reply(
-      `✅ Switched to ${langLabel}!\n\nYour level has been reset to Beginner and you'll start from Tier 1 vocabulary. Your progress in the previous language is saved.`
-    );
+    await ctx.reply(`✅ Switched to ${langLabel}!\n\n${statusLine}`);
     return;
   }
 
