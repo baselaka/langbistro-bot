@@ -2,6 +2,27 @@ import { InlineKeyboard, InputFile, type Context } from "grammy";
 import type { AssistantResponse } from "../../ai/openai";
 import { storeCorrectionExplanation, storeReplyMeta } from "../ux-memory";
 
+const CONVERSATION_ENCOURAGEMENT: Record<string, string[]> = {
+  es: [
+    "¡Muy bien! 🌟",
+    "¡Excelente! ✨",
+    "¡Perfecto! 💪",
+    "¡Sigue así! 🎯",
+    "¡Genial! 🎉",
+  ],
+  fr: [
+    "Très bien ! 🌟",
+    "Excellent ! ✨",
+    "Parfait ! 💪",
+    "Continue ! 🎯",
+    "Génial ! 🎉",
+  ],
+};
+
+function pickRandom(arr: string[]): string {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function escapeMarkdownV2(value: string): string {
   return value.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
 }
@@ -11,7 +32,8 @@ export async function sendUxFlow(
   structured: AssistantResponse,
   voiceBuffer: Buffer,
   skipEncouragement = false,
-  explanationOverride?: string
+  explanationOverride?: string,
+  targetLang = "es"
 ): Promise<void> {
   const chatId = ctx.chat?.id;
   if (!chatId) {
@@ -42,7 +64,9 @@ export async function sendUxFlow(
       ),
     });
   } else if (!skipEncouragement) {
-    await ctx.reply("¡Muy bien! ¡Sigue asi!");
+    const lang = CONVERSATION_ENCOURAGEMENT[targetLang] ? targetLang : "es";
+    const encouragement = pickRandom(CONVERSATION_ENCOURAGEMENT[lang]);
+    await ctx.reply(encouragement);
   }
 
   const voiceMessage = await ctx.replyWithVoice(new InputFile(voiceBuffer, "bistro-response.mp3"), {

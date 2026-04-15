@@ -63,7 +63,7 @@ export async function handleMessage(ctx: Context): Promise<void> {
       replyExplanation: "I encouraged you to try replying in Spanish.",
     };
     const responseVoice = await generateVoice(nudgeText);
-    await sendStructuredUxResponse(ctx, structured, responseVoice, true);
+    await sendStructuredUxResponse(ctx, structured, responseVoice, true, undefined, user.target_language ?? "es");
     return;
   }
 
@@ -83,7 +83,7 @@ export async function handleMessage(ctx: Context): Promise<void> {
     user.is_subscribed
   );
 
-  await sendStructuredUxResponse(ctx, structured, responseVoice);
+  await sendStructuredUxResponse(ctx, structured, responseVoice, false, undefined, user.target_language ?? "es");
 
   const { data: updatedUser } = await supabase
     .from("users")

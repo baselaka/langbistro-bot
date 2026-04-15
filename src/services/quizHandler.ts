@@ -176,5 +176,5 @@ Instructions:
     : `${randomEncouragement} The correct answer was "${state.word}" — it means "${translation}".`;
 
   const responseVoice = await generateVoice(structuredResponse.reply);
-  await sendUxFlow(ctx, structuredResponse, responseVoice, true, explanationOverride);
+  await sendUxFlow(ctx, structuredResponse, responseVoice, true, explanationOverride, targetLanguage);
 }
