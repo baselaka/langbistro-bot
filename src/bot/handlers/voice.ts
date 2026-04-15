@@ -97,10 +97,13 @@ export async function handleVoice(ctx: Context): Promise<void> {
     const nudgeText = (user.target_language ?? "es") === "fr"
       ? "Essaie en français ! 😊 Ce n'est pas grave si tu fais des erreurs."
       : "¡Inténtalo en español! 😊 No importa si cometes errores.";
+    const nudgeExplanation = (user.target_language ?? "es") === "fr"
+      ? "I encouraged you to try replying in French, letting you know it's okay to make mistakes."
+      : "I encouraged you to try replying in Spanish, letting you know it's okay to make mistakes.";
     const structured: AssistantResponse = {
       correction: null,
       reply: nudgeText,
-      replyExplanation: "I encouraged you to try replying in Spanish.",
+      replyExplanation: nudgeExplanation,
     };
     const responseVoice = await generateVoice(nudgeText);
     await sendStructuredUxResponse(ctx, structured, responseVoice, true, undefined, user.target_language ?? "es");
