@@ -30,7 +30,10 @@ export async function isTargetLanguage(text: string, targetLang: "es" | "fr"): P
         },
         {
           role: "user",
-          content: `Is the following message written in ${targetLang === "fr" ? "French" : "Spanish"}? Message: ${text}`,
+          content:
+            targetLang === "fr"
+              ? `Is the following message written in French? Answer 'no' if it appears to be Spanish, Italian, Portuguese, or any other language. Message: ${text}`
+              : `Is the following message written in Spanish? Answer 'no' if it appears to be French, Italian, Portuguese, or any other language. Message: ${text}`,
         },
       ],
     });

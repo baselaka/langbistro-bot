@@ -51,9 +51,9 @@ export async function handleMessage(ctx: Context): Promise<void> {
     return;
   }
 
-  const targetLanguage = (user.target_language ?? "es") as "es" | "fr";
-  const isExpectedLanguage = await isTargetLanguage(text, targetLanguage);
-  if (!isExpectedLanguage) {
+  const targetLang = (user.target_language ?? "es") as "es" | "fr";
+  const isCorrectLang = await isTargetLanguage(text, targetLang);
+  if (!isCorrectLang) {
     const nudgeText = (user.target_language ?? "es") === "fr"
       ? "Essaie en français ! 😊 Ce n'est pas grave si tu fais des erreurs."
       : "¡Inténtalo en español! 😊 No importa si cometes errores.";
