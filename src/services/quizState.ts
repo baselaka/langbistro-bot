@@ -3,6 +3,7 @@ export type QuizState = {
   word: string;
   sentence?: string;
   vocabularyId: number;
+  targetLanguage: string;
 };
 
 const MAX_ENTRIES = 1000;

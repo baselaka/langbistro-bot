@@ -6,6 +6,24 @@ import { evaluateFillBlank, evaluateReviewAnswer } from "./dailySession";
 import { getMilestoneMessage, markWordsLearned } from "./vocabulary";
 import { clearQuizState, getQuizState } from "./quizState";
 
+const QUIZ_MESSAGES = {
+  es: {
+    correct: "¡Correcto! 🎉",
+    incorrect: "Not quite!",
+    encouragement: "¡Sigue así! 💪",
+  },
+  fr: {
+    correct: "Correct ! 🎉",
+    incorrect: "Pas tout à fait !",
+    encouragement: "Continue comme ça ! 💪",
+  },
+};
+
+function getQuizMessages(lang: string) {
+  return QUIZ_MESSAGES[lang as keyof typeof QUIZ_MESSAGES]
+    ?? QUIZ_MESSAGES.es;
+}
+
 function escapeMarkdownV2(text: string): string {
   return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
 }
@@ -22,6 +40,8 @@ export async function handleQuizResponse(
   if (!state) {
     return;
   }
+  const targetLanguage = state.targetLanguage ?? "es";
+  const quizMessages = getQuizMessages(targetLanguage);
 
   const isCorrect =
     state.type === "fill_blank"
@@ -36,20 +56,21 @@ export async function handleQuizResponse(
   const translation = vocabRow?.translation ?? "";
 
   const contextInjection = isCorrect
-    ? `[QUIZ CONTEXT: The user answered a Spanish quiz correctly.
+    ? `[QUIZ CONTEXT: The user answered a ${targetLanguage === "fr" ? "French" : "Spanish"} quiz correctly.
 Quiz type: ${state.type}
 Target word: ${state.word}
 User answer: ${text}
 
 Instructions:
-- Give brief genuine encouragement in Spanish (1 sentence max)
+- Start with "${quizMessages.correct}" and include "${quizMessages.encouragement}"
+- Give brief genuine encouragement in ${targetLanguage === "fr" ? "French" : "Spanish"} (1 sentence max)
 - Naturally transition into a conversational question related to the word topic
-- End with "¿O prefieres hablar de otra cosa?" to give them an out
+- End with "${targetLanguage === "fr" ? "Ou tu préfères parler d'autre chose ?" : "¿O prefieres hablar de otra cosa?"}" to give them an out
 - Keep it warm and natural, not robotic
 - Do NOT show any correction — there is none needed
 - Always return "correction": null in your JSON response
 - Do NOT set correction — set it to null]`
-    : `[QUIZ CONTEXT: The user answered a Spanish quiz incorrectly.
+    : `[QUIZ CONTEXT: The user answered a ${targetLanguage === "fr" ? "French" : "Spanish"} quiz incorrectly.
 Quiz type: ${state.type}
 Target word: ${state.word}
 User answer: ${text}
@@ -57,9 +78,9 @@ User answer: ${text}
 Instructions:
 - Do NOT correct grammar — only address the quiz answer
 - Do NOT say anything encouraging — the user got it wrong
-- Start your response by acknowledging they got it wrong, warmly but clearly
+- Start your response with "${quizMessages.incorrect}" and acknowledge they got it wrong, warmly but clearly
 - Naturally transition into a conversational question related to the word topic
-- End with "¿O prefieres hablar de otra cosa?" to give them an out
+- End with "${targetLanguage === "fr" ? "Ou tu préfères parler d'autre chose ?" : "¿O prefieres hablar de otra cosa?"}" to give them an out
 - Keep it warm and natural, not robotic
 - Always return "correction": null in your JSON response
 - Do NOT set correction — set it to null]`;
@@ -86,7 +107,7 @@ Instructions:
   ];
 
   const model = isSubscribed ? "gpt-4o" : "gpt-4o-mini";
-  const structuredResponse = await generateResponse(messagesForGpt, "es", model);
+  const structuredResponse = await generateResponse(messagesForGpt, targetLanguage, model);
 
   const { error: saveError } = await supabase.from("messages").insert([
     {
@@ -127,8 +148,8 @@ Instructions:
   }
 
   const explanationOverride = isCorrect
-    ? `You got it right! "${state.word}" means "${translation}". Great job!`
-    : `The correct answer was "${state.word}" — it means "${translation}". Keep practicing!`;
+    ? `${quizMessages.correct} "${state.word}" means "${translation}". ${quizMessages.encouragement}`
+    : `${quizMessages.incorrect} The correct answer was "${state.word}" — it means "${translation}".`;
 
   const responseVoice = await generateVoice(structuredResponse.reply);
   await sendUxFlow(ctx, structuredResponse, responseVoice, true, explanationOverride);

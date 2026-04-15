@@ -79,6 +79,7 @@ export function startWordDeliveryJob(bot: Bot): void {
           word: fillBlankWord.word,
           sentence: fillBlankWord.example_sentence ?? undefined,
           vocabularyId: fillBlankWord.id,
+          targetLanguage: user.target_language ?? "es",
         };
 
         setQuizState(user.telegram_id, fillBlankState);
