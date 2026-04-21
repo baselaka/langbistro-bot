@@ -162,6 +162,10 @@ export function startServer(): void {
     }
   );
 
+  app.get("/health", (_req: Request, res: Response) => {
+    res.status(200).send("OK");
+  });
+
   app.listen(port, () => {
     console.log(`HTTP server listening on port ${port}`);
   });
