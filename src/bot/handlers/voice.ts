@@ -60,6 +60,7 @@ export async function handleVoice(ctx: Context): Promise<void> {
       voice.mime_type ?? "audio/ogg",
       user.target_language ?? "es"
     );
+    console.log(`[Voice] Whisper transcript (${user.target_language}):`, transcript);
     await handleQuizResponse(ctx, from.id, user.id, transcript, user.is_subscribed, "voice");
     return;
   }
@@ -83,6 +84,7 @@ export async function handleVoice(ctx: Context): Promise<void> {
     voice.mime_type ?? "audio/ogg",
     user.target_language ?? "es"
   );
+  console.log(`[Voice] Whisper transcript (${user.target_language}):`, transcript);
 
   const moderation = await checkViolation(transcript);
   if (moderation.flagged) {

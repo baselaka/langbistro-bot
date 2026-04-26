@@ -48,6 +48,7 @@ export async function runAssistantTurn(
     model,
     effectiveLevel
   );
+  console.log(`[Conv] GPT correction:`, JSON.stringify(structured.correction));
 
   const { error: saveMessagesError } = await supabase.from("messages").insert([
     {
