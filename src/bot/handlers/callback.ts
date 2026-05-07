@@ -162,6 +162,11 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       return;
     }
 
+    await supabase
+      .from("users")
+      .update({ inactivity_stage: 0, last_active_at: new Date().toISOString() })
+      .eq("telegram_id", ctx.from.id);
+
     const isRestored = !!newLangProgress;
     const statusLine = isRestored
       ? `Your ${langLabel} progress has been restored (Level: ${restoredLevel}, Tier ${restoredTier}).`
@@ -197,6 +202,11 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       return;
     }
 
+    await supabase
+      .from("users")
+      .update({ inactivity_stage: 0, last_active_at: new Date().toISOString() })
+      .eq("telegram_id", ctx.from.id);
+
     await ctx.reply(`✅ Got it! You'll receive your daily words at ${hh}:${mm} Eastern Time.`);
     return;
   }
@@ -214,6 +224,11 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       await ctx.answerCallbackQuery({ text: "Could not update level." });
       return;
     }
+
+    await supabase
+      .from("users")
+      .update({ inactivity_stage: 0, last_active_at: new Date().toISOString() })
+      .eq("telegram_id", ctx.from.id);
 
     await ctx.answerCallbackQuery(`Level updated to ${level}!`);
     return;
