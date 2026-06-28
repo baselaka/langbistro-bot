@@ -1,11 +1,10 @@
+import fs from "node:fs";
 import path from "node:path";
-import xlsx from "xlsx";
 import { z } from "zod";
 import { openai } from "../../ai/openai";
 import { supabase } from "../../db/client";
 
-const SHEET_NAME = "10,000 words";
-const EXCEL_PATH = path.resolve(__dirname, "french_vocabulary.xlsx");
+const TXT_PATH = path.resolve(__dirname, "data/fr_10k.txt");
 const BATCH_SIZE = 100;
 const BATCH_DELAY_MS = 500;
 
@@ -58,36 +57,20 @@ function parseModelJson(content: string): unknown {
   return JSON.parse(cleaned);
 }
 
-function readWordsFromExcel(filePath: string): WordWithRank[] {
-  const workbook = xlsx.readFile(filePath);
-  const sheet = workbook.Sheets[SHEET_NAME];
-  if (!sheet) {
-    throw new Error(`Sheet '${SHEET_NAME}' not found in ${filePath}`);
-  }
-
-  const rows = xlsx.utils.sheet_to_json<(string | number | null)[]>(sheet, {
-    header: 1,
-    blankrows: false,
-  });
-
+function readWordsFromTxt(filePath: string): WordWithRank[] {
+  const content = fs.readFileSync(filePath, "utf8");
   const words: WordWithRank[] = [];
-  for (const row of rows) {
-    const freqCell = row[0];
-    const wordCell = row[1];
-    if (freqCell === undefined || freqCell === null || wordCell === undefined || wordCell === null) continue;
-
-    const frequency_rank = Number(String(freqCell).trim());
-    const word = String(wordCell).trim();
-    if (!Number.isFinite(frequency_rank) || frequency_rank <= 0) continue;
-    if (!word) continue;
-
+  let rank = 0;
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    rank++;
     words.push({
-      word,
-      frequency_rank,
-      tier: tierForRank(frequency_rank),
+      word: trimmed,
+      frequency_rank: rank,
+      tier: tierForRank(rank),
     });
   }
-
   return words;
 }
 
@@ -137,13 +120,13 @@ async function enrichBatch(words: string[]): Promise<z.infer<typeof vocabItemSch
 }
 
 export async function seedVocabularyFr(): Promise<number> {
-  const rawWords = readWordsFromExcel(EXCEL_PATH);
+  const rawWords = readWordsFromTxt(TXT_PATH);
   const wordsWithRank = rawWords
     .map((entry) => ({ ...entry, word: sanitizeWordForPrompt(entry.word) }))
     .filter((entry) => entry.word.length > 0);
 
   if (wordsWithRank.length === 0) {
-    console.log("[vocabulary-fr] No words found in Excel file.");
+    console.log("[vocabulary-fr] No words found in text file.");
     return 0;
   }
 

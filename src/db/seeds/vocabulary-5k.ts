@@ -1,11 +1,10 @@
+import fs from "node:fs";
 import path from "node:path";
-import xlsx from "xlsx";
 import { z } from "zod";
 import { openai } from "../../ai/openai";
 import { supabase } from "../../db/client";
 
-const SHEET_NAME = "Spanish Vocabulary";
-const EXCEL_PATH = path.resolve(__dirname, "spanish_vocabulary.xlsx");
+const TXT_PATH = path.resolve(__dirname, "data/es_5k.txt");
 const BATCH_SIZE = 50;
 const BATCH_DELAY_MS = 500;
 
@@ -53,28 +52,14 @@ function parseModelJson(content: string): unknown {
   return JSON.parse(cleaned);
 }
 
-function readWordsFromExcel(filePath: string): string[] {
-  const workbook = xlsx.readFile(filePath);
-  const sheet = workbook.Sheets[SHEET_NAME];
-  if (!sheet) {
-    throw new Error(`Sheet '${SHEET_NAME}' not found in ${filePath}`);
-  }
-
-  const rows = xlsx.utils.sheet_to_json<(string | number | null)[]>(sheet, {
-    header: 1,
-    blankrows: false,
-  });
-
+function readWordsFromTxt(filePath: string): string[] {
+  const content = fs.readFileSync(filePath, "utf8");
   const words: string[] = [];
-  for (const row of rows) {
-    const cell = row[0];
-    if (cell === undefined || cell === null) continue;
-    const value = String(cell).trim();
-    if (!value) continue;
-    if (value.toLowerCase() === "spanish") continue;
-    words.push(value);
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    words.push(trimmed);
   }
-
   return words;
 }
 
@@ -124,10 +109,10 @@ async function enrichBatch(words: string[]): Promise<z.infer<typeof vocabItemSch
 }
 
 async function main(): Promise<number> {
-  const rawWords = readWordsFromExcel(EXCEL_PATH);
+  const rawWords = readWordsFromTxt(TXT_PATH);
   const words = rawWords.map(sanitizeWordForPrompt).filter((w) => w.length > 0);
   if (words.length === 0) {
-    console.log("[vocabulary-5k] No words found in Excel file.");
+    console.log("[vocabulary-5k] No words found in text file.");
     return 0;
   }
 
@@ -169,7 +154,7 @@ async function main(): Promise<number> {
         })
         .filter((row): row is NonNullable<typeof row> => row !== null);
 
-      const { error } = await supabase.from("vocabulary").upsert(rows, { onConflict: "word" });
+      const { error } = await supabase.from("vocabulary").upsert(rows, { onConflict: "word, language" });
       if (error) {
         console.error(`[vocabulary-5k] Batch ${i + 1} upsert failed:`, error.message);
         await sleep(BATCH_DELAY_MS);

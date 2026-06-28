@@ -164,7 +164,7 @@ export async function seedVocabulary(): Promise<void> {
         })
         .filter((row): row is NonNullable<typeof row> => row !== null);
 
-      const { error } = await supabase.from("vocabulary").upsert(rows, { onConflict: "word" });
+      const { error } = await supabase.from("vocabulary").upsert(rows, { onConflict: "word, language" });
       if (error) {
         console.error(`[vocabulary] Batch ${i + 1} upsert failed:`, error.message);
         await sleep(BATCH_DELAY_MS);
