@@ -122,6 +122,8 @@ src/
 
 ## Contributing
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (dev setup, PR process, code style, and adding new languages).
+
 Contributions are welcome. Please follow this process:
 
 1. **Open an issue first** — describe what you want to add or fix before writing code
