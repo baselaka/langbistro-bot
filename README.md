@@ -141,6 +141,8 @@ Contributions are welcome. Please follow this process:
 - Improving quiz difficulty progression
 - Adding new message templates
 - Improving error messages and edge case handling
+- Add Ollama support for local models
+- Add Docker Compose for full local stack (bot + Postgres + Ollama)
 
 ---
 
