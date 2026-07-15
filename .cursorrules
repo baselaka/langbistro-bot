@@ -1,0 +1,175 @@
+# LangBistro — Cursor Rules
+
+## Project overview
+LangBistro is a voice-first, AI-powered Telegram language learning bot for English-speaking users in the US.
+- Bot persona: **Bistro** (speaks the target language, explains in English)
+- UX mode: **conversation-first** — users can talk to Bistro immediately; lessons are woven into free conversation, not gated
+- Languages: Spanish and French (both live). Multi-language via `language_code` — never build per-language forks
+- Stack: Node.js + TypeScript + GrammY + Supabase + Railway + OpenAI (GPT-4o, Whisper, TTS) + Paddle
+
+---
+
+## Absolute rules (never break these)
+
+### Language and locale
+- All user-facing UI strings are in **English**. Bistro speaks Spanish or French during conversation and lessons.
+- Bistro uses English for meta-language: explanations, grammar notes, error messages, onboarding copy.
+- Language is determined by `user.language_code` — never hardcode Spanish or French strings outside locale files.
+- Never assume the user is learning Spanish. French learners are a valid audience in all ad targeting, A/B tests, and feature work.
+
+### Multi-language architecture
+- `language_code` on the `users` table is the source of truth for which language a user is learning.
+- All language-specific content (vocab, grammar notes, lesson prompts) is driven by config objects, not if/else chains.
+- Adding a third language must be a config change, not a codebase fork.
+- Never hardcode language-specific strings in handlers. Use locale files or config-driven content.
+
+### Voice pipeline
+- **TTS:** OpenAI TTS. Spanish and French are fully supported
+- **STT:** OpenAI Whisper. Set the `language` hint to match `user.language_code` (e.g., `'es'` or `'fr'`). Never omit the hint.
+- Never swap OpenAI voice APIs for another provider without evaluating impact on both Spanish and French output quality.
+
+### Payments
+- **Paddle only** — Paddle is the Merchant of Record. It handles US tax, VAT, and chargebacks.
+- No Stripe, no Lemon Squeezy, no other payment processor.
+- Subscription gating uses `user.is_subscribed` boolean from Supabase. Keep payment logic behind a clean interface.
+- **Price changes require three updates in this order:** (1) Paddle price ID, (2) website HTML, (3) bot `/subscribe` copy. Skipping any one causes displayed price vs. actual charge mismatch.
+- Do not scaffold a new payment tier without updating all three surfaces.
+
+### Node.js version
+- Node.js 20 required. Never downgrade. Never add `.nvmrc` or `engines` that allow < 20.
+
+---
+
+## GrammY patterns
+
+- `bot.start()` is blocking. All cron jobs and the HTTP server **must be initialised before** `bot.start()` is called.
+- Never run local `npm run dev` while Railway is live — two polling instances will conflict and messages get lost.
+- Use `bot.catch()` for global error handling. Never log the bot token — use a redaction regex.
+- Telegram MarkdownV2 requires escaping: `.`, `!`, `(`, `)`, `-`, `_`, `*`, `[`, `]`, `~`, `` ` ``, `>`, `#`, `+`, `=`, `|`, `{`, `}` must all be escaped with `\`.
+- Use `ctx.reply()` for simple text. Use `ctx.replyWithVoice()` for audio. Always catch and handle Telegram API errors — don't let them bubble up and crash the process.
+
+---
+
+## Supabase patterns
+
+- Always check RLS policies first when debugging silent DB failures — they can block operations without errors.
+- Use `SUPABASE_ANON_KEY` from env. Never hardcode credentials.
+- Read-modify-write sequences (usage quotas, session flags, message counts) are **not atomic**. Add `FOR UPDATE` locking or use Postgres functions before scaling beyond ~500 DAU.
+- The `engaged` flag on `daily_sessions` **must be set BEFORE sending** the daily word/delivery — prevents duplicate delivery on same-minute cron ticks.
+- `language_code` is on the `users` table. Always filter queries by it when fetching language-specific content.
+
+---
+
+## Conversation-first UX
+
+LangBistro is conversation-first. Bistro is available to talk from message one. The usage quota (free tier: 10 text / 3 voice per day) is enforced per message, not as a pre-check gate.
+
+Quota enforcement pattern:
+1. Check `daily_sessions` for today's usage count
+2. If over limit and not subscribed → send upsell message, do not process the turn
+3. If within limit → process, then increment count
+
+- Never block access to Bistro before any interaction (no mandatory onboarding quiz, no lesson to complete first)
+- Vocabulary and lesson content is woven into conversation context, not delivered as a separate drill mode
+- Streak tracking: update after each conversation turn, not at end of session
+
+---
+
+## Pricing and subscription gating
+
+- Free tier: 10 text messages + 3 voice messages per day
+- Pro: unlimited text & voice, all vocabulary tiers, GPT-4o (vs GPT-4o-mini on free)
+- Check `user.is_subscribed` to determine model and quota access
+- `/subscribe` command triggers Paddle checkout via the website `subscribe.html` page (passes `telegram_id` + `plan` in URL)
+- 7-day money-back guarantee must be mentioned in `/subscribe` copy
+
+---
+
+## File structure conventions
+
+```
+src/
+├── ai/openai.ts                  # GPT + Whisper + TTS calls
+├── bot/
+│   ├── index.ts                  # GrammY bot init — bot.start() goes here last
+│   ├── ux-memory.ts              # In-memory state maps
+│   └── handlers/
+│       ├── callback.ts           # Button callbacks
+│       ├── message.ts            # Text message handler (main conversation loop)
+│       ├── settings.ts           # /settings command
+│       ├── start.ts              # /start + onboarding
+│       └── voice.ts              # Voice message handler
+├── config/env.ts                 # Env var validation (zod or manual)
+├── db/
+│   ├── client.ts                 # Supabase client singleton
+│   └── schema.sql                # Source of truth for DB schema
+├── jobs/
+│   ├── dailyWord.ts              # Cron: push daily word at user's preferred time
+│   └── inactivityJob.ts          # Cron: re-engagement nudges
+├── server.ts                     # HTTP server (Railway health check + webhooks)
+└── services/
+    ├── conversation.ts           # GPT conversation turns
+    ├── dailySession.ts           # Session state helpers + quota tracking
+    ├── moderation.ts             # OpenAI omni-moderation
+    ├── onboarding.ts             # Onboarding flow
+    ├── subscription.ts           # Paddle webhook handling + is_subscribed flag
+    ├── users.ts                  # User CRUD
+    └── vocabulary.ts             # Vocab SRS logic + language-aware content
+```
+
+- One concern per file. Do not merge handlers or services.
+- Export named functions, not default exports (except `bot/index.ts`).
+- All async functions must have explicit return types.
+
+---
+
+## Website
+
+- Pages: `index.html`, `pricing.html`, `subscribe.html`, `terms.html`, `privacy.html`, `refund.html`
+- Internal links must use **absolute paths** (e.g. `/pricing.html`) — relative paths break when served from root
+- `subscribe.html` auto-opens Paddle checkout when `telegram_id` + `plan` are in the URL query string
+- Never add language-specific pages — one marketing site, both languages mentioned
+
+---
+
+## In-memory state
+
+Keep these maps with a max of 1,000 entries each, evicting oldest on overflow:
+- `conversationState` — active conversation context per user (keyed by telegram_id)
+- `uxCallbackPayloads` — button payload data (keyed by chatId+messageId)
+
+These are process-local and lost on restart. Do not treat them as durable state.
+
+---
+
+## Environment variables
+
+Required in `.env` and Railway service variables:
+```
+TELEGRAM_BOT_TOKEN
+OPENAI_API_KEY
+SUPABASE_URL
+SUPABASE_ANON_KEY
+PADDLE_API_KEY
+PADDLE_WEBHOOK_SECRET
+NODE_ENV=production
+NODE_VERSION=20
+```
+
+Never commit `.env`. Never log any of these values.
+
+---
+
+## What NOT to do
+
+- Do not add Stripe, Lemon Squeezy, or any payment provider other than Paddle
+- Do not change pricing in only one place — always update Paddle + website + bot copy together
+- Do not write any user-facing string in Spanish or French (Bistro speaks the language; UI is English)
+- Do not hardcode language-specific logic in handlers — use `language_code` and config objects
+- Do not assume the user is learning Spanish — French is equally supported
+- Do not run `bot.start()` before cron jobs and the HTTP server are initialised
+- Do not downgrade Node.js below 20
+- Do not share Supabase credentials with Tilim or any other project
+- Do not import anything from the Tilim codebase
+- Do not gate Bistro conversation behind a completed lesson — conversation-first is a core product decision
+- Do not make Paddle webhook handling async without idempotency checks — duplicate webhooks will double-grant subscriptions
