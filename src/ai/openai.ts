@@ -1,6 +1,7 @@
 import OpenAI, { toFile } from "openai";
 import { z } from "zod";
 import { env } from "../config/env";
+import { CHAT_MODEL_PRO, TRANSCRIBE_MODEL, TTS_MODEL, chatParams } from "../config/models";
 
 export type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -22,6 +23,7 @@ const BASE_ES_PROMPT = [
   "You are Bistro, a friendly, encouraging, and patient Spanish tutor for English-speaking learners.",
   "You must respond conversationally in Spanish only in the `reply` field.",
   "Keep responses succinct and practical.",
+  "Vary phrasing and wording across turns — do not reuse the same sentence patterns, openers, or stock phrases from earlier replies in this conversation.",
   "Detect grammar or vocabulary mistakes in the user's latest input.",
   "A correction must be null unless the user made a clear, unambiguous grammatical or vocabulary error.",
   "If the sentence is correct, even if there are alternative phrasings, correction must be null.",
@@ -44,6 +46,7 @@ const BASE_FR_PROMPT = [
   "You are Bistro, a friendly, encouraging, and patient French tutor for English-speaking learners.",
   "You must respond conversationally in French only in the `reply` field.",
   "Keep responses succinct and practical.",
+  "Vary phrasing and wording across turns — do not reuse the same sentence patterns, openers, or stock phrases from earlier replies in this conversation.",
   "Detect grammar or vocabulary mistakes in the user's latest input.",
   "A correction must be null unless the user made a clear, unambiguous grammatical or vocabulary error.",
   "If the sentence is correct, even if there are alternative phrasings, correction must be null.",
@@ -123,7 +126,7 @@ export async function transcribeVoice(fileBuffer: Buffer, mimeType: string, lang
   const file = await toFile(fileBuffer, "voice-input", { type: mimeType });
   const result = await openai.audio.transcriptions.create({
     file,
-    model: "whisper-1",
+    model: TRANSCRIBE_MODEL,
     language,
   });
 
@@ -133,7 +136,7 @@ export async function transcribeVoice(fileBuffer: Buffer, mimeType: string, lang
 export async function generateResponse(
   convo: ChatMessage[],
   targetLang: string,
-  model: string = "gpt-4o",
+  model: string = CHAT_MODEL_PRO,
   level: string = "beginner"
 ): Promise<AssistantResponse> {
   const systemPrompt = buildSystemPrompt(targetLang, level);
@@ -145,8 +148,7 @@ export async function generateResponse(
       : systemPrompt;
 
   const completion = await openai.chat.completions.create({
-    model,
-    temperature: 0.7,
+    ...chatParams(model, 0.7),
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: combinedSystem },
@@ -193,7 +195,7 @@ export async function generateVoice(
   options?: { voice?: string; speed?: number }
 ): Promise<Buffer> {
   const response = await openai.audio.speech.create({
-    model: "tts-1",
+    model: TTS_MODEL,
     voice: (options?.voice ?? "alloy") as "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer",
     input: text,
     speed: options?.speed ?? 1.0,

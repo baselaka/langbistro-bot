@@ -1,4 +1,5 @@
 import { AssistantResponse, ChatMessage, generateResponse, generateVoice, getVoiceSpeedForLevel } from "../ai/openai";
+import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 
 type MessageType = "text" | "voice";
@@ -41,14 +42,13 @@ export async function runAssistantTurn(
       content: row.content,
     }));
 
-  const model = isSubscribed ? "gpt-4o" : "gpt-4o-mini";
+  const model = isSubscribed ? CHAT_MODEL_PRO : CHAT_MODEL_FREE;
   const structured = await generateResponse(
     [...history, { role: "user", content: userContent }],
     targetLanguage,
     model,
     effectiveLevel
   );
-  console.log(`[Conv] GPT correction:`, JSON.stringify(structured.correction));
 
   const { error: saveMessagesError } = await supabase.from("messages").insert([
     {

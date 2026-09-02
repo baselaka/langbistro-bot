@@ -1,5 +1,6 @@
 import type { Context } from "grammy";
 import { generateResponse, generateVoice } from "../ai/openai";
+import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 import { sendUxFlow } from "../bot/handlers/ux-flow";
 import { evaluateFillBlank, evaluateReviewAnswer } from "./dailySession";
@@ -130,7 +131,7 @@ Instructions:
     { role: "user" as const, content: text },
   ];
 
-  const model = isSubscribed ? "gpt-4o" : "gpt-4o-mini";
+  const model = isSubscribed ? CHAT_MODEL_PRO : CHAT_MODEL_FREE;
   const structuredResponse = await generateResponse(messagesForGpt, targetLanguage, model);
 
   const { error: saveError } = await supabase.from("messages").insert([

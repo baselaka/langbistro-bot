@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { InlineKeyboard } from "grammy";
 import { openai } from "../ai/openai";
+import { CHAT_MODEL_FREE, CHAT_MODEL_GRADE, chatParams } from "../config/models";
 import { supabase } from "../db/client";
 import { getLocalDateString } from "../utils/dateTz";
 import { checkAnswerMatch, type Vocabulary } from "./vocabulary";
@@ -24,21 +25,50 @@ const gradeSchema = z.object({
   correct: z.boolean(),
 });
 
+function buildGradeSystemPrompt(context: "review" | "fill_blank"): string {
+  return `You grade Spanish learner answers for a language-learning quiz. Return JSON only: {"correct": true} or {"correct": false}.
+
+Be LENIENT with minor typos (1–2 character swaps, missing accents, doubled/missing letters) and with valid conjugations, inflections, gerunds, or gender/number variants of the expected word or phrase. The learner is practicing vocabulary, not spelling perfection.
+
+ADJECTIVE GENDER/NUMBER RULE (apply mechanically, not by example memorization):
+If the expected word is an adjective (or adjective-like form) and the learner's answer differs ONLY by Spanish gender and/or number agreement endings, mark correct: true whenever the base/lemma is the same word.
+- Gender-only: -o ↔ -a (e.g. abierto↔abierta, rojo↔roja, pequeño↔pequeña, cansado↔cansada)
+- Number-only: add/remove -s or -es (e.g. rojo↔rojos, abierta↔abiertas)
+- Combined gender+number: e.g. abierto↔abiertas, rojo↔rojas, pequeño↔pequeñas
+Do NOT require the learner to match the exact citation form. Masculine/feminine and singular/plural agreement forms of the SAME adjective are always valid. Apply this rule even for adjectives not listed in the examples below.
+
+Examples that MUST be correct: true:
+- Expected "casa", learner "kasa" (minor typo)
+- Expected "gracias", learner "grasias" (minor typo)
+- Expected "perro", learner "pero" (one-letter typo; still the intended word)
+- Expected "comer", learner "comemos" (valid verb conjugation)
+- Expected "comer", learner "comí" (past-tense conjugation of the same verb)
+- Expected "beber", learner "bebiendo" (gerund form of the same verb)
+- Expected "cansado", learner "cansada" (gender variant)
+- Expected "abierto", learner "abiertas" (adjective gender+number agreement)
+- Expected "rojo", learner "rojas" (adjective gender+number agreement)
+- Expected "pequeño", learner "pequeñas" (adjective gender+number agreement)
+- Expected "libro", learner "libros" (number variant)
+
+Examples that MUST be correct: false:
+- Expected "casa", learner "perro" (unrelated word)
+- Expected "comer", learner "beber" (different verb, not a form of the expected word)
+
+Context: ${context}.`;
+}
+
 async function gptGradeSpanishAnswer(
   userAnswer: string,
   expected: string,
   context: "review" | "fill_blank"
 ): Promise<boolean> {
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0,
+    ...chatParams(CHAT_MODEL_GRADE, 0),
     response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
-        content: `You grade Spanish learner answers. Return JSON only: {"correct": true} or {"correct": false}.
-Accept correct answers, minor typos, and valid conjugations/inflections of the expected word or phrase.
-Context: ${context}.`,
+        content: buildGradeSystemPrompt(context),
       },
       {
         role: "user",
@@ -119,8 +149,7 @@ type FillBlankSentence = {
 export async function generateFillBlankSentence(word: string): Promise<FillBlankSentence> {
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.3,
+      ...chatParams(CHAT_MODEL_FREE, 0.3),
       response_format: { type: "json_object" },
       messages: [
         {
@@ -156,8 +185,7 @@ export async function buildFillBlankMessage(word: Vocabulary, language: string =
   const { blanked } = await (async () => {
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0.3,
+        ...chatParams(CHAT_MODEL_FREE, 0.3),
         response_format: { type: "json_object" },
         messages: [
           {

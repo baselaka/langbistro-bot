@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { openai } from "../../ai/openai";
+import { CHAT_MODEL_FREE, chatParams } from "../../config/models";
 import { supabase } from "../../db/client";
 
 const TXT_PATH = path.resolve(__dirname, "data/es_5k.txt");
@@ -79,8 +80,7 @@ function buildUserPrompt(words: string[]): string {
 
 async function enrichBatch(words: string[]): Promise<z.infer<typeof vocabItemSchema>[]> {
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.2,
+    ...chatParams(CHAT_MODEL_FREE, 0.2),
     response_format: { type: "json_object" },
     messages: [
       {
