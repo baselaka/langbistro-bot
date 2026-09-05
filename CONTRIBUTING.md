@@ -44,7 +44,10 @@ This guide covers how to set up a local environment, what we accept, and how to 
 git clone https://github.com/baselaka/langbistro-bot.git
 cd langbistro-bot
 npm install
+git config core.hooksPath .githooks
 ```
+
+The git hook blocks direct commits to `main`. Use a feature branch and open a PR instead.
 
 ### 2. Environment variables
 
@@ -101,8 +104,17 @@ Other useful scripts:
 | `npm run build` | Compile TypeScript to `dist/` |
 | `npm run start` | Run compiled production build |
 | `npm run typecheck` | Type-check without emitting files |
+| `npm run lint` | ESLint on `src/` |
+| `npm run test` | Vitest (unit tests in `src/**/__tests__/`) |
+| `npm run test:watch` | Vitest in watch mode |
 
-There is no automated test suite yet. **`npm run typecheck` must pass** before you open a PR.
+Before you open a PR, confirm CI will pass locally:
+
+```bash
+npm run typecheck && npm run lint && npm run test && npm run build
+```
+
+Any new or modified business logic should include a Vitest test in the same PR. See `CLAUDE.md` for agent workflow rules (branch naming, testing expectations, CI policy).
 
 ## Project layout
 
@@ -140,16 +152,16 @@ When adding behavior, prefer extending existing services and handlers rather tha
 
 ## Submitting a pull request
 
-1. Fork the repository and create a branch from `main`:
+1. Fork the repository and create a branch from `main` (use the Linear ticket prefix when applicable):
 
    ```bash
-   git checkout -b fix/quiz-answer-matching
+   git checkout -b fix/PRS-123-quiz-answer-matching
    ```
 
 2. Make your changes and confirm:
 
    ```bash
-   npm run typecheck
+   npm run typecheck && npm run lint && npm run test && npm run build
    ```
 
 3. Commit with a clear message. We use conventional prefixes where practical:

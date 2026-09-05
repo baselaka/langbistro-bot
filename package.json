@@ -8,6 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint src",
     "seed": "ts-node src/db/seeds/run-seed.ts",
     "seed:vocab": "ts-node src/db/seeds/vocabulary-5k.ts",
@@ -48,6 +50,7 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.64.0"
+    "typescript-eslint": "^8.64.0",
+    "vitest": "^5.0.0"
   }
 }
