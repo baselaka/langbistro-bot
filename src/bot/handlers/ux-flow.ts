@@ -1,5 +1,6 @@
 import { InlineKeyboard, InputFile, type Context } from "grammy";
 import type { AssistantResponse } from "../../ai/openai";
+import { formatCorrectionMarkdownV2 } from "../../utils/correction";
 import { storeCorrectionExplanation, storeReplyMeta } from "../ux-memory";
 
 const CONVERSATION_ENCOURAGEMENT: Record<string, string[]> = {
@@ -41,9 +42,11 @@ export async function sendUxFlow(
   }
 
   if (structured.correction) {
-    const original = escapeMarkdownV2(structured.correction.original);
-    const corrected = escapeMarkdownV2(structured.correction.corrected);
-    const correctionText = `~${original}~ \\-\\> *${corrected}*`;
+    const correctionText = formatCorrectionMarkdownV2(
+      structured.correction.original,
+      structured.correction.corrected,
+      escapeMarkdownV2
+    );
     const correctionKeyboard = new InlineKeyboard().text(
       "💡 Explain",
       "explain_correction:pending"
