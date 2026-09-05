@@ -30,3 +30,33 @@ export function clearQuizState(telegramId: number): void {
 export function isInQuiz(telegramId: number): boolean {
   return quizByTelegramId.has(telegramId);
 }
+
+/**
+ * After an outbound message that changes conversation context (e.g. inactivity
+ * nudge), drop any pending quiz so the user's next message is not graded.
+ * Quiz is only cleared after `send` succeeds.
+ */
+export async function sendAndClearQuiz(
+  telegramId: number,
+  send: () => Promise<void>
+): Promise<void> {
+  await send();
+  clearQuizState(telegramId);
+}
+
+/**
+ * After a new daily word set is delivered, drop the previous quiz immediately
+ * (so a reply during fill-blank generation is not graded against yesterday's
+ * word). Then set the new quiz only after the new prompt is sent.
+ */
+export async function replaceQuizAfterWordSet(
+  telegramId: number,
+  sendWordSet: () => Promise<void>,
+  sendNewQuizPrompt: () => Promise<void>,
+  nextQuiz: QuizState
+): Promise<void> {
+  await sendWordSet();
+  clearQuizState(telegramId);
+  await sendNewQuizPrompt();
+  setQuizState(telegramId, nextQuiz);
+}

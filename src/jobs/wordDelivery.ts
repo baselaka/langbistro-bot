@@ -6,7 +6,7 @@ import {
   buildWordMessage,
   getOrCreateDailySession,
 } from "../services/dailySession";
-import { setQuizState } from "../services/quizState";
+import { replaceQuizAfterWordSet } from "../services/quizState";
 import { getDailyWords } from "../services/vocabulary";
 
 type DeliveryUser = {
@@ -56,7 +56,8 @@ export function startWordDeliveryJob(bot: Bot): void {
         }
 
         const words = await getDailyWords(user.id, user.current_tier, user.target_language ?? "es");
-        if (words.length === 0) {
+        const fillBlankWord = words[Math.floor(Math.random() * words.length)];
+        if (!fillBlankWord) {
           continue;
         }
 
@@ -66,14 +67,6 @@ export function startWordDeliveryJob(bot: Bot): void {
           .eq("id", session.id);
 
         const { text: wordListText, keyboard: wordListKeyboard } = buildWordMessage(words);
-        await bot.api.sendMessage(user.telegram_id, wordListText, {
-          parse_mode: "MarkdownV2",
-          reply_markup: wordListKeyboard,
-        });
-
-        const fillBlankWord = words[Math.floor(Math.random() * words.length)];
-        await bot.api.sendMessage(user.telegram_id, await buildFillBlankMessage(fillBlankWord, user.target_language ?? "es"));
-
         const fillBlankState = {
           type: "fill_blank" as const,
           word: fillBlankWord.word,
@@ -82,7 +75,22 @@ export function startWordDeliveryJob(bot: Bot): void {
           targetLanguage: user.target_language ?? "es",
         };
 
-        setQuizState(user.telegram_id, fillBlankState);
+        await replaceQuizAfterWordSet(
+          user.telegram_id,
+          async () => {
+            await bot.api.sendMessage(user.telegram_id, wordListText, {
+              parse_mode: "MarkdownV2",
+              reply_markup: wordListKeyboard,
+            });
+          },
+          async () => {
+            await bot.api.sendMessage(
+              user.telegram_id,
+              await buildFillBlankMessage(fillBlankWord, user.target_language ?? "es")
+            );
+          },
+          fillBlankState
+        );
       } catch (userError) {
         console.error(`Word delivery failed for user ${user.id}:`, userError instanceof Error ? userError.stack : userError);
       }
