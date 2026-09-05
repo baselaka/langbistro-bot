@@ -1,0 +1,13 @@
+#!/bin/sh
+# Block direct commits to main — use a feature branch + PR instead.
+branch="$(git symbolic-ref --quiet HEAD 2>/dev/null)"
+branch="${branch##refs/heads/}"
+
+if [ "$branch" = "main" ]; then
+  echo "Direct commits to main are not allowed."
+  echo "Create a branch: git checkout -b feature/PRS-123-short-description"
+  echo "Enable this hook once per clone: git config core.hooksPath .githooks"
+  exit 1
+fi
+
+exit 0

@@ -1,11 +1,36 @@
 # LangBistro — Cursor Rules
 
+## Agent workflow (branching, testing, CI)
+
+These apply to every coding session. Full text also lives in `CLAUDE.md` for Claude Code users.
+
+### Branching
+- **Never commit directly to `main`.** Use a branch + PR. Enable `.githooks/pre-commit` once per clone: `git config core.hooksPath .githooks`.
+- One branch per Linear ticket: `feature/PRS-123-short-description` or `fix/PRS-123-...`.
+- Open PR with `gh pr create --fill --base main`. **Do not merge yourself** — human merges after CI + review.
+- Create a branch before writing code if one doesn't exist yet.
+- Before finishing: `git status --porcelain --untracked-files=all` — nothing important left untracked (Railway deploys from the working tree).
+
+### Testing
+- New or modified **business logic** ships with a Vitest test in the same PR (`npm run test`, tests in `src/**/__tests__/`).
+- Err on the side of testing anything touching user data, payments, or non-obvious transformations.
+
+### CI
+- CI on push/PR to `main`: `typecheck`, `lint`, `test`, `build`. Do not skip or disable failing checks.
+- Run all four locally before pushing. Tests must not require real API keys.
+
+### When in doubt
+- Flag unresolved product questions instead of guessing.
+- If a hook contradicts these rules, say so — don't silently follow whichever fires last.
+
+---
+
 ## Project overview
 LangBistro is a voice-first, AI-powered Telegram language learning bot for English-speaking users in the US.
 - Bot persona: **Bistro** (speaks the target language, explains in English)
 - UX mode: **conversation-first** — users can talk to Bistro immediately; lessons are woven into free conversation, not gated
 - Languages: Spanish and French (both live). Multi-language via `language_code` — never build per-language forks
-- Stack: Node.js + TypeScript + GrammY + Supabase + Railway + OpenAI (GPT-4o, Whisper, TTS) + Paddle
+- Stack: Node.js + TypeScript + GrammY + Supabase + Railway + OpenAI (GPT-5.2/5.4-mini, mini transcribe/TTS) + Paddle
 
 ---
 
@@ -25,7 +50,7 @@ LangBistro is a voice-first, AI-powered Telegram language learning bot for Engli
 
 ### Voice pipeline
 - **TTS:** OpenAI TTS. Spanish and French are fully supported
-- **STT:** OpenAI Whisper. Set the `language` hint to match `user.language_code` (e.g., `'es'` or `'fr'`). Never omit the hint.
+- **STT:** OpenAI transcription (`gpt-4o-mini-transcribe` via `TRANSCRIBE_MODEL`). Set the `language` hint to match `user.language_code` (e.g., `'es'` or `'fr'`). Never omit the hint.
 - Never swap OpenAI voice APIs for another provider without evaluating impact on both Spanish and French output quality.
 
 ### Payments
@@ -78,7 +103,7 @@ Quota enforcement pattern:
 ## Pricing and subscription gating
 
 - Free tier: 10 text messages + 3 voice messages per day
-- Pro: unlimited text & voice, all vocabulary tiers, GPT-4o (vs GPT-4o-mini on free)
+- Pro: unlimited text & voice, all vocabulary tiers, GPT-5.2 (vs GPT-5.4-mini on free)
 - Check `user.is_subscribed` to determine model and quota access
 - `/subscribe` command triggers Paddle checkout via the website `subscribe.html` page (passes `telegram_id` + `plan` in URL)
 - 7-day money-back guarantee must be mentioned in `/subscribe` copy
