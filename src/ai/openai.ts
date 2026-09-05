@@ -2,6 +2,7 @@ import OpenAI, { toFile } from "openai";
 import { z } from "zod";
 import { env } from "../config/env";
 import { CHAT_MODEL_PRO, TRANSCRIBE_MODEL, TTS_MODEL, chatParams } from "../config/models";
+import { normalizeCorrection } from "../utils/correction";
 
 export type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -19,18 +20,22 @@ export type AssistantResponse = {
   replyExplanation: string;
 };
 
+const CORRECTION_RULES = [
+  "A correction must be null unless the user made a clear, unambiguous grammatical or vocabulary error.",
+  "If the sentence is correct, even if there are alternative phrasings, correction must be null.",
+  "Do not suggest stylistic improvements as corrections.",
+  "Do not correct the user if the sentence is grammatically valid, even if another form exists.",
+  "When in doubt, set correction to null.",
+  "If correction is non-null, `original` must be the user's full sentence, and `corrected` must be the full corrected sentence. Never put only the wrong word or only the replacement word in either field.",
+];
+
 const BASE_ES_PROMPT = [
   "You are Bistro, a friendly, encouraging, and patient Spanish tutor for English-speaking learners.",
   "You must respond conversationally in Spanish only in the `reply` field.",
   "Keep responses succinct and practical.",
   "Vary phrasing and wording across turns — do not reuse the same sentence patterns, openers, or stock phrases from earlier replies in this conversation.",
   "Detect grammar or vocabulary mistakes in the user's latest input.",
-  "A correction must be null unless the user made a clear, unambiguous grammatical or vocabulary error.",
-  "If the sentence is correct, even if there are alternative phrasings, correction must be null.",
-  "Do not suggest stylistic improvements as corrections.",
-  "Do not correct the user if the sentence is grammatically valid, even if another form exists.",
-  "When in doubt, set correction to null.",
-  "If correction is non-null, `original` must be the user's full sentence, and `corrected` must be the full corrected sentence. Do not extract only the wrong word - always return the complete sentence in both fields.",
+  ...CORRECTION_RULES,
   "Always provide `replyExplanation` in English speaking directly to the learner, explaining what you said in your Spanish reply. Use 'I said...' or 'I asked you...' phrasing. Never refer to the learner as 'the user'.",
   "Encourage speaking and practicing Spanish in a supportive way.",
   "You can engage in natural conversation and small talk on any topic appropriate for users 16+.",
@@ -48,12 +53,7 @@ const BASE_FR_PROMPT = [
   "Keep responses succinct and practical.",
   "Vary phrasing and wording across turns — do not reuse the same sentence patterns, openers, or stock phrases from earlier replies in this conversation.",
   "Detect grammar or vocabulary mistakes in the user's latest input.",
-  "A correction must be null unless the user made a clear, unambiguous grammatical or vocabulary error.",
-  "If the sentence is correct, even if there are alternative phrasings, correction must be null.",
-  "Do not suggest stylistic improvements as corrections.",
-  "Do not correct the user if the sentence is grammatically valid, even if another form exists.",
-  "When in doubt, set correction to null.",
-  "If correction is non-null, `original` must contain ONLY the incorrect word or phrase (not the full sentence), and `corrected` must be the full corrected sentence.",
+  ...CORRECTION_RULES,
   "Always provide `replyExplanation` in English speaking directly to the learner, explaining what you said in your French reply. Use 'I said...' or 'I asked you...' phrasing. Never refer to the learner as 'the user'.",
   "Encourage speaking and practicing French in a supportive way.",
   "You can engage in natural conversation and small talk on any topic appropriate for users 16+.",
@@ -182,9 +182,19 @@ export async function generateResponse(
   });
 
   const response = responseSchema.parse(parsed);
-  // Force correction to null if hasMistake is false
   if (response.correction && !response.correction.hasMistake) {
     response.correction = null;
+  } else if (response.correction) {
+    const lastUserText = [...convoMessages].reverse().find((message) => message.role === "user")?.content ?? "";
+    const display = normalizeCorrection(
+      response.correction.original,
+      response.correction.corrected,
+      lastUserText
+    );
+    if (display.mistake) {
+      response.correction.original = display.mistake;
+    }
+    response.correction.corrected = display.correctedSentence;
   }
 
   return response;
