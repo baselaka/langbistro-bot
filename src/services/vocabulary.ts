@@ -1,5 +1,4 @@
 import { supabase } from "../db/client";
-import { normalizeText } from "../utils/text";
 
 export type Vocabulary = {
   id: number;
@@ -30,27 +29,6 @@ export function getMilestoneMessage(wordsCount: number): string | null {
     return MILESTONE_MESSAGES[wordsCount as (typeof MILESTONES)[number]] ?? null;
   }
   return null;
-}
-
-function tokenizeForMatch(text: string): string[] {
-  return normalizeText(text)
-    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
-    .split(/\s+/)
-    .filter(Boolean);
-}
-
-export function checkAnswerMatch(userAnswer: string, expectedWord: string): boolean {
-  return normalizeText(userAnswer) === normalizeText(expectedWord);
-}
-
-/** True when the answer is the expected phrase, or starts with it (completed fill-blank sentence). */
-export function startsWithExpectedPhrase(userAnswer: string, expectedWord: string): boolean {
-  const answerTokens = tokenizeForMatch(userAnswer);
-  const expectedTokens = tokenizeForMatch(expectedWord);
-  if (expectedTokens.length === 0 || answerTokens.length < expectedTokens.length) {
-    return false;
-  }
-  return expectedTokens.every((token, index) => answerTokens[index] === token);
 }
 
 export async function getDailyWords(userId: number, tier: number, language: string = "es"): Promise<Vocabulary[]> {

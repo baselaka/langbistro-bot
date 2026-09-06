@@ -4,7 +4,8 @@ import { openai } from "../ai/openai";
 import { CHAT_MODEL_FREE, CHAT_MODEL_GRADE, chatParams } from "../config/models";
 import { supabase } from "../db/client";
 import { getLocalDateString } from "../utils/dateTz";
-import { checkAnswerMatch, startsWithExpectedPhrase, type Vocabulary } from "./vocabulary";
+import { checkAnswerMatch, startsWithExpectedPhrase } from "../utils/text";
+import { type Vocabulary } from "./vocabulary";
 
 export type DailySession = {
   id: number;
