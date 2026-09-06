@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   SUPPORTED_LANGUAGES,
   buildDetectUserPrompt,
+  buildFillBlankPrompts,
   buildGradeSystemPrompt,
   getLanguageConfig,
+  getMilestoneMessage,
   isSupportedLanguage,
   languageDisplayLabel,
   parseTargetLanguage,
@@ -70,5 +72,37 @@ describe("languages config", () => {
     expect(settingsLevelAsk("en")).toBe("What is your English level?");
     expect(settingsLevelAsk("fr")).toBe("What is your French level?");
     expect(settingsLevelAsk("es")).toBe("What is your Spanish level?");
+  });
+
+  it("builds English fill-blank prompts and does not fall through to Spanish", () => {
+    const prompts = buildFillBlankPrompts("hello", "en", "Hello, how are you today?");
+    expect(prompts.system).toContain("English");
+    expect(prompts.system).not.toContain("Spanish language teacher");
+    expect(prompts.system).toContain("Do not reuse or lightly paraphrase this example sentence");
+    expect(prompts.user).toContain("English word: hello");
+  });
+
+  it("builds French fill-blank prompts", () => {
+    const prompts = buildFillBlankPrompts("bonjour", "fr");
+    expect(prompts.system).toContain("French");
+    expect(prompts.user).toContain("French word: bonjour");
+  });
+
+  it("returns English quiz messages instead of Spanish fallback", () => {
+    const messages = getLanguageConfig("en").quizMessages;
+    expect(messages.correct[0]).toBe("Correct! 🎉");
+    expect(messages.encouragement[0]).toBe("Keep going! 💪");
+  });
+
+  it("builds language-aware review prompts", () => {
+    expect(getLanguageConfig("en").reviewAsk("a greeting")).toContain("English");
+    expect(getLanguageConfig("es").reviewAsk("house")).toContain("Spanish");
+  });
+
+  it("returns language-neutral milestone copy for English", () => {
+    const msg = getMilestoneMessage(50, "en");
+    expect(msg).toContain("English");
+    expect(msg).not.toContain("Spanish");
+    expect(msg).not.toContain("¡");
   });
 });

@@ -293,3 +293,49 @@ export function settingsLevelAsk(raw: string | null | undefined): string {
   const lang = getLanguageConfig(raw);
   return `What is your ${lang.name} level?`;
 }
+
+/** Pure fill-blank GPT prompt builder — kept free of OpenAI/env imports for unit tests. */
+export function buildFillBlankPrompts(
+  word: string,
+  language: string,
+  avoidExample?: string | null
+): { system: string; user: string } {
+  const cfg = getLanguageConfig(language);
+  let system = cfg.fillBlankTeacherPrompt;
+  if (avoidExample?.trim()) {
+    system += ` Do not reuse or lightly paraphrase this example sentence: "${avoidExample.trim()}".`;
+  }
+  return {
+    system,
+    user: cfg.fillBlankUserPrompt(word),
+  };
+}
+
+const MILESTONES = [50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 4000] as const;
+
+function milestoneMessagesFor(lang: TargetLanguage): Record<number, string> {
+  const name = LANGUAGES[lang].name;
+  return {
+    50: `Nice work! You've learned your first 50 ${name} words — you can already understand basic greetings and everyday phrases!`,
+    100: `Congratulations! 100 ${name} words down — you can introduce yourself and understand simple conversations!`,
+    250: `Great job! 250 ${name} words learned. You can now handle basic shopping, directions, and small talk!`,
+    500: `Incredible! 500 ${name} words — you're building real conversational ability. Keep going!`,
+    750: `Excellent! 750 ${name} words learned. You can now express opinions and understand most everyday ${name}!`,
+    1000: `Fantastic! 1,000 ${name} words — you've crossed a major milestone. Most conversations are within reach!`,
+    1500: `Impressive! 1,500 ${name} words. You're approaching intermediate fluency — keep it up!`,
+    2000: `Amazing! 2,000 ${name} words learned. You can read simple texts and hold extended conversations!`,
+    3000: `Outstanding! 3,000 ${name} words — you're in advanced territory now. Most native content is accessible!`,
+    4000: `You're incredible! 4,000 ${name} words mastered. You're fluent in the most essential vocabulary — well done!`,
+  };
+}
+
+export function getMilestoneMessage(
+  wordsCount: number,
+  language: string = DEFAULT_TARGET_LANGUAGE
+): string | null {
+  if (MILESTONES.includes(wordsCount as (typeof MILESTONES)[number])) {
+    const messages = milestoneMessagesFor(parseTargetLanguage(language));
+    return messages[wordsCount as (typeof MILESTONES)[number]] ?? null;
+  }
+  return null;
+}

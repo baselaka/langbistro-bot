@@ -2,11 +2,14 @@ import { z } from "zod";
 import { InlineKeyboard } from "grammy";
 import { openai } from "../ai/openai";
 import {
+  buildFillBlankPrompts,
   buildGradeSystemPrompt,
   getLanguageConfig,
   parseTargetLanguage,
   type TargetLanguage,
 } from "../config/languages";
+
+export { buildFillBlankPrompts };
 import { CHAT_MODEL_FREE, CHAT_MODEL_GRADE, chatParams } from "../config/models";
 import { supabase } from "../db/client";
 import { getLocalDateString } from "../utils/dateTz";
@@ -124,23 +127,6 @@ type FillBlankSentence = {
   sentence: string;
   blanked: string;
 };
-
-/** Exported for unit tests — fill-blank teacher/user prompts for a language. */
-export function buildFillBlankPrompts(
-  word: string,
-  language: string,
-  avoidExample?: string | null
-): { system: string; user: string } {
-  const cfg = getLanguageConfig(language);
-  let system = cfg.fillBlankTeacherPrompt;
-  if (avoidExample?.trim()) {
-    system += ` Do not reuse or lightly paraphrase this example sentence: "${avoidExample.trim()}".`;
-  }
-  return {
-    system,
-    user: cfg.fillBlankUserPrompt(word),
-  };
-}
 
 export async function generateFillBlankSentence(
   word: string,
