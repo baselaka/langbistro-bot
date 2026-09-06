@@ -9,6 +9,11 @@ const COMMAND_DEFS: ReadonlyArray<{ command: string; key: MessageKey }> = [
   { command: "subscribe", key: "command.subscribe" },
 ];
 
+type CommandScope = { type: "default" } | { type: "all_private_chats" };
+
+/** Private chats use all_private_chats and ignore the default BotFather list. */
+export const COMMAND_SCOPES: CommandScope[] = [{ type: "default" }, { type: "all_private_chats" }];
+
 export function botCommandsFor(
   locale: InterfaceLanguage
 ): Array<{ command: string; description: string }> {
@@ -19,8 +24,14 @@ export function botCommandsFor(
 }
 
 export async function syncBotCommands(bot: Bot): Promise<void> {
-  await bot.api.setMyCommands(botCommandsFor("en"));
-  for (const locale of INTERFACE_LANGUAGES) {
-    await bot.api.setMyCommands(botCommandsFor(locale), { language_code: locale });
+  const commandsByLocale = Object.fromEntries(
+    INTERFACE_LANGUAGES.map((locale) => [locale, botCommandsFor(locale)])
+  ) as Record<InterfaceLanguage, ReturnType<typeof botCommandsFor>>;
+
+  for (const scope of COMMAND_SCOPES) {
+    await bot.api.setMyCommands(commandsByLocale.en, { scope });
+    for (const locale of INTERFACE_LANGUAGES) {
+      await bot.api.setMyCommands(commandsByLocale[locale], { scope, language_code: locale });
+    }
   }
 }
