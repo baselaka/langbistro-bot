@@ -139,7 +139,7 @@ When adding behavior, prefer extending existing services and handlers rather tha
 - **Minimal diffs.** Fix the problem at hand; avoid unrelated refactors in the same PR.
 - **Follow existing conventions.** Naming, imports (`node:fs`, `node:path`), Zod validation, and Supabase access patterns should match surrounding code.
 - **Environment config** goes through `src/config/env.ts` — do not read `process.env` ad hoc in new code.
-- **User-facing UI copy** stays in English. Target-language tutor replies (Spanish, French, or English) live in prompts/config; for ESL, `replyExplanation` is a simpler English paraphrase.
+- **User-facing UI copy** goes through `src/i18n` (`en`, `es`, `pt`, `ru`). Target-language tutor replies (Spanish, French, or English) live in prompts/config. Meta-explanations follow `interface_language`; for ESL with English UI, `replyExplanation` is a simpler English paraphrase.
 - **Vocabulary data** must include proper attribution if you add or replace word lists (CC BY 4.0 or compatible).
 
 ## Adding a new language

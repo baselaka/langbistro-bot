@@ -1,4 +1,5 @@
-import { getMilestoneMessage, parseTargetLanguage } from "../config/languages";
+import { parseTargetLanguage } from "../config/languages";
+import { getMilestoneMessage } from "../i18n";
 import { supabase } from "../db/client";
 
 export { getMilestoneMessage };

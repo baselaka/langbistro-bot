@@ -1,0 +1,146 @@
+import type { MessageKey } from "./en";
+
+export const es: Record<MessageKey, string> = {
+  "start.hello": "¡Hola desde LangBistro!",
+  "start.setupHiccup": "¡Bienvenido a LangBistro! Hubo un problema al configurar. Inténtalo de nuevo.",
+  "start.welcomeBack":
+    "¡Qué bueno verte de nuevo! ¿Listo para practicar? Envíame un mensaje o una nota de voz para continuar 🎙️",
+
+  "onboarding.intro": `¡Hola! Soy Bistro, tu tutor de idiomas con IA 🍽️
+
+Te ayudo a desarrollar habilidades reales de conversación con:
+- Chats diarios en tu idioma objetivo
+- Correcciones y explicaciones al instante
+- Palabras de vocabulario todos los días
+- Práctica con voz 🎙️
+
+¿Qué idioma te gustaría aprender?`,
+  "onboarding.unsupportedLanguage": "Idioma no compatible. Elige uno de los botones de arriba.",
+  "onboarding.dailyWordsWhen": "¡Genial! ¿Cuándo quieres recibir tus palabras del día?",
+  "onboarding.levelAsk": "¡Genial! ¿Cuál es tu nivel de {language}?",
+  "onboarding.useButtons": "Usa los botones de arriba para terminar la configuración primero.",
+
+  "button.read": "📖 Leer",
+  "button.explain": "💡 Explicar",
+  "button.beginner": "🌱 Principiante",
+  "button.intermediate": "📈 Intermedio",
+  "button.advanced": "🎓 Avanzado",
+  "button.time0800": "🌅 8:00 a. m. (ET)",
+  "button.time1100": "☀️ 11:00 a. m. (ET)",
+  "button.time1400": "🌇 2:00 p. m. (ET)",
+  "button.time1700": "🌆 5:00 p. m. (ET)",
+  "button.time2000": "🌙 8:00 p. m. (ET)",
+  "button.time2300": "🌃 11:00 p. m. (ET)",
+  "button.subscribePro": "⚡ Suscribirse a Pro",
+
+  "settings.title": "⚙️ Ajustes",
+  "settings.levelLine": "📊 Nivel: {level}",
+  "settings.levelAsk": "¿Cuál es tu nivel de {language}?",
+  "settings.timeAsk":
+    "¿A qué hora quieres recibir tus palabras del día? Las horas están en hora del Este (ET).",
+  "settings.interfaceAsk": "¿En qué idioma deben estar los menús y las explicaciones?",
+  "settings.interfaceUpdated": "✅ Idioma de la interfaz: {language}.",
+
+  "language.ask": "¿Qué idioma te gustaría aprender?",
+  "language.switchedRestored":
+    "✅ Cambiaste a {language}.\n\nSe restauró tu progreso de {language} (Nivel: {level}, nivel de vocabulario {tier}).",
+  "language.switchedFresh":
+    "✅ Cambiaste a {language}.\n\nEmpiezas de cero en Principiante, nivel de vocabulario 1.",
+
+  "subscribe.alreadyPro":
+    "✅ Ya eres suscriptor Pro.\n\nPara gestionar o cancelar la suscripción, escríbenos a:\n📧 support@langbistro.com\n\nTe ayudamos en 1 día hábil.",
+  "subscribe.cta":
+    "Elige tu plan y desbloquea:\n\n✓ Mensajes de texto y voz ilimitados\n✓ Todos los niveles de vocabulario\n✓ Modelos de IA más capaces\n\nLos impuestos se calculan al pagar. Garantía de reembolso de 7 días.",
+
+  "account.suspended":
+    "Tu cuenta está suspendida. Contacta a @langbistro_support si crees que es un error.",
+
+  "quota.text":
+    "Llegaste al límite gratuito de texto de hoy (10/día). Mejora tu plan para practicar sin límites.",
+  "quota.voice":
+    "Llegaste al límite gratuito de voz de hoy (3/día). Mejora tu plan para practicar voz sin límites.",
+
+  "voice.processFailed": "No pude procesar ese mensaje de voz. Inténtalo de nuevo.",
+  "voice.downloadFailed": "No pude descargar ese mensaje de voz. Inténtalo de nuevo.",
+
+  "callback.textUnavailable": "Este texto ya no está disponible.",
+  "callback.invalidWord": "Selección de palabra no válida.",
+  "callback.wordNotFound": "No se encontró la palabra.",
+  "callback.audioFailed": "No se pudo generar el audio.",
+  "callback.unsupportedLanguage": "Idioma no compatible.",
+  "callback.userNotFound": "No se encontró el usuario.",
+  "callback.profileNotFound": "No se pudo encontrar tu perfil.",
+  "callback.switchFailed": "No se pudo cambiar el idioma.",
+  "callback.invalidTime": "Selección de hora no válida.",
+  "callback.settingsUpdateFailed": "No pude actualizar tus ajustes ahora. Inténtalo de nuevo.",
+  "callback.timeUpdated": "✅ Listo. Recibirás tus palabras del día a las {time} (hora del Este).",
+  "callback.levelUpdateFailed": "No se pudo actualizar el nivel.",
+  "callback.levelUpdated": "Nivel actualizado a {level}.",
+  "callback.actionUnavailable": "Esta acción ya no está disponible.",
+  "callback.buttonExpired": "Ese botón ya caducó. Envía un mensaje nuevo para continuar.",
+  "callback.actionNotAvailable": "Esa acción no está disponible para este mensaje.",
+  "callback.interfaceUpdateFailed": "No se pudo actualizar el idioma de la interfaz.",
+
+  "daily.wordsHeader": "📚 *Tus 10 palabras de hoy:*",
+  "daily.fillBlank": 'Completa el espacio:\n"{blanked}"\n(Responde por voz o texto)',
+  "daily.fillBlankFallback": "Completa esta oración usando: {word}\n_____",
+
+  "review.ask":
+    '🔁 ¡Repaso rápido! ¿Cómo se dice "{translation}" en {language}?\n(Responde por voz o texto)',
+
+  "quiz.correctExplain": '{praise} "{word}" significa "{translation}". {encouragement}',
+  "quiz.wrongExplain": '{encouragement} La respuesta correcta era "{word}" — significa "{translation}".',
+
+  "moderation.banned":
+    "Tu cuenta fue suspendida por violaciones repetidas de las normas. Si crees que es un error, contacta a @langbistro_support.",
+  "moderation.warning":
+    "Aviso: este tema está restringido. Mantén el chat seguro y centrado en el aprendizaje, o tu cuenta podría suspenderse.",
+  "moderation.redirect":
+    "Mantengamos el enfoque en practicar {language} de forma segura. Prueba un tema amistoso y seguimos.",
+  "moderation.safeTopic":
+    "Cambiemos a un tema más seguro y sigamos practicando {language}. Pregunta sobre viajes, comida o conversación cotidiana.",
+
+  "nudge.explanation":
+    "Te animé a responder en {language} y te dije que está bien cometer errores.",
+
+  "inactivity.neverStarted24h": "{greeting} ¿Listo para empezar a practicar? Envíame un mensaje {flag}",
+  "inactivity.neverStarted72h":
+    "Sigo aquí cuando quieras. Incluso 5 minutos de {language} marcan la diferencia 💪",
+  "inactivity.weekPause":
+    "{greeting} 👋 Llevas una semana sin practicar, así que pauso las palabras del día por ahora. Cuando quieras continuar, envíame cualquier mensaje y seguimos donde lo dejamos.",
+  "inactivity.recall":
+    '¿Todavía recuerdas qué significa "{word}"? Significa "{translation}" — ¡y ya lo aprendiste! Vuelve y sigue. 💪',
+  "inactivity.monthProgress":
+    "Ya aprendiste {count} palabras de {language}. Es progreso de verdad — no lo dejes perder. La siguiente palabra te espera. 👀",
+  "inactivity.finalPause":
+    "¡Lo intentamos de verdad! 😄 Pauso todos los mensajes por ahora para no molestarte. Cuando quieras retomar {language}, envíame un mensaje — aquí estaré.",
+
+  "target.es": "español",
+  "target.fr": "francés",
+  "target.en": "inglés",
+
+  "level.beginner": "Principiante",
+  "level.intermediate": "Intermedio",
+  "level.advanced": "Avanzado",
+
+  "milestone.50":
+    "¡Buen trabajo! Aprendiste tus primeras 50 palabras de {language} — ya puedes entender saludos y frases cotidianas.",
+  "milestone.100":
+    "¡Felicidades! 100 palabras de {language} — ya puedes presentarte y entender conversaciones simples.",
+  "milestone.250":
+    "¡Excelente! 250 palabras de {language}. Ya puedes manejar compras básicas, direcciones y charla informal.",
+  "milestone.500":
+    "¡Increíble! 500 palabras de {language} — estás construyendo una habilidad conversacional real. ¡Sigue así!",
+  "milestone.750":
+    "¡Excelente! 750 palabras de {language}. Ya puedes expresar opiniones y entender la mayor parte del {language} cotidiano.",
+  "milestone.1000":
+    "¡Fantástico! 1,000 palabras de {language} — cruzaste un hito importante. La mayoría de las conversaciones están a tu alcance.",
+  "milestone.1500":
+    "¡Impresionante! 1,500 palabras de {language}. Te acercas a una fluidez intermedia — ¡sigue!",
+  "milestone.2000":
+    "¡Increíble! 2,000 palabras de {language}. Ya puedes leer textos simples y mantener conversaciones más largas.",
+  "milestone.3000":
+    "¡Extraordinario! 3,000 palabras de {language} — ya estás en territorio avanzado. La mayor parte del contenido nativo es accesible.",
+  "milestone.4000":
+    "¡Eres increíble! Dominaste 4,000 palabras de {language}. Manejas el vocabulario más esencial — ¡muy bien!",
+};

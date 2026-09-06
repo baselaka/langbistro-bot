@@ -1,11 +1,15 @@
 import { InputFile, type Context } from "grammy";
 import { generateVoice } from "../../ai/openai";
-import {
-  isSupportedLanguage,
-  languageDisplayLabel,
-  parseTargetLanguage,
-} from "../../config/languages";
+import { isSupportedLanguage, parseTargetLanguage } from "../../config/languages";
 import { supabase } from "../../db/client";
+import {
+  INTERFACE_LANGUAGE_LABELS,
+  isInterfaceLanguage,
+  languageDisplayLabel,
+  localizedLevelName,
+  t,
+  type InterfaceLanguage,
+} from "../../i18n";
 import {
   handleOnboardingLanguageCallback,
   handleOnboardingLevelCallback,
@@ -13,8 +17,17 @@ import {
   resolveOnboardingReadCallbackData,
 } from "../../services/onboarding";
 import { clearQuizState } from "../../services/quizState";
+import { getInterfaceLocaleByTelegramId } from "../../services/users";
 import { etToUtc } from "../../utils/timeConvert";
 import { getCallbackMeta } from "../ux-memory";
+
+async function localeOf(ctx: Context): Promise<InterfaceLanguage> {
+  const telegramId = ctx.from?.id;
+  if (!telegramId) {
+    return "en";
+  }
+  return getInterfaceLocaleByTelegramId(telegramId);
+}
 
 export async function handleCallbackQuery(ctx: Context): Promise<void> {
   const data = ctx.callbackQuery?.data;
@@ -24,9 +37,10 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   }
 
   if (data.startsWith("read_onboarding:")) {
+    const locale = await localeOf(ctx);
     const openingText = resolveOnboardingReadCallbackData(data);
     if (!openingText) {
-      await ctx.answerCallbackQuery({ text: "This text is no longer available." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.textUnavailable") });
       return;
     }
     await ctx.reply(openingText);
@@ -35,18 +49,19 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   }
 
   if (data.startsWith("listen_word:")) {
+    const locale = await localeOf(ctx);
     const rawId = data.slice("listen_word:".length);
     const vocabularyId = Number(rawId);
 
     if (!Number.isFinite(vocabularyId)) {
-      await ctx.answerCallbackQuery({ text: "Invalid word selection." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.invalidWord") });
       return;
     }
 
     const { data: row, error } = await supabase.from("vocabulary").select("word").eq("id", vocabularyId).single();
 
     if (error || !row?.word) {
-      await ctx.answerCallbackQuery({ text: "Word not found." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.wordNotFound") });
       return;
     }
 
@@ -54,7 +69,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       const audio = await generateVoice(row.word, { voice: "onyx", speed: 0.8 });
       await ctx.replyWithVoice(new InputFile(audio, "word.mp3"));
     } catch {
-      await ctx.answerCallbackQuery({ text: "Could not generate audio." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.audioFailed") });
       return;
     }
 
@@ -63,20 +78,21 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   }
 
   if (data.startsWith("onboarding_language:")) {
+    const locale = await localeOf(ctx);
     const lang = data.slice("onboarding_language:".length);
     if (!isSupportedLanguage(lang)) {
-      await ctx.answerCallbackQuery({ text: "Unsupported language." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.unsupportedLanguage") });
       return;
     }
     const telegramId = ctx.from?.id;
     if (!telegramId) {
-      await ctx.answerCallbackQuery({ text: "User not found." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.userNotFound") });
       return;
     }
 
     const { data: user, error } = await supabase.from("users").select("id").eq("telegram_id", telegramId).single();
     if (error || !user) {
-      await ctx.answerCallbackQuery({ text: "Could not find your profile." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.profileNotFound") });
       return;
     }
     await ctx.answerCallbackQuery();
@@ -85,10 +101,11 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   }
 
   if (data.startsWith("onboarding_level:")) {
+    const locale = await localeOf(ctx);
     const level = data.slice("onboarding_level:".length);
     const telegramId = ctx.from?.id;
     if (!telegramId) {
-      await ctx.answerCallbackQuery({ text: "User not found." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.userNotFound") });
       return;
     }
     const { data: user, error } = await supabase
@@ -97,7 +114,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       .eq("telegram_id", telegramId)
       .single();
     if (error || !user) {
-      await ctx.answerCallbackQuery({ text: "Could not find your profile." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.profileNotFound") });
       return;
     }
 
@@ -107,16 +124,17 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   }
 
   if (data.startsWith("onboarding_time:")) {
+    const locale = await localeOf(ctx);
     const time = data.slice("onboarding_time:".length);
     const telegramId = ctx.from?.id;
     if (!telegramId) {
-      await ctx.answerCallbackQuery({ text: "User not found." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.userNotFound") });
       return;
     }
 
     const { data: user, error } = await supabase.from("users").select("id").eq("telegram_id", telegramId).single();
     if (error || !user) {
-      await ctx.answerCallbackQuery({ text: "Could not find your profile." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.profileNotFound") });
       return;
     }
 
@@ -126,18 +144,19 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   }
 
   if (data.startsWith("settings_language:")) {
+    const locale = await localeOf(ctx);
     const newLang = data.slice("settings_language:".length);
     if (!isSupportedLanguage(newLang)) {
-      await ctx.answerCallbackQuery({ text: "Unsupported language." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.unsupportedLanguage") });
       return;
     }
     const telegramId = ctx.from?.id;
     if (!telegramId) {
-      await ctx.answerCallbackQuery({ text: "User not found." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.userNotFound") });
       return;
     }
 
-    const langLabel = languageDisplayLabel(newLang);
+    const langLabel = languageDisplayLabel(newLang, locale);
 
     const { data: currentUser } = await supabase
       .from("users")
@@ -146,7 +165,8 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       .single();
 
     const currentLang = parseTargetLanguage(currentUser?.target_language);
-    const existingProgress = (currentUser?.language_progress as Record<string, { level: string; current_tier: number }>) ?? {};
+    const existingProgress =
+      (currentUser?.language_progress as Record<string, { level: string; current_tier: number }>) ?? {};
     const updatedProgress: Record<string, { level: string; current_tier: number }> = {
       ...existingProgress,
       [currentLang]: {
@@ -159,15 +179,18 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
     const restoredLevel = newLangProgress?.level ?? "beginner";
     const restoredTier = newLangProgress?.current_tier ?? 1;
 
-    const { error } = await supabase.from("users").update({
-      target_language: newLang,
-      level: restoredLevel,
-      current_tier: restoredTier,
-      language_progress: updatedProgress,
-    }).eq("telegram_id", telegramId);
+    const { error } = await supabase
+      .from("users")
+      .update({
+        target_language: newLang,
+        level: restoredLevel,
+        current_tier: restoredTier,
+        language_progress: updatedProgress,
+      })
+      .eq("telegram_id", telegramId);
 
     if (error) {
-      await ctx.answerCallbackQuery({ text: "Could not switch language." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.switchFailed") });
       return;
     }
 
@@ -177,23 +200,58 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       .eq("telegram_id", ctx.from.id);
 
     const isRestored = !!newLangProgress;
-    const statusLine = isRestored
-      ? `Your ${langLabel} progress has been restored (Level: ${restoredLevel}, Tier ${restoredTier}).`
-      : "Starting fresh at Beginner, Tier 1.";
+    const switched = isRestored
+      ? t(locale, "language.switchedRestored", {
+          language: langLabel,
+          level: localizedLevelName(locale, restoredLevel),
+          tier: restoredTier,
+        })
+      : t(locale, "language.switchedFresh", { language: langLabel });
 
     await ctx.answerCallbackQuery();
     clearQuizState(telegramId);
-    await ctx.reply(`✅ Switched to ${langLabel}!\n\n${statusLine}`);
+    await ctx.reply(switched);
+    return;
+  }
+
+  if (data.startsWith("settings_interface:")) {
+    const requested = data.slice("settings_interface:".length);
+    const currentLocale = await localeOf(ctx);
+    if (!isInterfaceLanguage(requested)) {
+      await ctx.answerCallbackQuery({ text: t(currentLocale, "callback.unsupportedLanguage") });
+      return;
+    }
+    const telegramId = ctx.from?.id;
+    if (!telegramId) {
+      await ctx.answerCallbackQuery({ text: t(currentLocale, "callback.userNotFound") });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update({ interface_language: requested })
+      .eq("telegram_id", telegramId);
+
+    if (error) {
+      await ctx.answerCallbackQuery({ text: t(currentLocale, "callback.interfaceUpdateFailed") });
+      return;
+    }
+
+    await ctx.answerCallbackQuery();
+    await ctx.reply(
+      t(requested, "settings.interfaceUpdated", { language: INTERFACE_LANGUAGE_LABELS[requested] })
+    );
     return;
   }
 
   if (data.startsWith("settings_time:")) {
+    const locale = await localeOf(ctx);
     const parts = data.split(":");
     const hh = parts[1];
     const mm = parts[2];
 
     if (!ctx.from || !hh || !mm) {
-      await ctx.answerCallbackQuery({ text: "Invalid time selection." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.invalidTime") });
       return;
     }
 
@@ -207,7 +265,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
     await ctx.answerCallbackQuery();
 
     if (error) {
-      await ctx.reply("I couldn't update your settings right now. Please try again.");
+      await ctx.reply(t(locale, "callback.settingsUpdateFailed"));
       return;
     }
 
@@ -216,21 +274,22 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       .update({ inactivity_stage: 0, last_active_at: new Date().toISOString() })
       .eq("telegram_id", ctx.from.id);
 
-    await ctx.reply(`✅ Got it! You'll receive your daily words at ${hh}:${mm} Eastern Time.`);
+    await ctx.reply(t(locale, "callback.timeUpdated", { time: `${hh}:${mm}` }));
     return;
   }
 
   if (data.startsWith("settings_level:")) {
+    const locale = await localeOf(ctx);
     const level = data.slice("settings_level:".length);
     const telegramId = ctx.from?.id;
     if (!telegramId) {
-      await ctx.answerCallbackQuery({ text: "User not found." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.userNotFound") });
       return;
     }
 
     const { error } = await supabase.from("users").update({ level }).eq("telegram_id", telegramId);
     if (error) {
-      await ctx.answerCallbackQuery({ text: "Could not update level." });
+      await ctx.answerCallbackQuery({ text: t(locale, "callback.levelUpdateFailed") });
       return;
     }
 
@@ -239,16 +298,17 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       .update({ inactivity_stage: 0, last_active_at: new Date().toISOString() })
       .eq("telegram_id", ctx.from.id);
 
-    await ctx.answerCallbackQuery(`Level updated to ${level}!`);
+    await ctx.answerCallbackQuery(t(locale, "callback.levelUpdated", { level: localizedLevelName(locale, level) }));
     return;
   }
 
+  const locale = await localeOf(ctx);
   const [action, rawMessageId] = data.split(":");
   const messageId = Number(rawMessageId);
   const chatId = ctx.chat?.id;
 
   if (!Number.isFinite(messageId) || !chatId) {
-    await ctx.answerCallbackQuery({ text: "This action is no longer available." });
+    await ctx.answerCallbackQuery({ text: t(locale, "callback.actionUnavailable") });
     return;
   }
 
@@ -256,7 +316,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   await ctx.answerCallbackQuery();
 
   if (!meta) {
-    await ctx.reply("That button action expired. Send a new message to continue.");
+    await ctx.reply(t(locale, "callback.buttonExpired"));
     return;
   }
 
@@ -275,5 +335,5 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
     return;
   }
 
-  await ctx.reply("That action is not available for this message.");
+  await ctx.reply(t(locale, "callback.actionNotAvailable"));
 }

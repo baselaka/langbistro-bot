@@ -2,6 +2,7 @@ import cron from "node-cron";
 import type { Bot } from "grammy";
 import { parseTargetLanguage } from "../config/languages";
 import { supabase } from "../db/client";
+import { parseInterfaceLanguage } from "../i18n";
 import {
   buildFillBlank,
   buildWordMessage,
@@ -17,6 +18,7 @@ type DeliveryUser = {
   words_learned_count: number;
   current_tier: number;
   target_language: string | null;
+  interface_language: string | null;
 };
 
 function getUtcHHMM(date: Date = new Date()): string {
@@ -33,7 +35,7 @@ export function startWordDeliveryJob(bot: Bot): void {
 
     const { data: users, error } = await supabase
       .from("users")
-      .select("id, telegram_id, preferred_word_timezone, words_learned_count, current_tier, target_language")
+      .select("id, telegram_id, preferred_word_timezone, words_learned_count, current_tier, target_language, interface_language")
       .eq("preferred_word_time", dbTime)
       .eq("onboarding_complete", true)
       .eq("inactivity_stage", 0);
@@ -57,6 +59,7 @@ export function startWordDeliveryJob(bot: Bot): void {
         }
 
         const targetLanguage = parseTargetLanguage(user.target_language);
+        const locale = parseInterfaceLanguage(user.interface_language);
         const words = await getDailyWords(user.id, user.current_tier, targetLanguage);
         const fillBlankWord = words[Math.floor(Math.random() * words.length)];
         if (!fillBlankWord) {
@@ -68,7 +71,7 @@ export function startWordDeliveryJob(bot: Bot): void {
           .update({ engaged: true })
           .eq("id", session.id);
 
-        const { text: wordListText, keyboard: wordListKeyboard } = buildWordMessage(words);
+        const { text: wordListText, keyboard: wordListKeyboard } = buildWordMessage(words, locale);
         const fillBlankState = {
           type: "fill_blank" as const,
           word: fillBlankWord.word,
@@ -86,7 +89,7 @@ export function startWordDeliveryJob(bot: Bot): void {
             });
           },
           async () => {
-            const fillBlank = await buildFillBlank(fillBlankWord, targetLanguage);
+            const fillBlank = await buildFillBlank(fillBlankWord, targetLanguage, locale);
             fillBlankState.sentence = fillBlank.sentence;
             await bot.api.sendMessage(user.telegram_id, fillBlank.message);
           },

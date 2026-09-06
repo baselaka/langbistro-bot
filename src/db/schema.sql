@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_active_at TIMESTAMPTZ,
   inactivity_stage INTEGER NOT NULL DEFAULT 0,
   target_language TEXT NOT NULL DEFAULT 'es',
+  interface_language TEXT NOT NULL DEFAULT 'en',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -298,4 +299,21 @@ SET preferred_word_time = (
 )::time
 WHERE preferred_word_time IS NOT NULL
   AND onboarding_complete = true;
+*/
+
+-- MIGRATION 006
+/*
+-- UP
+ALTER TABLE users ADD COLUMN IF NOT EXISTS interface_language TEXT NOT NULL DEFAULT 'en';
+
+UPDATE users
+SET interface_language = CASE
+  WHEN lower(split_part(replace(coalesce(language_code, ''), '_', '-'), '-', 1)) = 'es' THEN 'es'
+  WHEN lower(split_part(replace(coalesce(language_code, ''), '_', '-'), '-', 1)) = 'pt' THEN 'pt'
+  WHEN lower(split_part(replace(coalesce(language_code, ''), '_', '-'), '-', 1)) = 'ru' THEN 'ru'
+  ELSE 'en'
+END;
+
+-- DOWN
+ALTER TABLE users DROP COLUMN IF EXISTS interface_language;
 */

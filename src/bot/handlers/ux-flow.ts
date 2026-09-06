@@ -1,15 +1,13 @@
 import { InlineKeyboard, InputFile, type Context } from "grammy";
 import type { AssistantResponse } from "../../ai/openai";
 import { getLanguageConfig, parseTargetLanguage } from "../../config/languages";
+import { t, type InterfaceLanguage } from "../../i18n";
 import { formatCorrectionMarkdownV2 } from "../../utils/correction";
+import { escapeMarkdownV2 } from "../../utils/markdown";
 import { storeCorrectionExplanation, storeReplyMeta } from "../ux-memory";
 
 function pickRandom(arr: string[]): string {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function escapeMarkdownV2(value: string): string {
-  return value.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
+  return arr[Math.floor(Math.random() * arr.length)]!;
 }
 
 export async function sendUxFlow(
@@ -18,7 +16,8 @@ export async function sendUxFlow(
   voiceBuffer: Buffer,
   skipEncouragement = false,
   explanationOverride?: string,
-  targetLang = "es"
+  targetLang = "es",
+  interfaceLang: InterfaceLanguage = "en"
 ): Promise<void> {
   const chatId = ctx.chat?.id;
   if (!chatId) {
@@ -32,7 +31,7 @@ export async function sendUxFlow(
       escapeMarkdownV2
     );
     const correctionKeyboard = new InlineKeyboard().text(
-      "💡 Explain",
+      t(interfaceLang, "button.explain"),
       "explain_correction:pending"
     );
 
@@ -46,7 +45,7 @@ export async function sendUxFlow(
 
     await ctx.api.editMessageReplyMarkup(chatId, correctionMessageId, {
       reply_markup: new InlineKeyboard().text(
-        "💡 Explain",
+        t(interfaceLang, "button.explain"),
         `explain_correction:${correctionMessageId}`
       ),
     });
@@ -58,8 +57,8 @@ export async function sendUxFlow(
 
   const voiceMessage = await ctx.replyWithVoice(new InputFile(voiceBuffer, "bistro-response.mp3"), {
     reply_markup: new InlineKeyboard()
-      .text("📖 Read", "read_reply:pending")
-      .text("💡 Explain", "explain_reply:pending"),
+      .text(t(interfaceLang, "button.read"), "read_reply:pending")
+      .text(t(interfaceLang, "button.explain"), "explain_reply:pending"),
   });
 
   const voiceMessageId = voiceMessage.message_id;
@@ -67,8 +66,8 @@ export async function sendUxFlow(
   storeReplyMeta(chatId, voiceMessageId, structured.reply, explanationToStore);
   await ctx.api.editMessageReplyMarkup(chatId, voiceMessageId, {
     reply_markup: new InlineKeyboard()
-      .text("📖 Read", `read_reply:${voiceMessageId}`)
-      .text("💡 Explain", `explain_reply:${voiceMessageId}`),
+      .text(t(interfaceLang, "button.read"), `read_reply:${voiceMessageId}`)
+      .text(t(interfaceLang, "button.explain"), `explain_reply:${voiceMessageId}`),
   });
 }
 

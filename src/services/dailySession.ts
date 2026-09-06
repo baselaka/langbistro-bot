@@ -4,7 +4,6 @@ import { openai } from "../ai/openai";
 import {
   buildFillBlankPrompts,
   buildGradeSystemPrompt,
-  getLanguageConfig,
   parseTargetLanguage,
   type TargetLanguage,
 } from "../config/languages";
@@ -12,7 +11,9 @@ import {
 export { buildFillBlankPrompts };
 import { CHAT_MODEL_FREE, CHAT_MODEL_GRADE, chatParams } from "../config/models";
 import { supabase } from "../db/client";
+import { reviewAsk, t, tMd2, type InterfaceLanguage } from "../i18n";
 import { getLocalDateString } from "../utils/dateTz";
+import { escapeMarkdownV2 } from "../utils/markdown";
 import { checkAnswerMatch, startsWithExpectedPhrase } from "../utils/text";
 import { type Vocabulary } from "./vocabulary";
 
@@ -26,10 +27,6 @@ export type DailySession = {
   engaged: boolean;
   created_at: string;
 };
-
-function escapeMarkdownV2(text: string): string {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
-}
 
 const gradeSchema = z.object({
   correct: z.boolean(),
@@ -94,11 +91,14 @@ function keycapForIndex(index: number): string {
   return `${n}️⃣`;
 }
 
-export function buildWordMessage(words: Vocabulary[]): {
+export function buildWordMessage(
+  words: Vocabulary[],
+  locale: InterfaceLanguage = "en"
+): {
   text: string;
   keyboard: InlineKeyboard;
 } {
-  const blocks: string[] = ["📚 *Your 10 words for today:*", ""];
+  const blocks: string[] = [tMd2(locale, "daily.wordsHeader"), ""];
 
   words.forEach((w, index) => {
     const emoji = keycapForIndex(index);
@@ -131,7 +131,8 @@ type FillBlankSentence = {
 export async function generateFillBlankSentence(
   word: string,
   language: string = "es",
-  avoidExample?: string | null
+  avoidExample?: string | null,
+  locale: InterfaceLanguage = "en"
 ): Promise<FillBlankSentence> {
   const prompts = buildFillBlankPrompts(word, language, avoidExample);
   try {
@@ -163,7 +164,7 @@ export async function generateFillBlankSentence(
 
   return {
     sentence: "",
-    blanked: `Complete this sentence using: ${word}\n_____`,
+    blanked: t(locale, "daily.fillBlankFallback", { word }),
   };
 }
 
@@ -176,7 +177,11 @@ function completeSentenceFromBlanked(blanked: string, word: string): string {
   return blanked.includes("_____") ? blanked.replace("_____", word) : word;
 }
 
-export async function buildFillBlank(word: Vocabulary, language: string = "es"): Promise<FillBlankPrompt> {
+export async function buildFillBlank(
+  word: Vocabulary,
+  language: string = "es",
+  locale: InterfaceLanguage = "en"
+): Promise<FillBlankPrompt> {
   const targetLang = parseTargetLanguage(language);
   const generated = await (async () => {
     try {
@@ -207,20 +212,23 @@ export async function buildFillBlank(word: Vocabulary, language: string = "es"):
       // Fall back to language-aware generator below.
     }
 
-    return await generateFillBlankSentence(word.word, targetLang, word.example_sentence);
+    return await generateFillBlankSentence(word.word, targetLang, word.example_sentence, locale);
   })();
 
   const sentence = generated.sentence || completeSentenceFromBlanked(generated.blanked, word.word);
   return {
-    message: `Fill in the blank:\n"${generated.blanked}"\n(Reply by voice or text!)`,
+    message: t(locale, "daily.fillBlank", { blanked: generated.blanked }),
     sentence,
   };
 }
 
-export function buildReviewMessage(word: Vocabulary, language: string = "es"): string {
-  const cfg = getLanguageConfig(language);
+export function buildReviewMessage(
+  word: Vocabulary,
+  language: string = "es",
+  locale: InterfaceLanguage = "en"
+): string {
   const tr = word.translation ?? "";
-  return cfg.reviewAsk(tr);
+  return reviewAsk(tr, parseTargetLanguage(language), locale);
 }
 
 export async function evaluateReviewAnswer(

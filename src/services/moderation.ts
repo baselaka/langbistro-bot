@@ -1,6 +1,7 @@
 import { openai } from "../ai/openai";
-import { getLanguageConfig, parseTargetLanguage } from "../config/languages";
+import { parseTargetLanguage } from "../config/languages";
 import { supabase } from "../db/client";
+import { moderationRedirect, moderationSafeTopic, t, type InterfaceLanguage } from "../i18n";
 
 type ViolationResult = {
   flagged: boolean;
@@ -31,9 +32,10 @@ export async function checkViolation(text: string): Promise<ViolationResult> {
 export async function handleViolation(
   userId: number,
   violationType: string,
-  targetLanguage: string = "es"
+  targetLanguage: string = "es",
+  locale: InterfaceLanguage = "en"
 ): Promise<string> {
-  const cfg = getLanguageConfig(parseTargetLanguage(targetLanguage));
+  const targetLang = parseTargetLanguage(targetLanguage);
 
   const { error: insertViolationError } = await supabase.from("violations").insert({
     user_id: userId,
@@ -51,7 +53,7 @@ export async function handleViolation(
 
   if (userFetchError || !user) {
     console.error("Failed to fetch user violation count:", userFetchError);
-    return cfg.moderationRedirect;
+    return moderationRedirect(locale, targetLang);
   }
 
   const nextViolationCount = (user.violation_count ?? 0) + 1;
@@ -70,12 +72,12 @@ export async function handleViolation(
   }
 
   if (nextViolationCount >= 5) {
-    return "Your account has been suspended for repeated policy violations. If you believe this is a mistake, contact @langbistro_support.";
+    return t(locale, "moderation.banned");
   }
 
   if (nextViolationCount >= 3) {
-    return "Warning: this topic is restricted. Please keep the chat safe and learning-focused, or your account may be suspended.";
+    return t(locale, "moderation.warning");
   }
 
-  return cfg.moderationSafeTopic;
+  return moderationSafeTopic(locale, targetLang);
 }

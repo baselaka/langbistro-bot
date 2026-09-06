@@ -1,5 +1,6 @@
 import type { Context } from "grammy";
-import { getMilestoneMessage } from "../services/vocabulary";
+import { getMilestoneMessage } from "../i18n";
+import type { InterfaceLanguage } from "../i18n";
 
 const sentMilestones = new Set<string>();
 
@@ -7,9 +8,10 @@ export async function maybeSendMilestoneAfterConversation(
   ctx: Context,
   userId: number,
   wordsLearnedCount: number,
-  language: string = "es"
+  language: string = "es",
+  locale: InterfaceLanguage = "en"
 ): Promise<void> {
-  const message = getMilestoneMessage(wordsLearnedCount, language);
+  const message = getMilestoneMessage(wordsLearnedCount, language, locale);
   if (!message) {
     return;
   }

@@ -1,15 +1,14 @@
 import { InlineKeyboard, type Context } from "grammy";
-import {
-  SUPPORTED_LANGUAGES,
-  parseTargetLanguage,
-  pickerLabel,
-} from "../../config/languages";
+import { SUPPORTED_LANGUAGES, parseTargetLanguage } from "../../config/languages";
 import { supabase } from "../../db/client";
+import { pickerLabel, t } from "../../i18n";
+import { getInterfaceLocaleByTelegramId } from "../../services/users";
 
 export async function handleLanguageCommand(ctx: Context): Promise<void> {
   const telegramId = ctx.from?.id;
   if (!telegramId) return;
 
+  const locale = await getInterfaceLocaleByTelegramId(telegramId);
   const { data: user } = await supabase
     .from("users")
     .select("target_language")
@@ -20,10 +19,10 @@ export async function handleLanguageCommand(ctx: Context): Promise<void> {
 
   const keyboard = new InlineKeyboard();
   for (const code of SUPPORTED_LANGUAGES) {
-    keyboard.text(pickerLabel(code, current), `settings_language:${code}`);
+    keyboard.text(pickerLabel(code, current, locale), `settings_language:${code}`);
   }
 
-  await ctx.reply("Which language would you like to learn?", {
+  await ctx.reply(t(locale, "language.ask"), {
     reply_markup: keyboard,
   });
 }

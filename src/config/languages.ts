@@ -8,10 +8,9 @@ export type LanguageConfig = {
   flag: string;
   whisperLanguage: string;
   ttsVoice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
-  levelAsk: string;
+  inactivityGreeting: string;
   conversationNudge: {
     reply: string;
-    replyExplanation: string;
   };
   quizMessages: {
     correct: string[];
@@ -23,17 +22,6 @@ export type LanguageConfig = {
   fillBlankTeacherPrompt: string;
   fillBlankUserPrompt: (word: string) => string;
   gradeInflectionRules: string;
-  reviewAsk: (translation: string) => string;
-  inactivity: {
-    neverStarted24h: string;
-    neverStarted72h: string;
-    weekPause: string;
-    recallTemplate: (word: string, translation: string) => string;
-    monthProgress: (count: number) => string;
-    finalPause: string;
-  };
-  moderationRedirect: string;
-  moderationSafeTopic: string;
 };
 
 const SHARED_QUIZ_JSON =
@@ -46,11 +34,9 @@ export const LANGUAGES: Record<TargetLanguage, LanguageConfig> = {
     flag: "🇪🇸",
     whisperLanguage: "es",
     ttsVoice: "alloy",
-    levelAsk: "Great! What's your Spanish level?",
+    inactivityGreeting: "¡Hola!",
     conversationNudge: {
       reply: "¡Inténtalo en español! 😊 No importa si cometes errores.",
-      replyExplanation:
-        "I encouraged you to try replying in Spanish, letting you know it's okay to make mistakes.",
     },
     quizMessages: {
       correct: ["¡Correcto! 🎉", "¡Muy bien! ✨", "¡Exacto! 🌟", "¡Perfecto! 💪", "¡Excelente! 🎯"],
@@ -88,24 +74,6 @@ Examples that MUST be correct: true:
 Examples that MUST be correct: false:
 - Expected "casa", learner "perro" (unrelated word)
 - Expected "comer", learner "beber" (different verb, not a form of the expected word)`,
-    reviewAsk: (translation) =>
-      `🔁 Quick review! How do you say "${translation}" in Spanish?\n(Respond by voice or text!)`,
-    inactivity: {
-      neverStarted24h: "¡Hola! Ready to start practicing? Just send me a message 🇪🇸",
-      neverStarted72h: "Still here when you're ready! Even 5 minutes of Spanish practice makes a difference 💪",
-      weekPause:
-        "Hola! 👋 You haven't practiced in a week, so I'm pausing your daily words for now. When you're ready to continue, just send me any message and we'll pick up right where you left off. ¡Hasta pronto!",
-      recallTemplate: (word, translation) =>
-        `¿Todavía recuerdas qué significa «${word}»? It means "${translation}" — and you learned it! Come back and keep going. 💪`,
-      monthProgress: (count) =>
-        `You've already learned ${count} Spanish words. That's real progress — don't let it go to waste. The next word is waiting for you. 👀`,
-      finalPause:
-        "We gave it our best shot! 😄 I'm pausing all messages for now so I don't bother you. Whenever you want to pick up Spanish again, just send me a message — I'll be here. ¡Buena suerte!",
-    },
-    moderationRedirect:
-      "Let's keep things focused on safe Spanish practice. Try a friendly topic and we can continue.",
-    moderationSafeTopic:
-      "Let's switch to a safer topic and keep practicing Spanish together. Try asking about travel, food, or daily conversation.",
   },
   fr: {
     code: "fr",
@@ -113,11 +81,9 @@ Examples that MUST be correct: false:
     flag: "🇫🇷",
     whisperLanguage: "fr",
     ttsVoice: "alloy",
-    levelAsk: "Great! What's your French level?",
+    inactivityGreeting: "Bonjour !",
     conversationNudge: {
       reply: "Essaie en français ! 😊 Ce n'est pas grave si tu fais des erreurs.",
-      replyExplanation:
-        "I encouraged you to try replying in French, letting you know it's okay to make mistakes.",
     },
     quizMessages: {
       correct: ["Correct ! 🎉", "Très bien ! ✨", "Exactement ! 🌟", "Parfait ! 💪", "Excellent ! 🎯"],
@@ -148,24 +114,6 @@ Examples that MUST be correct: true:
 Examples that MUST be correct: false:
 - Expected "maison", learner "chien" (unrelated word)
 - Expected "parler", learner "manger" (different verb)`,
-    reviewAsk: (translation) =>
-      `🔁 Quick review! How do you say "${translation}" in French?\n(Respond by voice or text!)`,
-    inactivity: {
-      neverStarted24h: "Bonjour! Ready to start practicing? Just send me a message 🇫🇷",
-      neverStarted72h: "Still here when you're ready! Even 5 minutes of French practice makes a difference 💪",
-      weekPause:
-        "Bonjour! 👋 You haven't practiced in a week, so I'm pausing your daily words for now. When you're ready to continue, just send me any message and we'll pick up right where you left off. À bientôt!",
-      recallTemplate: (word, translation) =>
-        `Tu te souviens encore de ce que signifie «${word}» ? It means "${translation}" — and you learned it! Come back and keep going. 💪`,
-      monthProgress: (count) =>
-        `You've already learned ${count} French words. That's real progress — don't let it go to waste. The next word is waiting for you. 👀`,
-      finalPause:
-        "We gave it our best shot! 😄 I'm pausing all messages for now so I don't bother you. Whenever you want to pick up French again, just send me a message — I'll be here. Bonne chance!",
-    },
-    moderationRedirect:
-      "Let's keep things focused on safe French practice. Try a friendly topic and we can continue.",
-    moderationSafeTopic:
-      "Let's switch to a safer topic and keep practicing French together. Try asking about travel, food, or daily conversation.",
   },
   en: {
     code: "en",
@@ -173,11 +121,9 @@ Examples that MUST be correct: false:
     flag: "🇬🇧",
     whisperLanguage: "en",
     ttsVoice: "alloy",
-    levelAsk: "Great! What's your English level?",
+    inactivityGreeting: "Hi!",
     conversationNudge: {
       reply: "Try it in English! 😊 It's okay to make mistakes.",
-      replyExplanation:
-        "I encouraged you to try replying in English, letting you know it's okay to make mistakes.",
     },
     quizMessages: {
       correct: ["Correct! 🎉", "Nice work! ✨", "Exactly! 🌟", "Perfect! 💪", "Excellent! 🎯"],
@@ -208,24 +154,6 @@ Examples that MUST be correct: true:
 Examples that MUST be correct: false:
 - Expected "house", learner "dog" (unrelated word)
 - Expected "walk", learner "run" (different verb)`,
-    reviewAsk: (translation) =>
-      `🔁 Quick review! Which English word means "${translation}"?\n(Respond by voice or text!)`,
-    inactivity: {
-      neverStarted24h: "Hi! Ready to start practicing? Just send me a message 🇬🇧",
-      neverStarted72h: "Still here when you're ready! Even 5 minutes of English practice makes a difference 💪",
-      weekPause:
-        "Hi! 👋 You haven't practiced in a week, so I'm pausing your daily words for now. When you're ready to continue, just send me any message and we'll pick up right where you left off. See you soon!",
-      recallTemplate: (word, translation) =>
-        `Do you still remember what "${word}" means? It means "${translation}" — and you learned it! Come back and keep going. 💪`,
-      monthProgress: (count) =>
-        `You've already learned ${count} English words. That's real progress — don't let it go to waste. The next word is waiting for you. 👀`,
-      finalPause:
-        "We gave it our best shot! 😄 I'm pausing all messages for now so I don't bother you. Whenever you want to pick up English again, just send me a message — I'll be here. Good luck!",
-    },
-    moderationRedirect:
-      "Let's keep things focused on safe English practice. Try a friendly topic and we can continue.",
-    moderationSafeTopic:
-      "Let's switch to a safer topic and keep practicing English together. Try asking about travel, food, or daily conversation.",
   },
 };
 
@@ -250,17 +178,6 @@ export function parseTargetLanguage(
 
 export function getLanguageConfig(raw: string | null | undefined): LanguageConfig {
   return LANGUAGES[parseTargetLanguage(raw)];
-}
-
-export function pickerLabel(code: TargetLanguage, current: TargetLanguage): string {
-  const lang = LANGUAGES[code];
-  const base = `${lang.flag} ${lang.name}`;
-  return code === current ? `${base} ✓` : base;
-}
-
-export function languageDisplayLabel(code: TargetLanguage): string {
-  const lang = LANGUAGES[code];
-  return `${lang.name} ${lang.flag}`;
 }
 
 export function buildDetectUserPrompt(text: string, targetLang: TargetLanguage): string {
@@ -289,11 +206,6 @@ For fill_blank, the learner may answer with only the missing word, or by saying 
 Context: ${context}.`;
 }
 
-export function settingsLevelAsk(raw: string | null | undefined): string {
-  const lang = getLanguageConfig(raw);
-  return `What is your ${lang.name} level?`;
-}
-
 /** Pure fill-blank GPT prompt builder — kept free of OpenAI/env imports for unit tests. */
 export function buildFillBlankPrompts(
   word: string,
@@ -309,33 +221,4 @@ export function buildFillBlankPrompts(
     system,
     user: cfg.fillBlankUserPrompt(word),
   };
-}
-
-const MILESTONES = [50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 4000] as const;
-
-function milestoneMessagesFor(lang: TargetLanguage): Record<number, string> {
-  const name = LANGUAGES[lang].name;
-  return {
-    50: `Nice work! You've learned your first 50 ${name} words — you can already understand basic greetings and everyday phrases!`,
-    100: `Congratulations! 100 ${name} words down — you can introduce yourself and understand simple conversations!`,
-    250: `Great job! 250 ${name} words learned. You can now handle basic shopping, directions, and small talk!`,
-    500: `Incredible! 500 ${name} words — you're building real conversational ability. Keep going!`,
-    750: `Excellent! 750 ${name} words learned. You can now express opinions and understand most everyday ${name}!`,
-    1000: `Fantastic! 1,000 ${name} words — you've crossed a major milestone. Most conversations are within reach!`,
-    1500: `Impressive! 1,500 ${name} words. You're approaching intermediate fluency — keep it up!`,
-    2000: `Amazing! 2,000 ${name} words learned. You can read simple texts and hold extended conversations!`,
-    3000: `Outstanding! 3,000 ${name} words — you're in advanced territory now. Most native content is accessible!`,
-    4000: `You're incredible! 4,000 ${name} words mastered. You're fluent in the most essential vocabulary — well done!`,
-  };
-}
-
-export function getMilestoneMessage(
-  wordsCount: number,
-  language: string = DEFAULT_TARGET_LANGUAGE
-): string | null {
-  if (MILESTONES.includes(wordsCount as (typeof MILESTONES)[number])) {
-    const messages = milestoneMessagesFor(parseTargetLanguage(language));
-    return messages[wordsCount as (typeof MILESTONES)[number]] ?? null;
-  }
-  return null;
 }

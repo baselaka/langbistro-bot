@@ -1,40 +1,36 @@
 import type { Context } from "grammy";
-import { supabase } from "../../db/client";
 import { startOnboarding } from "../../services/onboarding";
+import { getOrCreateUserByTelegram, interfaceLocaleOf } from "../../services/users";
+import { localeFromTelegramCode, t } from "../../i18n";
 
 export async function handleStart(ctx: Context): Promise<void> {
   const from = ctx.from;
 
   if (!from) {
-    await ctx.reply("Hello from LangBistro!");
+    await ctx.reply(t("en", "start.hello"));
     return;
   }
 
-  const { data: user, error } = await supabase
-    .from("users")
-    .upsert(
+  try {
+    const user = await getOrCreateUserByTelegram(
       {
-        telegram_id: from.id,
+        telegramId: from.id,
         username: from.username ?? null,
-        language_code: from.language_code ?? null,
+        languageCode: from.language_code ?? null,
       },
-      { onConflict: "telegram_id" }
-    )
-    .select("onboarding_complete")
-    .single();
+      { touchLastActive: false }
+    );
+    const locale = interfaceLocaleOf(user);
 
-  if (error) {
+    if (!user.onboarding_complete) {
+      await startOnboarding(ctx, from.id, locale);
+      return;
+    }
+
+    await ctx.reply(t(locale, "start.welcomeBack"));
+  } catch (error) {
     console.error("Failed to upsert user on /start:", error);
-    await ctx.reply("Welcome to LangBistro! We hit a setup hiccup, please try again.");
-    return;
+    const locale = localeFromTelegramCode(from.language_code);
+    await ctx.reply(t(locale, "start.setupHiccup"));
   }
-
-  if (!user?.onboarding_complete) {
-    await startOnboarding(ctx, from.id);
-    return;
-  }
-
-  await ctx.reply(
-    "Welcome back! Ready to practice? Send me a message or voice note to continue! 🎙️"
-  );
 }

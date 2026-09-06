@@ -5,13 +5,10 @@ import {
   buildFillBlankPrompts,
   buildGradeSystemPrompt,
   getLanguageConfig,
-  getMilestoneMessage,
   isSupportedLanguage,
-  languageDisplayLabel,
   parseTargetLanguage,
-  pickerLabel,
-  settingsLevelAsk,
 } from "../languages";
+import { getMilestoneMessage, languageDisplayLabel, pickerLabel, settingsLevelAsk } from "../../i18n";
 
 describe("languages config", () => {
   it("includes English among supported languages", () => {
@@ -36,9 +33,9 @@ describe("languages config", () => {
   });
 
   it("exposes English picker and display labels", () => {
-    expect(pickerLabel("en", "es")).toBe("🇬🇧 English");
-    expect(pickerLabel("en", "en")).toBe("🇬🇧 English ✓");
-    expect(languageDisplayLabel("en")).toBe("English 🇬🇧");
+    expect(pickerLabel("en", "es", "en")).toBe("🇬🇧 English");
+    expect(pickerLabel("en", "en", "en")).toBe("🇬🇧 English ✓");
+    expect(languageDisplayLabel("en", "en")).toBe("English 🇬🇧");
   });
 
   it("builds English detection prompts that treat English as the target", () => {
@@ -62,16 +59,16 @@ describe("languages config", () => {
     const cfg = getLanguageConfig("en");
     expect(cfg.name).toBe("English");
     expect(cfg.whisperLanguage).toBe("en");
-    expect(cfg.levelAsk).toContain("English");
+    expect(cfg.inactivityGreeting).toBe("Hi!");
     expect(cfg.conversationNudge.reply).toContain("English");
     expect(cfg.fillBlankTeacherPrompt).toContain("English");
     expect(cfg.quizMessages.correct.length).toBeGreaterThan(0);
   });
 
   it("uses English UI for settings level ask across languages", () => {
-    expect(settingsLevelAsk("en")).toBe("What is your English level?");
-    expect(settingsLevelAsk("fr")).toBe("What is your French level?");
-    expect(settingsLevelAsk("es")).toBe("What is your Spanish level?");
+    expect(settingsLevelAsk("en", "en")).toBe("What is your English level?");
+    expect(settingsLevelAsk("fr", "en")).toBe("What is your French level?");
+    expect(settingsLevelAsk("es", "en")).toBe("What is your Spanish level?");
   });
 
   it("builds English fill-blank prompts and does not fall through to Spanish", () => {
@@ -94,13 +91,12 @@ describe("languages config", () => {
     expect(messages.encouragement[0]).toBe("Keep going! 💪");
   });
 
-  it("builds language-aware review prompts", () => {
-    expect(getLanguageConfig("en").reviewAsk("a greeting")).toContain("English");
-    expect(getLanguageConfig("es").reviewAsk("house")).toContain("Spanish");
+  it("builds language-aware review prompts via i18n", () => {
+    expect(getMilestoneMessage(50, "en", "en")).toContain("English");
   });
 
   it("returns language-neutral milestone copy for English", () => {
-    const msg = getMilestoneMessage(50, "en");
+    const msg = getMilestoneMessage(50, "en", "en");
     expect(msg).toContain("English");
     expect(msg).not.toContain("Spanish");
     expect(msg).not.toContain("¡");

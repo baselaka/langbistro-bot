@@ -4,6 +4,7 @@ These rules apply to any AI coding agent working in this repo (Claude Code, Curs
 Follow them without exception unless a human explicitly overrides in the same session.
 
 For LangBistro product and stack conventions, also read `.cursorrules`.
+User-facing bot UI copy lives in `src/i18n` (not hardcoded in handlers). Tutor speech stays on `target_language`.
 
 ## Branching
 
@@ -11,10 +12,14 @@ For LangBistro product and stack conventions, also read `.cursorrules`.
   A `.githooks/pre-commit` hook enforces this; enable it once per clone with `git config core.hooksPath .githooks`.
 - One branch per Linear ticket, using the real ticket prefix **`PRS-`**:
   `feature/PRS-123-short-description`, or `fix/PRS-123-...` for bugs.
-- Open a PR into `main` when the work is ready for review:
-  `gh pr create --fill --base main`. **Do not merge it yourself** — a human merges after CI passes and it has been reviewed.
+  If there is no ticket yet, still use a descriptive `feature/` or `fix/` name.
 - If you're mid-task and unsure whether a branch exists yet, create one before writing code —
   don't default to whatever branch is currently checked out.
+- **Finish automatically with a PR.** When the work is done, do not wait to be asked to commit, push, or open a PR.
+  Run CI locally, commit, `git push -u origin HEAD`, and `gh pr create --fill --base main`. Return the PR URL.
+  **Do not merge it yourself** — a human merges after CI passes and it has been reviewed.
+- Extra commits after a PR is already merged belong on a **new branch from `main`** and a **new PR**.
+  Never pile onto a merged feature branch, and never stop at "committed locally — want me to push?"
 - **Never leave work only on disk.** We deploy from the working directory on Railway, so an untracked file can ship to production without ever reaching git. Before you finish, run `git status --porcelain --untracked-files=all` and account for everything in it.
 
 ## Testing
