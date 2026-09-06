@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { botCommandsFor } from "../commands";
+import { botCommandsFor, COMMAND_SCOPES } from "../commands";
 import { interfaceLanguageKeyboard } from "../keyboards";
 
 describe("bot command menu", () => {
@@ -24,6 +24,10 @@ describe("bot command menu", () => {
     expect(botCommandsFor("ru").find((item) => item.command === "interface")?.description).toContain(
       "подсказок"
     );
+  });
+
+  it("publishes commands to private chats, not only the default scope", () => {
+    expect(COMMAND_SCOPES.map((scope) => scope.type)).toEqual(["default", "all_private_chats"]);
   });
 });
 
