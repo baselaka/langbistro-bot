@@ -1,5 +1,4 @@
 import { supabase } from "../db/client";
-import { normalizeText } from "../utils/text";
 
 export type Vocabulary = {
   id: number;
@@ -30,10 +29,6 @@ export function getMilestoneMessage(wordsCount: number): string | null {
     return MILESTONE_MESSAGES[wordsCount as (typeof MILESTONES)[number]] ?? null;
   }
   return null;
-}
-
-export function checkAnswerMatch(userAnswer: string, expectedWord: string): boolean {
-  return normalizeText(userAnswer) === normalizeText(expectedWord);
 }
 
 export async function getDailyWords(userId: number, tier: number, language: string = "es"): Promise<Vocabulary[]> {
