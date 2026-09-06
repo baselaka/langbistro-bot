@@ -144,6 +144,16 @@ describe("formatCorrectionMarkdownV2", () => {
       "~Solo di siedimos~ \\-\\> *Entonces, decidimos salir temprano para evitar el tráfico.*"
     );
   });
+
+  it("shows the original sentence for a missing-article insertion", () => {
+    const markdown = formatCorrectionMarkdownV2(
+      "I'm eating pancake",
+      "I'm eating a pancake",
+      identity
+    );
+
+    expect(markdown).toBe("I'm eating pancake \\-\\> *I'm eating a pancake*");
+  });
 });
 
 describe("shouldKeepCorrection", () => {
@@ -174,6 +184,42 @@ describe("shouldKeepCorrection", () => {
         "I went to school yesterday",
         "I go to school yesterday"
       )
+    ).toBe(true);
+  });
+
+  it("keeps a missing article on a short utterance (pancake case)", () => {
+    expect(
+      shouldKeepCorrection(
+        "I'm eating pancake",
+        "I'm eating a pancake",
+        "I'm eating pancake"
+      )
+    ).toBe(true);
+  });
+
+  it("keeps a missing article even if the model leaked 'a' into original", () => {
+    expect(
+      shouldKeepCorrection(
+        "I'm eating a pancake",
+        "I'm eating a pancake",
+        "I'm eating pancake"
+      )
+    ).toBe(true);
+  });
+
+  it("keeps a one-word tense fix on a longer sentence", () => {
+    expect(
+      shouldKeepCorrection(
+        "Yesterday I go to the market with my friend after work",
+        "Yesterday I went to the market with my friend after work",
+        "Yesterday I go to the market with my friend after work"
+      )
+    ).toBe(true);
+  });
+
+  it("keeps a duplicate-word grammar error", () => {
+    expect(
+      shouldKeepCorrection("I like the the food", "I like the food", "I like the the food")
     ).toBe(true);
   });
 });

@@ -224,13 +224,9 @@ export function formatCorrectionMarkdownV2(
     return `~${escapeMarkdownV2(display.mistake)}~ \\-\\> ${correctedMarkdown}`;
   }
 
-  const originalSentence = original.trim();
-  if (originalSentence && originalSentence !== display.correctedSentence) {
-    const originalCount = tokenize(originalSentence).length;
-    const correctedCount = tokenize(display.correctedSentence).length;
-    if (originalCount > correctedCount) {
-      return `${escapeMarkdownV2(originalSentence)} \\-\\> ${correctedMarkdown}`;
-    }
+  const shownOriginal = (userText.trim() || original.trim());
+  if (shownOriginal && shownOriginal !== display.correctedSentence) {
+    return `${escapeMarkdownV2(shownOriginal)} \\-\\> ${correctedMarkdown}`;
   }
 
   return correctedMarkdown;
@@ -241,6 +237,49 @@ function normalizePronounCore(token: string): string {
     return "you";
   }
   return token;
+}
+
+const GRAMMAR_FUNCTION_WORDS = new Set([
+  "a",
+  "an",
+  "the",
+  "to",
+  "of",
+  "at",
+  "in",
+  "on",
+  "for",
+  "from",
+  "with",
+  "el",
+  "la",
+  "los",
+  "las",
+  "un",
+  "una",
+  "unos",
+  "unas",
+  "de",
+  "del",
+  "al",
+  "le",
+  "les",
+  "du",
+  "des",
+  "une",
+  "au",
+  "aux",
+  "à",
+]);
+
+const STYLE_ONLY_WORDS = new Set(["and", "but", "or", "so", "you", "yourself", "yourselves"]);
+
+function isGrammarFunctionWord(token: string): boolean {
+  return GRAMMAR_FUNCTION_WORDS.has(token);
+}
+
+function isStyleOnlyWord(token: string): boolean {
+  return STYLE_ONLY_WORDS.has(token);
 }
 
 /** Drop GPT corrections that are stale (about a prior turn) or stylistic paraphrases of valid input. */
@@ -263,30 +302,29 @@ export function shouldKeepCorrection(
     return false;
   }
 
-  // Stale/hallucinated: original must be grounded in the latest user utterance.
-  const grounded = origCores.every((token) => userCores.includes(token));
+  const userSet = new Set(userCores);
+  const origContent = origCores.filter((token) => !isGrammarFunctionWord(token));
+  const groundedSource = origContent.length > 0 ? origContent : origCores;
+  const grounded = groundedSource.every((token) => userSet.has(token));
   if (!grounded) {
     return false;
   }
 
-  // Stylistic paraphrase: same content after light pronoun normalization.
   const userNorm = userCores.map(normalizePronounCore);
   const corrNorm = corrCores.map(normalizePronounCore);
   if (userNorm.join(" ") === corrNorm.join(" ")) {
     return false;
   }
 
-  const userSet = new Set(userNorm);
-  const corrSet = new Set(corrNorm);
-  let intersection = 0;
-  for (const token of userSet) {
-    if (corrSet.has(token)) {
-      intersection += 1;
-    }
-  }
-  const union = new Set([...userSet, ...corrSet]).size;
-  const jaccard = union === 0 ? 0 : intersection / union;
-  if (jaccard >= 0.85 && Math.abs(userNorm.length - corrNorm.length) <= 2) {
+  const userNormSet = new Set(userNorm);
+  const corrNormSet = new Set(corrNorm);
+  const onlyInUser = [...userNormSet].filter((token) => !corrNormSet.has(token));
+  const onlyInCorr = [...corrNormSet].filter((token) => !userNormSet.has(token));
+  const styleOnlyDiff =
+    onlyInUser.every(isStyleOnlyWord) &&
+    onlyInCorr.every(isStyleOnlyWord) &&
+    onlyInUser.length + onlyInCorr.length > 0;
+  if (styleOnlyDiff) {
     return false;
   }
 
