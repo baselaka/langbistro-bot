@@ -38,10 +38,17 @@ Te ayudo a desarrollar habilidades reales de conversación con:
   "settings.levelAsk": "¿Cuál es tu nivel de {language}?",
   "settings.timeAsk":
     "¿A qué hora quieres recibir tus palabras del día? Las horas están en hora del Este (ET).",
-  "settings.interfaceAsk": "¿En qué idioma deben estar los menús y las explicaciones?",
+  "settings.interfaceAsk": "¿En qué idioma deben estar los menús, las pistas y las explicaciones?",
   "settings.interfaceUpdated": "✅ Idioma de la interfaz: {language}.",
 
   "language.ask": "¿Qué idioma te gustaría aprender?",
+  "interface.ask": "¿En qué idioma deben estar los menús, las pistas y las explicaciones?",
+
+  "command.start": "Empezar o volver a Bistro",
+  "command.language": "Elegir el idioma que quieres aprender",
+  "command.interface": "Idioma de menús, pistas y explicaciones",
+  "command.settings": "Nivel y hora de las palabras del día",
+  "command.subscribe": "Suscribirse a Pro",
   "language.switchedRestored":
     "✅ Cambiaste a {language}.\n\nSe restauró tu progreso de {language} (Nivel: {level}, nivel de vocabulario {tier}).",
   "language.switchedFresh":

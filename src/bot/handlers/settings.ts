@@ -52,7 +52,7 @@ export async function handleSettings(ctx: Context): Promise<void> {
   keyboard.row();
   appendKeyboard(keyboard, timePickerKeyboard(locale, "settings_time"));
   keyboard.row();
-  appendKeyboard(keyboard, interfaceLanguageKeyboard());
+  appendKeyboard(keyboard, interfaceLanguageKeyboard(currentInterface));
 
   await ctx.reply(lines.join("\n"), {
     reply_markup: keyboard,

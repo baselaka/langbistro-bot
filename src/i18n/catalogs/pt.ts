@@ -38,10 +38,17 @@ Qual idioma você gostaria de aprender?`,
   "settings.levelAsk": "Qual é o seu nível de {language}?",
   "settings.timeAsk":
     "A que horas você quer receber as palavras do dia? Os horários estão no horário do Leste (ET).",
-  "settings.interfaceAsk": "Em que idioma os menus e as explicações devem aparecer?",
+  "settings.interfaceAsk": "Em que idioma os menus, as dicas e as explicações devem aparecer?",
   "settings.interfaceUpdated": "✅ Idioma da interface definido para {language}.",
 
   "language.ask": "Qual idioma você gostaria de aprender?",
+  "interface.ask": "Em que idioma os menus, as dicas e as explicações devem aparecer?",
+
+  "command.start": "Começar ou voltar ao Bistro",
+  "command.language": "Escolher o idioma para aprender",
+  "command.interface": "Idioma dos menus, dicas e explicações",
+  "command.settings": "Nível e horário das palavras do dia",
+  "command.subscribe": "Assinar o Pro",
   "language.switchedRestored":
     "✅ Você mudou para {language}!\n\nSeu progresso de {language} foi restaurado (Nível: {level}, faixa {tier}).",
   "language.switchedFresh":

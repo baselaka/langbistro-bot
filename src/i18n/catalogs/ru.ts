@@ -38,10 +38,17 @@ export const ru: Record<MessageKey, string> = {
   "settings.levelAsk": "Какой у тебя уровень {language}?",
   "settings.timeAsk":
     "В какое время присылать слова дня? Время указано по восточному времени США (ET).",
-  "settings.interfaceAsk": "На каком языке показывать меню и пояснения?",
+  "settings.interfaceAsk": "На каком языке показывать меню, подсказки и пояснения?",
   "settings.interfaceUpdated": "✅ Язык интерфейса: {language}.",
 
   "language.ask": "Какой язык ты хочешь учить?",
+  "interface.ask": "На каком языке показывать меню, подсказки и пояснения?",
+
+  "command.start": "Начать или вернуться к Bistro",
+  "command.language": "Выбрать язык для изучения",
+  "command.interface": "Язык меню, подсказок и пояснений",
+  "command.settings": "Уровень и время слов дня",
+  "command.subscribe": "Подписка Pro",
   "language.switchedRestored":
     "✅ Переключено на {language}!\n\nПрогресс по {language} восстановлен (уровень: {level}, ярус {tier}).",
   "language.switchedFresh":

@@ -9,6 +9,7 @@ import {
   localeFromTelegramCode,
   parseInterfaceLanguage,
   pickerLabel,
+  interfacePickerLabel,
   settingsLevelAsk,
   t,
   tMd2,
@@ -82,6 +83,13 @@ describe("localized learning-language chrome", () => {
     expect(languageDisplayLabel("en", "en")).toBe("English 🇬🇧");
     expect(pickerLabel("es", "fr", "es")).toContain("español");
     expect(pickerLabel("fr", "es", "ru")).toContain("французский");
+  });
+
+  it("marks the current interface language on picker labels", () => {
+    expect(interfacePickerLabel("en", "es")).toBe("English");
+    expect(interfacePickerLabel("es", "es")).toBe("Español ✓");
+    expect(interfacePickerLabel("ru", "pt")).toBe("Русский");
+    expect(interfacePickerLabel("pt", "pt")).toBe("Português ✓");
   });
 
   it("localizes settings level ask", () => {

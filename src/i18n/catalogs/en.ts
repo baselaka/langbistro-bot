@@ -36,10 +36,17 @@ Which language would you like to learn?`,
   "settings.levelAsk": "What is your {language} level?",
   "settings.timeAsk":
     "What time would you like to receive your daily words? Times are in Eastern Time (ET).",
-  "settings.interfaceAsk": "What language should menus and explanations use?",
+  "settings.interfaceAsk": "What language should menus, hints, and explanations use?",
   "settings.interfaceUpdated": "✅ Interface language set to {language}.",
 
   "language.ask": "Which language would you like to learn?",
+  "interface.ask": "What language should menus, hints, and explanations use?",
+
+  "command.start": "Start or return to Bistro",
+  "command.language": "Choose the language to learn",
+  "command.interface": "Menus, hints, and explanations language",
+  "command.settings": "Level and daily word time",
+  "command.subscribe": "Subscribe to Pro",
   "language.switchedRestored":
     "✅ Switched to {language}!\n\nYour {language} progress has been restored (Level: {level}, Tier {tier}).",
   "language.switchedFresh": "✅ Switched to {language}!\n\nStarting fresh at Beginner, Tier 1.",

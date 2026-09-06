@@ -28,6 +28,7 @@ export {
   moderationSafeTopic,
   onboardingLevelAsk,
   pickerLabel,
+  interfacePickerLabel,
   reviewAsk,
   settingsLevelAsk,
   buildMetaExplanationRule,

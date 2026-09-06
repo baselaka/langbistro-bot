@@ -1,5 +1,10 @@
 import { InlineKeyboard } from "grammy";
-import { t, type InterfaceLanguage } from "../i18n";
+import {
+  INTERFACE_LANGUAGES,
+  interfacePickerLabel,
+  t,
+  type InterfaceLanguage,
+} from "../i18n";
 
 const TIME_SLOTS = [
   { callback: "08:00", key: "button.time0800" },
@@ -39,11 +44,13 @@ export function levelPickerKeyboard(
   return keyboard;
 }
 
-export function interfaceLanguageKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
-    .text("English", "settings_interface:en")
-    .text("Español", "settings_interface:es")
-    .row()
-    .text("Português", "settings_interface:pt")
-    .text("Русский", "settings_interface:ru");
+export function interfaceLanguageKeyboard(current: InterfaceLanguage): InlineKeyboard {
+  const keyboard = new InlineKeyboard();
+  INTERFACE_LANGUAGES.forEach((code, index) => {
+    keyboard.text(interfacePickerLabel(code, current), `settings_interface:${code}`);
+    if (index === 1) {
+      keyboard.row();
+    }
+  });
+  return keyboard;
 }
