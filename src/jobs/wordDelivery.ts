@@ -2,7 +2,7 @@ import cron from "node-cron";
 import type { Bot } from "grammy";
 import { supabase } from "../db/client";
 import {
-  buildFillBlankMessage,
+  buildFillBlank,
   buildWordMessage,
   getOrCreateDailySession,
 } from "../services/dailySession";
@@ -84,10 +84,9 @@ export function startWordDeliveryJob(bot: Bot): void {
             });
           },
           async () => {
-            await bot.api.sendMessage(
-              user.telegram_id,
-              await buildFillBlankMessage(fillBlankWord, user.target_language ?? "es")
-            );
+            const fillBlank = await buildFillBlank(fillBlankWord, user.target_language ?? "es");
+            fillBlankState.sentence = fillBlank.sentence;
+            await bot.api.sendMessage(user.telegram_id, fillBlank.message);
           },
           fillBlankState
         );

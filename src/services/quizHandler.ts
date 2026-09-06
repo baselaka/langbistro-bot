@@ -3,6 +3,7 @@ import { generateResponse, generateVoice } from "../ai/openai";
 import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 import { sendUxFlow } from "../bot/handlers/ux-flow";
+import { formatCorrectionMarkdownV2 } from "../utils/correction";
 import { evaluateFillBlank, evaluateReviewAnswer } from "./dailySession";
 import { getMilestoneMessage, markWordsLearned } from "./vocabulary";
 import { clearQuizState, getQuizState } from "./quizState";
@@ -70,7 +71,7 @@ export async function handleQuizResponse(
 
   const isCorrect =
     state.type === "fill_blank"
-      ? await evaluateFillBlank(text, state.word)
+      ? await evaluateFillBlank(text, state.word, state.sentence)
       : await evaluateReviewAnswer(text, state.word);
 
   const { data: vocabRow } = await supabase
@@ -168,7 +169,8 @@ Instructions:
 
   structuredResponse.correction = null;
   if (!isCorrect) {
-    const wrongText = `~${escapeMarkdownV2(text)}~ → *${escapeMarkdownV2(state.word)}*`;
+    const corrected = state.sentence?.trim() || state.word;
+    const wrongText = formatCorrectionMarkdownV2(text, corrected, escapeMarkdownV2);
     await ctx.reply(wrongText, { parse_mode: "MarkdownV2" });
   }
 

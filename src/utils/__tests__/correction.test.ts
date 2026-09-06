@@ -128,4 +128,16 @@ describe("formatCorrectionMarkdownV2", () => {
     );
     expect(markdown.startsWith("~")).toBe(false);
   });
+
+  it("strikes only the attempted blank in a spoken fill-blank sentence", () => {
+    const markdown = formatCorrectionMarkdownV2(
+      "Solo di siedimos salir temprano para evitar el tráfico.",
+      "Entonces, decidimos salir temprano para evitar el tráfico.",
+      identity
+    );
+
+    expect(markdown).toBe(
+      "~Solo di siedimos~ \\-\\> *Entonces, decidimos salir temprano para evitar el tráfico.*"
+    );
+  });
 });

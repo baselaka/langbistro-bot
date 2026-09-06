@@ -4,7 +4,7 @@ import { openai } from "../ai/openai";
 import { CHAT_MODEL_FREE, CHAT_MODEL_GRADE, chatParams } from "../config/models";
 import { supabase } from "../db/client";
 import { getLocalDateString } from "../utils/dateTz";
-import { checkAnswerMatch, type Vocabulary } from "./vocabulary";
+import { checkAnswerMatch, startsWithExpectedPhrase, type Vocabulary } from "./vocabulary";
 
 export type DailySession = {
   id: number;
@@ -53,6 +53,8 @@ Examples that MUST be correct: true:
 Examples that MUST be correct: false:
 - Expected "casa", learner "perro" (unrelated word)
 - Expected "comer", learner "beber" (different verb, not a form of the expected word)
+
+For fill_blank, the learner may answer with only the missing word, or by saying the completed sentence. If they used the expected word (or a valid variant) to fill the blank, mark correct: true. Reciting the given sentence without the missing word is correct: false.
 
 Context: ${context}.`;
 }
@@ -181,8 +183,17 @@ export async function generateFillBlankSentence(word: string): Promise<FillBlank
   };
 }
 
-export async function buildFillBlankMessage(word: Vocabulary, language: string = "es"): Promise<string> {
-  const { blanked } = await (async () => {
+export type FillBlankPrompt = {
+  message: string;
+  sentence: string;
+};
+
+function completeSentenceFromBlanked(blanked: string, word: string): string {
+  return blanked.includes("_____") ? blanked.replace("_____", word) : word;
+}
+
+export async function buildFillBlank(word: Vocabulary, language: string = "es"): Promise<FillBlankPrompt> {
+  const generated = await (async () => {
     try {
       const completion = await openai.chat.completions.create({
         ...chatParams(CHAT_MODEL_FREE, 0.3),
@@ -215,7 +226,12 @@ export async function buildFillBlankMessage(word: Vocabulary, language: string =
 
     return await generateFillBlankSentence(word.word);
   })();
-  return `Fill in the blank:\n"${blanked}"\n(Reply by voice or text!)`;
+
+  const sentence = generated.sentence || completeSentenceFromBlanked(generated.blanked, word.word);
+  return {
+    message: `Fill in the blank:\n"${generated.blanked}"\n(Reply by voice or text!)`,
+    sentence,
+  };
 }
 
 export function buildReviewMessage(word: Vocabulary): string {
@@ -230,8 +246,18 @@ export async function evaluateReviewAnswer(userAnswer: string, correctWord: stri
   return gptGradeSpanishAnswer(userAnswer, correctWord, "review");
 }
 
-export async function evaluateFillBlank(userAnswer: string, expectedWord: string): Promise<boolean> {
+export async function evaluateFillBlank(
+  userAnswer: string,
+  expectedWord: string,
+  completeSentence?: string
+): Promise<boolean> {
   if (checkAnswerMatch(userAnswer, expectedWord)) {
+    return true;
+  }
+  if (completeSentence && checkAnswerMatch(userAnswer, completeSentence)) {
+    return true;
+  }
+  if (startsWithExpectedPhrase(userAnswer, expectedWord)) {
     return true;
   }
   return gptGradeSpanishAnswer(userAnswer, expectedWord, "fill_blank");
