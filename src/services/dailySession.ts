@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { InlineKeyboard } from "grammy";
 import { openai } from "../ai/openai";
+import {
+  buildGradeSystemPrompt,
+  getLanguageConfig,
+  parseTargetLanguage,
+  type TargetLanguage,
+} from "../config/languages";
 import { CHAT_MODEL_FREE, CHAT_MODEL_GRADE, chatParams } from "../config/models";
 import { supabase } from "../db/client";
 import { getLocalDateString } from "../utils/dateTz";
@@ -26,44 +32,14 @@ const gradeSchema = z.object({
   correct: z.boolean(),
 });
 
-function buildGradeSystemPrompt(context: "review" | "fill_blank"): string {
-  return `You grade Spanish learner answers for a language-learning quiz. Return JSON only: {"correct": true} or {"correct": false}.
+/** Exported for unit tests — builds the GPT grading system prompt for a target language. */
+export { buildGradeSystemPrompt };
 
-Be LENIENT with minor typos (1–2 character swaps, missing accents, doubled/missing letters) and with valid conjugations, inflections, gerunds, or gender/number variants of the expected word or phrase. The learner is practicing vocabulary, not spelling perfection.
-
-ADJECTIVE GENDER/NUMBER RULE (apply mechanically, not by example memorization):
-If the expected word is an adjective (or adjective-like form) and the learner's answer differs ONLY by Spanish gender and/or number agreement endings, mark correct: true whenever the base/lemma is the same word.
-- Gender-only: -o ↔ -a (e.g. abierto↔abierta, rojo↔roja, pequeño↔pequeña, cansado↔cansada)
-- Number-only: add/remove -s or -es (e.g. rojo↔rojos, abierta↔abiertas)
-- Combined gender+number: e.g. abierto↔abiertas, rojo↔rojas, pequeño↔pequeñas
-Do NOT require the learner to match the exact citation form. Masculine/feminine and singular/plural agreement forms of the SAME adjective are always valid. Apply this rule even for adjectives not listed in the examples below.
-
-Examples that MUST be correct: true:
-- Expected "casa", learner "kasa" (minor typo)
-- Expected "gracias", learner "grasias" (minor typo)
-- Expected "perro", learner "pero" (one-letter typo; still the intended word)
-- Expected "comer", learner "comemos" (valid verb conjugation)
-- Expected "comer", learner "comí" (past-tense conjugation of the same verb)
-- Expected "beber", learner "bebiendo" (gerund form of the same verb)
-- Expected "cansado", learner "cansada" (gender variant)
-- Expected "abierto", learner "abiertas" (adjective gender+number agreement)
-- Expected "rojo", learner "rojas" (adjective gender+number agreement)
-- Expected "pequeño", learner "pequeñas" (adjective gender+number agreement)
-- Expected "libro", learner "libros" (number variant)
-
-Examples that MUST be correct: false:
-- Expected "casa", learner "perro" (unrelated word)
-- Expected "comer", learner "beber" (different verb, not a form of the expected word)
-
-For fill_blank, the learner may answer with only the missing word, or by saying the completed sentence. If they used the expected word (or a valid variant) to fill the blank, mark correct: true. Reciting the given sentence without the missing word is correct: false.
-
-Context: ${context}.`;
-}
-
-async function gptGradeSpanishAnswer(
+async function gptGradeAnswer(
   userAnswer: string,
   expected: string,
-  context: "review" | "fill_blank"
+  context: "review" | "fill_blank",
+  targetLang: TargetLanguage
 ): Promise<boolean> {
   const completion = await openai.chat.completions.create({
     ...chatParams(CHAT_MODEL_GRADE, 0),
@@ -71,7 +47,7 @@ async function gptGradeSpanishAnswer(
     messages: [
       {
         role: "system",
-        content: buildGradeSystemPrompt(context),
+        content: buildGradeSystemPrompt(context, targetLang),
       },
       {
         role: "user",
@@ -149,7 +125,29 @@ type FillBlankSentence = {
   blanked: string;
 };
 
-export async function generateFillBlankSentence(word: string): Promise<FillBlankSentence> {
+/** Exported for unit tests — fill-blank teacher/user prompts for a language. */
+export function buildFillBlankPrompts(
+  word: string,
+  language: string,
+  avoidExample?: string | null
+): { system: string; user: string } {
+  const cfg = getLanguageConfig(language);
+  let system = cfg.fillBlankTeacherPrompt;
+  if (avoidExample?.trim()) {
+    system += ` Do not reuse or lightly paraphrase this example sentence: "${avoidExample.trim()}".`;
+  }
+  return {
+    system,
+    user: cfg.fillBlankUserPrompt(word),
+  };
+}
+
+export async function generateFillBlankSentence(
+  word: string,
+  language: string = "es",
+  avoidExample?: string | null
+): Promise<FillBlankSentence> {
+  const prompts = buildFillBlankPrompts(word, language, avoidExample);
   try {
     const completion = await openai.chat.completions.create({
       ...chatParams(CHAT_MODEL_FREE, 0.3),
@@ -157,12 +155,11 @@ export async function generateFillBlankSentence(word: string): Promise<FillBlank
       messages: [
         {
           role: "system",
-          content:
-            "You are a Spanish language teacher. Generate a natural Spanish sentence that uses the exact word form provided. The sentence should be 8-12 words long and appropriate for language learners. Return JSON only: {\"sentence\": \"your sentence here\", \"blanked\": \"same sentence with the target word replaced by _____\"}",
+          content: prompts.system,
         },
         {
           role: "user",
-          content: `Generate a sentence using this exact Spanish word: ${word}`,
+          content: prompts.user,
         },
       ],
     });
@@ -194,22 +191,21 @@ function completeSentenceFromBlanked(blanked: string, word: string): string {
 }
 
 export async function buildFillBlank(word: Vocabulary, language: string = "es"): Promise<FillBlankPrompt> {
+  const targetLang = parseTargetLanguage(language);
   const generated = await (async () => {
     try {
+      const prompts = buildFillBlankPrompts(word.word, targetLang, word.example_sentence);
       const completion = await openai.chat.completions.create({
         ...chatParams(CHAT_MODEL_FREE, 0.3),
         response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
-            content:
-              language === "fr"
-                ? "You are a French language teacher. Write a natural French sentence using the exact word form provided. The sentence should be 8-12 words long and appropriate for language learners. Return JSON only: {\"sentence\": \"your sentence here\", \"blanked\": \"same sentence with the target word replaced by _____\"}"
-                : "You are a Spanish language teacher. Write a natural Spanish sentence using the exact word form provided. The sentence should be 8-12 words long and appropriate for language learners. Return JSON only: {\"sentence\": \"your sentence here\", \"blanked\": \"same sentence with the target word replaced by _____\"}",
+            content: prompts.system,
           },
           {
             role: "user",
-            content: `Generate a sentence using this exact ${language === "fr" ? "French" : "Spanish"} word: ${word.word}`,
+            content: prompts.user,
           },
         ],
       });
@@ -222,10 +218,10 @@ export async function buildFillBlank(word: Vocabulary, language: string = "es"):
         return { sentence, blanked };
       }
     } catch {
-      // Fall back to shared deterministic message below.
+      // Fall back to language-aware generator below.
     }
 
-    return await generateFillBlankSentence(word.word);
+    return await generateFillBlankSentence(word.word, targetLang, word.example_sentence);
   })();
 
   const sentence = generated.sentence || completeSentenceFromBlanked(generated.blanked, word.word);
@@ -235,22 +231,28 @@ export async function buildFillBlank(word: Vocabulary, language: string = "es"):
   };
 }
 
-export function buildReviewMessage(word: Vocabulary): string {
+export function buildReviewMessage(word: Vocabulary, language: string = "es"): string {
+  const cfg = getLanguageConfig(language);
   const tr = word.translation ?? "";
-  return `🔁 Quick review! How do you say "${tr}" in Spanish?\n(Respond by voice or text!)`;
+  return cfg.reviewAsk(tr);
 }
 
-export async function evaluateReviewAnswer(userAnswer: string, correctWord: string): Promise<boolean> {
+export async function evaluateReviewAnswer(
+  userAnswer: string,
+  correctWord: string,
+  language: string = "es"
+): Promise<boolean> {
   if (checkAnswerMatch(userAnswer, correctWord)) {
     return true;
   }
-  return gptGradeSpanishAnswer(userAnswer, correctWord, "review");
+  return gptGradeAnswer(userAnswer, correctWord, "review", parseTargetLanguage(language));
 }
 
 export async function evaluateFillBlank(
   userAnswer: string,
   expectedWord: string,
-  completeSentence?: string
+  completeSentence?: string,
+  language: string = "es"
 ): Promise<boolean> {
   if (checkAnswerMatch(userAnswer, expectedWord)) {
     return true;
@@ -261,5 +263,5 @@ export async function evaluateFillBlank(
   if (startsWithExpectedPhrase(userAnswer, expectedWord)) {
     return true;
   }
-  return gptGradeSpanishAnswer(userAnswer, expectedWord, "fill_blank");
+  return gptGradeAnswer(userAnswer, expectedWord, "fill_blank", parseTargetLanguage(language));
 }

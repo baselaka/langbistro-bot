@@ -27,9 +27,9 @@ These apply to every coding session. Full text also lives in `CLAUDE.md` for Cla
 
 ## Project overview
 LangBistro is a voice-first, AI-powered Telegram language learning bot for English-speaking users in the US.
-- Bot persona: **Bistro** (speaks the target language, explains in English)
+- Bot persona: **Bistro** (speaks the target language; meta-explanations in English — for ESL, `replyExplanation` is a simpler English paraphrase)
 - UX mode: **conversation-first** — users can talk to Bistro immediately; lessons are woven into free conversation, not gated
-- Languages: Spanish and French (both live). Multi-language via `language_code` — never build per-language forks
+- Languages: Spanish, French, and English (all as learnable targets via `users.target_language`). Multi-language via config in `src/config/languages.ts` — never build per-language forks
 - Stack: Node.js + TypeScript + GrammY + Supabase + Railway + OpenAI (GPT-5.2/5.4-mini, mini transcribe/TTS) + Paddle
 
 ---
@@ -37,21 +37,21 @@ LangBistro is a voice-first, AI-powered Telegram language learning bot for Engli
 ## Absolute rules (never break these)
 
 ### Language and locale
-- All user-facing UI strings are in **English**. Bistro speaks Spanish or French during conversation and lessons.
-- Bistro uses English for meta-language: explanations, grammar notes, error messages, onboarding copy.
-- Language is determined by `user.language_code` — never hardcode Spanish or French strings outside locale files.
-- Never assume the user is learning Spanish. French learners are a valid audience in all ad targeting, A/B tests, and feature work.
+- All user-facing UI strings are in **English**. Bistro speaks the learner's target language (Spanish, French, or English) during conversation and lessons.
+- Bistro uses English for meta-language: explanations, grammar notes, error messages, onboarding copy. When the target is English (ESL), `replyExplanation` is a simpler English paraphrase — not a translation into another language.
+- Learning language is determined by `user.target_language` — never hardcode Spanish/French/English tutor strings outside `src/config/languages.ts` or language-keyed prompt maps.
+- Never assume the user is learning Spanish. French and English learners are valid audiences in all ad targeting, A/B tests, and feature work.
 
 ### Multi-language architecture
-- `language_code` on the `users` table is the source of truth for which language a user is learning.
-- All language-specific content (vocab, grammar notes, lesson prompts) is driven by config objects, not if/else chains.
-- Adding a third language must be a config change, not a codebase fork.
-- Never hardcode language-specific strings in handlers. Use locale files or config-driven content.
+- `target_language` on the `users` table is the source of truth for which language a user is learning. Telegram `language_code` is UI-locale telemetry only.
+- All language-specific content (vocab, grammar notes, lesson prompts) is driven by config objects in `src/config/languages.ts`, not if/else chains.
+- Adding a fourth language must be a config change, not a codebase fork.
+- Never hardcode language-specific strings in handlers. Use `getLanguageConfig` / `parseTargetLanguage`.
 
 ### Voice pipeline
-- **TTS:** OpenAI TTS. Spanish and French are fully supported
-- **STT:** OpenAI transcription (`gpt-4o-mini-transcribe` via `TRANSCRIBE_MODEL`). Set the `language` hint to match `user.language_code` (e.g., `'es'` or `'fr'`). Never omit the hint.
-- Never swap OpenAI voice APIs for another provider without evaluating impact on both Spanish and French output quality.
+- **TTS:** OpenAI TTS. Spanish, French, and English are fully supported
+- **STT:** OpenAI transcription (`gpt-4o-mini-transcribe` via `TRANSCRIBE_MODEL`). Set the `language` hint to match `user.target_language` (e.g., `'es'`, `'fr'`, or `'en'`). Never omit the hint.
+- Never swap OpenAI voice APIs for another provider without evaluating impact on Spanish, French, and English output quality.
 
 ### Payments
 - **Paddle only** — Paddle is the Merchant of Record. It handles US tax, VAT, and chargebacks.
@@ -81,7 +81,7 @@ LangBistro is a voice-first, AI-powered Telegram language learning bot for Engli
 - Use `SUPABASE_ANON_KEY` from env. Never hardcode credentials.
 - Read-modify-write sequences (usage quotas, session flags, message counts) are **not atomic**. Add `FOR UPDATE` locking or use Postgres functions before scaling beyond ~500 DAU.
 - The `engaged` flag on `daily_sessions` **must be set BEFORE sending** the daily word/delivery — prevents duplicate delivery on same-minute cron ticks.
-- `language_code` is on the `users` table. Always filter queries by it when fetching language-specific content.
+- `target_language` is on the `users` table. Always filter vocabulary queries by `vocabulary.language` when fetching language-specific content.
 
 ---
 
@@ -189,9 +189,9 @@ Never commit `.env`. Never log any of these values.
 
 - Do not add Stripe, Lemon Squeezy, or any payment provider other than Paddle
 - Do not change pricing in only one place — always update Paddle + website + bot copy together
-- Do not write any user-facing string in Spanish or French (Bistro speaks the language; UI is English)
-- Do not hardcode language-specific logic in handlers — use `language_code` and config objects
-- Do not assume the user is learning Spanish — French is equally supported
+- Do not write any user-facing UI string in Spanish or French (Bistro speaks the target language; UI is English)
+- Do not hardcode language-specific logic in handlers — use `target_language` and `src/config/languages.ts`
+- Do not assume the user is learning Spanish — French and English are equally supported
 - Do not run `bot.start()` before cron jobs and the HTTP server are initialised
 - Do not downgrade Node.js below 20
 - Do not share Supabase credentials with Tilim or any other project

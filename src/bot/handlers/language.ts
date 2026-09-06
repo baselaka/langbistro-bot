@@ -1,4 +1,9 @@
 import { InlineKeyboard, type Context } from "grammy";
+import {
+  SUPPORTED_LANGUAGES,
+  parseTargetLanguage,
+  pickerLabel,
+} from "../../config/languages";
 import { supabase } from "../../db/client";
 
 export async function handleLanguageCommand(ctx: Context): Promise<void> {
@@ -11,20 +16,14 @@ export async function handleLanguageCommand(ctx: Context): Promise<void> {
     .eq("telegram_id", telegramId)
     .single();
 
-  const current = user?.target_language ?? "es";
+  const current = parseTargetLanguage(user?.target_language);
 
-  await ctx.reply(
-    "Which language would you like to learn?",
-    {
-      reply_markup: new InlineKeyboard()
-        .text(
-          current === "es" ? "🇪🇸 Spanish ✓" : "🇪🇸 Spanish",
-          "settings_language:es"
-        )
-        .text(
-          current === "fr" ? "🇫🇷 French ✓" : "🇫🇷 French",
-          "settings_language:fr"
-        ),
-    }
-  );
+  const keyboard = new InlineKeyboard();
+  for (const code of SUPPORTED_LANGUAGES) {
+    keyboard.text(pickerLabel(code, current), `settings_language:${code}`);
+  }
+
+  await ctx.reply("Which language would you like to learn?", {
+    reply_markup: keyboard,
+  });
 }

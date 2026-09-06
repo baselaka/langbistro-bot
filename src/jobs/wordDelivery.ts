@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import type { Bot } from "grammy";
+import { parseTargetLanguage } from "../config/languages";
 import { supabase } from "../db/client";
 import {
   buildFillBlank,
@@ -55,7 +56,8 @@ export function startWordDeliveryJob(bot: Bot): void {
           continue;
         }
 
-        const words = await getDailyWords(user.id, user.current_tier, user.target_language ?? "es");
+        const targetLanguage = parseTargetLanguage(user.target_language);
+        const words = await getDailyWords(user.id, user.current_tier, targetLanguage);
         const fillBlankWord = words[Math.floor(Math.random() * words.length)];
         if (!fillBlankWord) {
           continue;
@@ -72,7 +74,7 @@ export function startWordDeliveryJob(bot: Bot): void {
           word: fillBlankWord.word,
           sentence: fillBlankWord.example_sentence ?? undefined,
           vocabularyId: fillBlankWord.id,
-          targetLanguage: user.target_language ?? "es",
+          targetLanguage,
         };
 
         await replaceQuizAfterWordSet(
@@ -84,7 +86,7 @@ export function startWordDeliveryJob(bot: Bot): void {
             });
           },
           async () => {
-            const fillBlank = await buildFillBlank(fillBlankWord, user.target_language ?? "es");
+            const fillBlank = await buildFillBlank(fillBlankWord, targetLanguage);
             fillBlankState.sentence = fillBlank.sentence;
             await bot.api.sendMessage(user.telegram_id, fillBlank.message);
           },

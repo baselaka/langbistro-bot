@@ -13,7 +13,8 @@
     "lint": "eslint src",
     "seed": "ts-node src/db/seeds/run-seed.ts",
     "seed:vocab": "ts-node src/db/seeds/vocabulary-5k.ts",
-    "seed:fr": "ts-node -r tsconfig-paths/register src/db/seeds/run-seed-fr.ts"
+    "seed:fr": "ts-node -r tsconfig-paths/register src/db/seeds/run-seed-fr.ts",
+    "seed:en": "ts-node -r tsconfig-paths/register src/db/seeds/run-seed-en.ts"
   },
   "repository": {
     "type": "git",

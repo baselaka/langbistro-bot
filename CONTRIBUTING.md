@@ -87,6 +87,7 @@ Seeding calls OpenAI to generate translations and example sentences. Expect API 
 npm run seed        # Spanish starter set (500 words)
 npm run seed:vocab  # Spanish full set (5,000 words)
 npm run seed:fr     # French (10,000 words)
+npm run seed:en     # English (5,000 words)
 ```
 
 Word lists live in `src/db/seeds/data/` and are sourced from [FrequencyWords](https://github.com/hermitdave/FrequencyWords) (CC BY 4.0). See [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
@@ -138,15 +139,15 @@ When adding behavior, prefer extending existing services and handlers rather tha
 - **Minimal diffs.** Fix the problem at hand; avoid unrelated refactors in the same PR.
 - **Follow existing conventions.** Naming, imports (`node:fs`, `node:path`), Zod validation, and Supabase access patterns should match surrounding code.
 - **Environment config** goes through `src/config/env.ts` — do not read `process.env` ad hoc in new code.
-- **User-facing copy** for Spanish and French should stay in the appropriate language; keep `replyExplanation` in English where the existing prompts do.
+- **User-facing UI copy** stays in English. Target-language tutor replies (Spanish, French, or English) live in prompts/config; for ESL, `replyExplanation` is a simpler English paraphrase.
 - **Vocabulary data** must include proper attribution if you add or replace word lists (CC BY 4.0 or compatible).
 
 ## Adding a new language
 
-1. Add a frequency word list to `src/db/seeds/data/` (one word per line, `#` comment header for attribution).
-2. Create a seed script following `src/db/seeds/vocabulary-fr.ts` (GPT enrichment + Supabase upsert with `language` set).
-3. Update onboarding and language selection in `src/bot/handlers/` and related services.
-4. Add quiz messages and GPT prompts for the new language in `src/services/quizHandler.ts` and `src/ai/openai.ts`.
+1. Add the language to `src/config/languages.ts` (`SUPPORTED_LANGUAGES` + full `LanguageConfig` entry).
+2. Add a frequency word list to `src/db/seeds/data/` (one word per line, `#` comment header for attribution).
+3. Create a seed script following `src/db/seeds/vocabulary-en.ts` (GPT enrichment + Supabase upsert with `language` set).
+4. Add GPT system prompts for the new language in `src/ai/openai.ts`.
 5. Document the vocabulary source in `ATTRIBUTIONS.md`.
 6. Open a PR with seed instructions and estimated OpenAI seeding cost.
 

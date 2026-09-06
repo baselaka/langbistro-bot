@@ -3,8 +3,13 @@ import { getMilestoneMessage } from "../services/vocabulary";
 
 const sentMilestones = new Set<string>();
 
-export async function maybeSendMilestoneAfterConversation(ctx: Context, userId: number, wordsLearnedCount: number): Promise<void> {
-  const message = getMilestoneMessage(wordsLearnedCount);
+export async function maybeSendMilestoneAfterConversation(
+  ctx: Context,
+  userId: number,
+  wordsLearnedCount: number,
+  language: string = "es"
+): Promise<void> {
+  const message = getMilestoneMessage(wordsLearnedCount, language);
   if (!message) {
     return;
   }

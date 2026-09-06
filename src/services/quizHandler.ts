@@ -1,5 +1,6 @@
 import type { Context } from "grammy";
 import { generateResponse, generateVoice } from "../ai/openai";
+import { getLanguageConfig, parseTargetLanguage } from "../config/languages";
 import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 import { sendUxFlow } from "../bot/handlers/ux-flow";
@@ -8,40 +9,9 @@ import { evaluateFillBlank, evaluateReviewAnswer } from "./dailySession";
 import { getMilestoneMessage, markWordsLearned } from "./vocabulary";
 import { clearQuizState, getQuizState } from "./quizState";
 
-const QUIZ_MESSAGES = {
-  es: {
-    correct: [
-      "¡Correcto! 🎉",
-      "¡Muy bien! ✨",
-      "¡Exacto! 🌟",
-      "¡Perfecto! 💪",
-      "¡Excelente! 🎯",
-    ],
-    encouragement: [
-      "¡Sigue así! 💪",
-      "¡Tú puedes! 🌟",
-      "¡Casi! Inténtalo de nuevo 😊",
-    ],
-  },
-  fr: {
-    correct: [
-      "Correct ! 🎉",
-      "Très bien ! ✨",
-      "Exactement ! 🌟",
-      "Parfait ! 💪",
-      "Excellent ! 🎯",
-    ],
-    encouragement: [
-      "Continue comme ça ! 💪",
-      "Tu y arrives ! 🌟",
-      "Presque ! Réessaie 😊",
-    ],
-  },
-};
-
-function getQuizMessages(lang: string) {
-  return QUIZ_MESSAGES[lang as keyof typeof QUIZ_MESSAGES]
-    ?? QUIZ_MESSAGES.es;
+/** Exported for unit tests. */
+export function getQuizMessages(lang: string) {
+  return getLanguageConfig(lang).quizMessages;
 }
 
 function pickRandom(arr: string[]): string {
@@ -64,15 +34,16 @@ export async function handleQuizResponse(
   if (!state) {
     return;
   }
-  const targetLanguage = state.targetLanguage ?? "es";
-  const quizMessages = getQuizMessages(targetLanguage);
+  const targetLanguage = parseTargetLanguage(state.targetLanguage);
+  const cfg = getLanguageConfig(targetLanguage);
+  const quizMessages = cfg.quizMessages;
   const randomCorrect = pickRandom(quizMessages.correct);
   const randomEncouragement = pickRandom(quizMessages.encouragement);
 
   const isCorrect =
     state.type === "fill_blank"
-      ? await evaluateFillBlank(text, state.word, state.sentence)
-      : await evaluateReviewAnswer(text, state.word);
+      ? await evaluateFillBlank(text, state.word, state.sentence, targetLanguage)
+      : await evaluateReviewAnswer(text, state.word, targetLanguage);
 
   const { data: vocabRow } = await supabase
     .from("vocabulary")
@@ -82,21 +53,21 @@ export async function handleQuizResponse(
   const translation = vocabRow?.translation ?? "";
 
   const contextInjection = isCorrect
-    ? `[QUIZ CONTEXT: The user answered a ${targetLanguage === "fr" ? "French" : "Spanish"} quiz correctly.
+    ? `[QUIZ CONTEXT: The user answered a ${cfg.name} quiz correctly.
 Quiz type: ${state.type}
 Target word: ${state.word}
 User answer: ${text}
 
 Instructions:
 - Start with "${randomCorrect}" and include "${randomEncouragement}"
-- Give brief genuine encouragement in ${targetLanguage === "fr" ? "French" : "Spanish"} (1 sentence max)
+- Give brief genuine encouragement in ${cfg.name} (1 sentence max)
 - Naturally transition into a conversational question related to the word topic
-- End with "${targetLanguage === "fr" ? "Ou tu préfères parler d'autre chose ?" : "¿O prefieres hablar de otra cosa?"}" to give them an out
+- End with "${cfg.quizOutro}" to give them an out
 - Keep it warm and natural, not robotic
 - Do NOT show any correction — there is none needed
 - Always return "correction": null in your JSON response
 - Do NOT set correction — set it to null]`
-    : `[QUIZ CONTEXT: The user answered a ${targetLanguage === "fr" ? "French" : "Spanish"} quiz incorrectly.
+    : `[QUIZ CONTEXT: The user answered a ${cfg.name} quiz incorrectly.
 Quiz type: ${state.type}
 Target word: ${state.word}
 User answer: ${text}
@@ -106,7 +77,7 @@ Instructions:
 - Do NOT say anything encouraging — the user got it wrong
 - Start your response with "${randomEncouragement}" and acknowledge they got it wrong, warmly but clearly
 - Naturally transition into a conversational question related to the word topic
-- End with "${targetLanguage === "fr" ? "Ou tu préfères parler d'autre chose ?" : "¿O prefieres hablar de otra cosa?"}" to give them an out
+- End with "${cfg.quizOutro}" to give them an out
 - Keep it warm and natural, not robotic
 - Always return "correction": null in your JSON response
 - Do NOT set correction — set it to null]`;
@@ -162,7 +133,7 @@ Instructions:
 
   const { data: userRow } = await supabase.from("users").select("words_learned_count").eq("id", userId).single();
   const wordsLearnedCount = userRow?.words_learned_count ?? 0;
-  const milestoneMessage = getMilestoneMessage(wordsLearnedCount);
+  const milestoneMessage = getMilestoneMessage(wordsLearnedCount, targetLanguage);
   if (milestoneMessage) {
     await ctx.reply(milestoneMessage);
   }
