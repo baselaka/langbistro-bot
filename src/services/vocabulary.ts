@@ -11,6 +11,7 @@ export type Vocabulary = {
   example_sentence: string | null;
   tier: number;
   frequency_rank: number;
+  language: string;
 };
 
 export async function getDailyWords(userId: number, tier: number, language: string = "es"): Promise<Vocabulary[]> {
@@ -28,7 +29,7 @@ export async function getDailyWords(userId: number, tier: number, language: stri
 
   const { data: candidates, error: vocabError } = await supabase
     .from("vocabulary")
-    .select("id, word, translation, example_sentence, tier, frequency_rank")
+    .select("id, word, translation, example_sentence, tier, frequency_rank, language")
     .eq("tier", tier)
     .eq("language", lang);
 
@@ -104,7 +105,7 @@ export async function getReviewWord(userId: number, language: string = "es"): Pr
 
   const { data: words, error: wError } = await supabase
     .from("vocabulary")
-    .select("id, word, translation, example_sentence, tier, frequency_rank")
+    .select("id, word, translation, example_sentence, tier, frequency_rank, language")
     .in("id", ids)
     .eq("language", lang);
 

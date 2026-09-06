@@ -12,6 +12,7 @@ import {
   parseInterfaceLanguage,
 } from "../i18n";
 import { sendAndClearQuiz } from "../services/quizState";
+import { resolveGloss } from "../services/vocabGloss";
 
 type InactivityUser = {
   id: number;
@@ -96,13 +97,20 @@ export function startInactivityJob(bot: Bot): void {
               const pick = uvRows[Math.floor(Math.random() * uvRows.length)]!;
               const { data: vocabRow } = await supabase
                 .from("vocabulary")
-                .select("word, translation, language")
+                .select("id, word, translation, language")
                 .eq("id", pick.vocabulary_id)
                 .eq("language", cfg.code)
                 .single();
               if (vocabRow?.word) {
                 word = vocabRow.word;
-                translation = vocabRow.translation ?? translation;
+                translation = await resolveGloss(
+                  {
+                    id: vocabRow.id,
+                    translation: vocabRow.translation ?? null,
+                    language: vocabRow.language ?? cfg.code,
+                  },
+                  locale
+                );
               }
             }
 

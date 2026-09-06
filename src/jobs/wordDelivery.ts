@@ -9,6 +9,7 @@ import {
   getOrCreateDailySession,
 } from "../services/dailySession";
 import { replaceQuizAfterWordSet } from "../services/quizState";
+import { attachGlosses } from "../services/vocabGloss";
 import { getDailyWords } from "../services/vocabulary";
 
 type DeliveryUser = {
@@ -60,7 +61,8 @@ export function startWordDeliveryJob(bot: Bot): void {
 
         const targetLanguage = parseTargetLanguage(user.target_language);
         const locale = parseInterfaceLanguage(user.interface_language);
-        const words = await getDailyWords(user.id, user.current_tier, targetLanguage);
+        const rawWords = await getDailyWords(user.id, user.current_tier, targetLanguage);
+        const words = await attachGlosses(rawWords, locale);
         const fillBlankWord = words[Math.floor(Math.random() * words.length)];
         if (!fillBlankWord) {
           continue;
