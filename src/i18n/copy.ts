@@ -4,7 +4,11 @@ import {
   type LanguageLevel,
   type TargetLanguage,
 } from "../config/languages";
-import { INTERFACE_LANGUAGE_ENGLISH_NAME, type InterfaceLanguage } from "./types";
+import {
+  INTERFACE_LANGUAGE_LABELS,
+  INTERFACE_LANGUAGE_ENGLISH_NAME,
+  type InterfaceLanguage,
+} from "./types";
 import { t } from "./t";
 
 const MILESTONES = [50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 4000] as const;
@@ -55,6 +59,11 @@ export function pickerLabel(
 ): string {
   const lang = getLanguageConfig(code);
   const base = `${lang.flag} ${localizedTargetName(locale, code)}`;
+  return code === current ? `${base} ✓` : base;
+}
+
+export function interfacePickerLabel(code: InterfaceLanguage, current: InterfaceLanguage): string {
+  const base = INTERFACE_LANGUAGE_LABELS[code];
   return code === current ? `${base} ✓` : base;
 }
 

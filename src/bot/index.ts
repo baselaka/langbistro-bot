@@ -3,6 +3,7 @@ import { env } from "../config/env";
 import { startInactivityJob } from "../jobs/inactivityJob";
 import { startWordDeliveryJob } from "../jobs/wordDelivery";
 import { handleCallbackQuery } from "./handlers/callback";
+import { handleInterfaceCommand } from "./handlers/interface";
 import { handleLanguageCommand } from "./handlers/language";
 import { handleMessage } from "./handlers/message";
 import { handleSettings } from "./handlers/settings";
@@ -15,6 +16,7 @@ export function createBot(): Bot {
 
   bot.command("start", handleStart);
   bot.command("language", handleLanguageCommand);
+  bot.command("interface", handleInterfaceCommand);
   bot.command("settings", handleSettings);
   bot.command("subscribe", handleSubscribe);
   bot.on("message:voice", handleVoice);

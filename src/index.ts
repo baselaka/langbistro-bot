@@ -1,4 +1,5 @@
 import { createBot, startScheduledJobs } from "./bot";
+import { syncBotCommands } from "./bot/commands";
 import { startServer } from "./server";
 
 async function main(): Promise<void> {
@@ -12,7 +13,14 @@ async function main(): Promise<void> {
   startServer();
   console.log("Starting LangBistro bot...");
   bot.start({
-    onStart: () => console.log("LangBistro bot is running..."),
+    onStart: async () => {
+      try {
+        await syncBotCommands(bot);
+      } catch (error) {
+        console.error("Failed to sync Telegram command menu:", error);
+      }
+      console.log("LangBistro bot is running...");
+    },
   });
 }
 
