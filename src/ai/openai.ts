@@ -3,7 +3,7 @@ import { z } from "zod";
 import { env } from "../config/env";
 import { parseTargetLanguage } from "../config/languages";
 import { CHAT_MODEL_PRO, TRANSCRIBE_MODEL, TTS_MODEL, chatParams } from "../config/models";
-import { normalizeCorrection } from "../utils/correction";
+import { normalizeCorrection, shouldKeepCorrection } from "../utils/correction";
 
 export type ChatMessage = {
   role: "user" | "assistant" | "system";
@@ -26,8 +26,10 @@ const CORRECTION_RULES = [
   "If the sentence is correct, even if there are alternative phrasings, correction must be null.",
   "Do not suggest stylistic improvements as corrections.",
   "Do not correct the user if the sentence is grammatically valid, even if another form exists.",
+  "Do not correct punctuation-only or pronoun-style preferences (e.g. 'yourself' vs 'you', splitting one sentence into two).",
+  "Never reuse or re-emit a correction from an earlier turn. Correction must describe only the latest user message.",
   "When in doubt, set correction to null.",
-  "If correction is non-null, `original` must be the user's full sentence, and `corrected` must be the full corrected sentence. Never put only the wrong word or only the replacement word in either field.",
+  "If correction is non-null, `original` must be the user's full latest sentence, and `corrected` must be the full corrected sentence. Never put only the wrong word or only the replacement word in either field.",
 ];
 
 const BASE_ES_PROMPT = [
@@ -215,19 +217,28 @@ export async function generateResponse(
   });
 
   const response = responseSchema.parse(parsed);
+  const lastUserText = [...convoMessages].reverse().find((message) => message.role === "user")?.content ?? "";
   if (response.correction && !response.correction.hasMistake) {
     response.correction = null;
   } else if (response.correction) {
-    const lastUserText = [...convoMessages].reverse().find((message) => message.role === "user")?.content ?? "";
-    const display = normalizeCorrection(
+    const keep = shouldKeepCorrection(
       response.correction.original,
       response.correction.corrected,
       lastUserText
     );
-    if (display.mistake) {
-      response.correction.original = display.mistake;
+    if (!keep) {
+      response.correction = null;
+    } else {
+      const display = normalizeCorrection(
+        response.correction.original,
+        response.correction.corrected,
+        lastUserText
+      );
+      if (display.mistake) {
+        response.correction.original = display.mistake;
+      }
+      response.correction.corrected = display.correctedSentence;
     }
-    response.correction.corrected = display.correctedSentence;
   }
 
   return response;

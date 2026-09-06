@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatCorrectionMarkdownV2, normalizeCorrection } from "../correction";
+import {
+  formatCorrectionMarkdownV2,
+  normalizeCorrection,
+  shouldKeepCorrection,
+} from "../correction";
 
 function identity(value: string): string {
   return value;
@@ -139,5 +143,37 @@ describe("formatCorrectionMarkdownV2", () => {
     expect(markdown).toBe(
       "~Solo di siedimos~ \\-\\> *Entonces, decidimos salir temprano para evitar el tráfico.*"
     );
+  });
+});
+
+describe("shouldKeepCorrection", () => {
+  it("drops stylistic paraphrases of valid English (pelmeni case)", () => {
+    expect(
+      shouldKeepCorrection(
+        "and what about yourself?",
+        "I love pelmeni. What about you?",
+        "I love pelmeni, and what about yourself?"
+      )
+    ).toBe(false);
+  });
+
+  it("drops stale corrections that are not grounded in the latest user text (borscht case)", () => {
+    expect(
+      shouldKeepCorrection(
+        "and what about yourself?",
+        "I love pelmeni. What about you?",
+        "I like borscht. Do you like borscht?"
+      )
+    ).toBe(false);
+  });
+
+  it("keeps a real vocabulary mistake grounded in the user text", () => {
+    expect(
+      shouldKeepCorrection(
+        "I go to school yesterday",
+        "I went to school yesterday",
+        "I go to school yesterday"
+      )
+    ).toBe(true);
   });
 });

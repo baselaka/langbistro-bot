@@ -235,3 +235,60 @@ export function formatCorrectionMarkdownV2(
 
   return correctedMarkdown;
 }
+
+function normalizePronounCore(token: string): string {
+  if (token === "yourself" || token === "yourselves" || token === "you") {
+    return "you";
+  }
+  return token;
+}
+
+/** Drop GPT corrections that are stale (about a prior turn) or stylistic paraphrases of valid input. */
+export function shouldKeepCorrection(
+  original: string,
+  corrected: string,
+  userText: string
+): boolean {
+  const orig = original.trim();
+  const corr = corrected.trim();
+  const user = userText.trim();
+  if (!orig || !corr || !user) {
+    return false;
+  }
+
+  const userCores = tokenize(user).map(tokenCore).filter(Boolean);
+  const origCores = tokenize(orig).map(tokenCore).filter(Boolean);
+  const corrCores = tokenize(corr).map(tokenCore).filter(Boolean);
+  if (origCores.length === 0 || corrCores.length === 0 || userCores.length === 0) {
+    return false;
+  }
+
+  // Stale/hallucinated: original must be grounded in the latest user utterance.
+  const grounded = origCores.every((token) => userCores.includes(token));
+  if (!grounded) {
+    return false;
+  }
+
+  // Stylistic paraphrase: same content after light pronoun normalization.
+  const userNorm = userCores.map(normalizePronounCore);
+  const corrNorm = corrCores.map(normalizePronounCore);
+  if (userNorm.join(" ") === corrNorm.join(" ")) {
+    return false;
+  }
+
+  const userSet = new Set(userNorm);
+  const corrSet = new Set(corrNorm);
+  let intersection = 0;
+  for (const token of userSet) {
+    if (corrSet.has(token)) {
+      intersection += 1;
+    }
+  }
+  const union = new Set([...userSet, ...corrSet]).size;
+  const jaccard = union === 0 ? 0 : intersection / union;
+  if (jaccard >= 0.85 && Math.abs(userNorm.length - corrNorm.length) <= 2) {
+    return false;
+  }
+
+  return true;
+}
