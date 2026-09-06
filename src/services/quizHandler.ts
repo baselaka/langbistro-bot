@@ -10,6 +10,7 @@ import { escapeMarkdownV2 } from "../utils/markdown";
 import { evaluateFillBlank, evaluateReviewAnswer } from "./dailySession";
 import { markWordsLearned } from "./vocabulary";
 import { clearQuizState, getQuizState } from "./quizState";
+import { resolveGloss } from "./vocabGloss";
 
 /** Exported for unit tests. */
 export function getQuizMessages(lang: string) {
@@ -46,10 +47,19 @@ export async function handleQuizResponse(
 
   const { data: vocabRow } = await supabase
     .from("vocabulary")
-    .select("translation")
+    .select("id, translation, language")
     .eq("id", state.vocabularyId)
     .single();
-  const translation = vocabRow?.translation ?? "";
+  const translation = vocabRow
+    ? await resolveGloss(
+        {
+          id: vocabRow.id,
+          translation: vocabRow.translation ?? null,
+          language: vocabRow.language ?? targetLanguage,
+        },
+        locale
+      )
+    : "";
 
   const contextInjection = isCorrect
     ? `[QUIZ CONTEXT: The user answered a ${cfg.name} quiz correctly.

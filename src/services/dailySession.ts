@@ -16,6 +16,7 @@ import { getLocalDateString } from "../utils/dateTz";
 import { escapeMarkdownV2 } from "../utils/markdown";
 import { checkAnswerMatch, startsWithExpectedPhrase } from "../utils/text";
 import { type Vocabulary } from "./vocabulary";
+import { resolveGloss } from "./vocabGloss";
 
 export type DailySession = {
   id: number;
@@ -222,12 +223,19 @@ export async function buildFillBlank(
   };
 }
 
-export function buildReviewMessage(
+export async function buildReviewMessage(
   word: Vocabulary,
   language: string = "es",
   locale: InterfaceLanguage = "en"
-): string {
-  const tr = word.translation ?? "";
+): Promise<string> {
+  const tr = await resolveGloss(
+    {
+      id: word.id,
+      translation: word.translation,
+      language: word.language ?? parseTargetLanguage(language),
+    },
+    locale
+  );
   return reviewAsk(tr, parseTargetLanguage(language), locale);
 }
 
