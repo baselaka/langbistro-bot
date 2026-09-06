@@ -4,11 +4,11 @@ import { generateVoice, transcribeVoice } from "../../ai/openai";
 import { env } from "../../config/env";
 import { getLanguageConfig, parseTargetLanguage } from "../../config/languages";
 import { supabase } from "../../db/client";
+import { conversationNudgeExplanation, getMilestoneMessage, t } from "../../i18n";
 import { checkViolation, handleViolation } from "../../services/moderation";
-import { getMilestoneMessage } from "../../services/vocabulary";
 import { runAssistantTurn } from "../../services/conversation";
 import { checkAndIncrementUsage } from "../../services/usage";
-import { getOrCreateUserByTelegram } from "../../services/users";
+import { getOrCreateUserByTelegram, interfaceLocaleOf } from "../../services/users";
 import { isInOnboarding } from "../../services/onboarding";
 import { handleQuizResponse } from "../../services/quizHandler";
 import { isInQuiz } from "../../services/quizState";
@@ -28,16 +28,15 @@ export async function handleVoice(ctx: Context): Promise<void> {
     username: from.username ?? null,
     languageCode: from.language_code ?? null,
   });
+  const locale = interfaceLocaleOf(user);
 
   if (user.is_banned) {
-    await ctx.reply(
-      "Your account is currently suspended. Please contact @langbistro_support if you believe this is a mistake."
-    );
+    await ctx.reply(t(locale, "account.suspended"));
     return;
   }
 
   if (isInOnboarding(from.id)) {
-    await ctx.reply("Please use the buttons above to complete your setup first.");
+    await ctx.reply(t(locale, "onboarding.useButtons"));
     return;
   }
 
@@ -47,14 +46,14 @@ export async function handleVoice(ctx: Context): Promise<void> {
   if (isInQuiz(from.id)) {
     const file = await ctx.api.getFile(voice.file_id);
     if (!file.file_path) {
-      await ctx.reply("I couldn't process that voice message. Please try again.");
+      await ctx.reply(t(locale, "voice.processFailed"));
       return;
     }
 
     const telegramFileUrl = `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
     const fileResponse = await fetch(telegramFileUrl);
     if (!fileResponse.ok) {
-      await ctx.reply("I couldn't download your voice message. Please try again.");
+      await ctx.reply(t(locale, "voice.downloadFailed"));
       return;
     }
 
@@ -65,20 +64,20 @@ export async function handleVoice(ctx: Context): Promise<void> {
       whisperLanguage
     );
     console.log(`[Voice] Whisper transcript (${targetLang}):`, transcript);
-    await handleQuizResponse(ctx, from.id, user.id, transcript, user.is_subscribed, "voice");
+    await handleQuizResponse(ctx, from.id, user.id, transcript, user.is_subscribed, "voice", locale);
     return;
   }
 
   const file = await ctx.api.getFile(voice.file_id);
   if (!file.file_path) {
-    await ctx.reply("I couldn't process that voice message. Please try again.");
+    await ctx.reply(t(locale, "voice.processFailed"));
     return;
   }
 
   const telegramFileUrl = `https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
   const fileResponse = await fetch(telegramFileUrl);
   if (!fileResponse.ok) {
-    await ctx.reply("I couldn't download your voice message. Please try again.");
+    await ctx.reply(t(locale, "voice.downloadFailed"));
     return;
   }
 
@@ -95,7 +94,8 @@ export async function handleVoice(ctx: Context): Promise<void> {
     const violationReply = await handleViolation(
       user.id,
       moderation.violationType ?? "restricted_content",
-      targetLang
+      targetLang,
+      locale
     );
     await ctx.reply(violationReply);
     return;
@@ -107,18 +107,16 @@ export async function handleVoice(ctx: Context): Promise<void> {
     const structured: AssistantResponse = {
       correction: null,
       reply: nudge.reply,
-      replyExplanation: nudge.replyExplanation,
+      replyExplanation: conversationNudgeExplanation(targetLang, locale),
     };
     const responseVoice = await generateVoice(nudge.reply);
-    await sendStructuredUxResponse(ctx, structured, responseVoice, true, undefined, targetLang);
+    await sendStructuredUxResponse(ctx, structured, responseVoice, true, undefined, targetLang, locale);
     return;
   }
 
   const usage = await checkAndIncrementUsage(user.id, "voice");
   if (!usage.allowed) {
-    await ctx.reply(
-      "You reached today's free voice limit (3/day). Upgrade to continue unlimited voice practice."
-    );
+    await ctx.reply(t(locale, "quota.voice"));
     return;
   }
 
@@ -127,10 +125,11 @@ export async function handleVoice(ctx: Context): Promise<void> {
     targetLang,
     transcript,
     "voice",
-    user.is_subscribed
+    user.is_subscribed,
+    locale
   );
 
-  await sendStructuredUxResponse(ctx, structured, responseVoice, false, undefined, targetLang);
+  await sendStructuredUxResponse(ctx, structured, responseVoice, false, undefined, targetLang, locale);
 
   const { data: updatedUser } = await supabase
     .from("users")
@@ -138,7 +137,7 @@ export async function handleVoice(ctx: Context): Promise<void> {
     .eq("id", user.id)
     .single();
   const wordsCount = updatedUser?.words_learned_count ?? 0;
-  const milestoneMessage = getMilestoneMessage(wordsCount, targetLang);
+  const milestoneMessage = getMilestoneMessage(wordsCount, targetLang, locale);
   if (milestoneMessage) {
     await ctx.reply(milestoneMessage);
   }

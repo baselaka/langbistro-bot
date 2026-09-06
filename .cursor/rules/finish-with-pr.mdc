@@ -1,0 +1,16 @@
+---
+description: Finish every completed change with a commit, push, and PR — do not wait to be asked.
+alwaysApply: true
+---
+
+# Finish with a PR
+
+When implementation is done, ship it to review without waiting for "commit", "push", or "open a PR":
+
+1. Confirm you are not on `main`. If the previous PR for this branch already merged, branch from `main` instead of piling onto the old feature branch.
+2. `git status --porcelain --untracked-files=all` — stage everything that belongs in the change (Railway deploys from the working tree).
+3. Run `npm run typecheck && npm run lint && npm run test && npm run build`.
+4. Commit, `git push -u origin HEAD`, `gh pr create --fill --base main`.
+5. Return the PR URL. Do not merge.
+
+Do not stop at "committed locally" or "want me to open a PR?". Only skip commit/push/PR if the human explicitly said not to.

@@ -1,12 +1,14 @@
 import type { Context } from "grammy";
 import { generateResponse, generateVoice } from "../ai/openai";
 import { getLanguageConfig, parseTargetLanguage } from "../config/languages";
+import { getMilestoneMessage, t, type InterfaceLanguage } from "../i18n";
 import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 import { sendUxFlow } from "../bot/handlers/ux-flow";
 import { formatCorrectionMarkdownV2 } from "../utils/correction";
+import { escapeMarkdownV2 } from "../utils/markdown";
 import { evaluateFillBlank, evaluateReviewAnswer } from "./dailySession";
-import { getMilestoneMessage, markWordsLearned } from "./vocabulary";
+import { markWordsLearned } from "./vocabulary";
 import { clearQuizState, getQuizState } from "./quizState";
 
 /** Exported for unit tests. */
@@ -15,11 +17,7 @@ export function getQuizMessages(lang: string) {
 }
 
 function pickRandom(arr: string[]): string {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function escapeMarkdownV2(text: string): string {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
+  return arr[Math.floor(Math.random() * arr.length)]!;
 }
 
 export async function handleQuizResponse(
@@ -28,7 +26,8 @@ export async function handleQuizResponse(
   userId: number,
   text: string,
   isSubscribed: boolean,
-  messageType: "text" | "voice" = "text"
+  messageType: "text" | "voice" = "text",
+  locale: InterfaceLanguage = "en"
 ): Promise<void> {
   const state = getQuizState(telegramId);
   if (!state) {
@@ -104,7 +103,7 @@ Instructions:
   ];
 
   const model = isSubscribed ? CHAT_MODEL_PRO : CHAT_MODEL_FREE;
-  const structuredResponse = await generateResponse(messagesForGpt, targetLanguage, model);
+  const structuredResponse = await generateResponse(messagesForGpt, targetLanguage, model, "beginner", locale);
 
   const { error: saveError } = await supabase.from("messages").insert([
     {
@@ -133,7 +132,7 @@ Instructions:
 
   const { data: userRow } = await supabase.from("users").select("words_learned_count").eq("id", userId).single();
   const wordsLearnedCount = userRow?.words_learned_count ?? 0;
-  const milestoneMessage = getMilestoneMessage(wordsLearnedCount, targetLanguage);
+  const milestoneMessage = getMilestoneMessage(wordsLearnedCount, targetLanguage, locale);
   if (milestoneMessage) {
     await ctx.reply(milestoneMessage);
   }
@@ -146,9 +145,18 @@ Instructions:
   }
 
   const explanationOverride = isCorrect
-    ? `${randomCorrect} "${state.word}" means "${translation}". ${randomEncouragement}`
-    : `${randomEncouragement} The correct answer was "${state.word}" — it means "${translation}".`;
+    ? t(locale, "quiz.correctExplain", {
+        praise: randomCorrect,
+        word: state.word,
+        translation,
+        encouragement: randomEncouragement,
+      })
+    : t(locale, "quiz.wrongExplain", {
+        encouragement: randomEncouragement,
+        word: state.word,
+        translation,
+      });
 
   const responseVoice = await generateVoice(structuredResponse.reply);
-  await sendUxFlow(ctx, structuredResponse, responseVoice, true, explanationOverride, targetLanguage);
+  await sendUxFlow(ctx, structuredResponse, responseVoice, true, explanationOverride, targetLanguage, locale);
 }

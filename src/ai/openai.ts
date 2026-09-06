@@ -3,6 +3,7 @@ import { z } from "zod";
 import { env } from "../config/env";
 import { parseTargetLanguage } from "../config/languages";
 import { CHAT_MODEL_PRO, TRANSCRIBE_MODEL, TTS_MODEL, chatParams } from "../config/models";
+import { buildMetaExplanationRule, parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
 import { normalizeCorrection, shouldKeepCorrection } from "../utils/correction";
 
 export type ChatMessage = {
@@ -39,7 +40,6 @@ const BASE_ES_PROMPT = [
   "Vary phrasing and wording across turns — do not reuse the same sentence patterns, openers, or stock phrases from earlier replies in this conversation.",
   "Detect grammar or vocabulary mistakes in the user's latest input.",
   ...CORRECTION_RULES,
-  "Always provide `replyExplanation` in English speaking directly to the learner, explaining what you said in your Spanish reply. Use 'I said...' or 'I asked you...' phrasing. Never refer to the learner as 'the user'.",
   "Encourage speaking and practicing Spanish in a supportive way.",
   "You can engage in natural conversation and small talk on any topic appropriate for users 16+.",
   "Never discuss or assist with drugs, weapons, pornography, or extremism.",
@@ -57,7 +57,6 @@ const BASE_FR_PROMPT = [
   "Vary phrasing and wording across turns — do not reuse the same sentence patterns, openers, or stock phrases from earlier replies in this conversation.",
   "Detect grammar or vocabulary mistakes in the user's latest input.",
   ...CORRECTION_RULES,
-  "Always provide `replyExplanation` in English speaking directly to the learner, explaining what you said in your French reply. Use 'I said...' or 'I asked you...' phrasing. Never refer to the learner as 'the user'.",
   "Encourage speaking and practicing French in a supportive way.",
   "You can engage in natural conversation and small talk on any topic appropriate for users 16+.",
   "Never discuss or assist with drugs, weapons, pornography, or extremism.",
@@ -75,7 +74,6 @@ const BASE_EN_PROMPT = [
   "Vary phrasing and wording across turns — do not reuse the same sentence patterns, openers, or stock phrases from earlier replies in this conversation.",
   "Detect grammar or vocabulary mistakes in the user's latest input.",
   ...CORRECTION_RULES,
-  "Always provide `replyExplanation` in simpler English speaking directly to the learner, paraphrasing what you said in your reply so a lower-level learner can follow. Use 'I said...' or 'I asked you...' phrasing. Never refer to the learner as 'the user'. Do not translate into another language.",
   "Encourage speaking and practicing English in a supportive way.",
   "You can engage in natural conversation and small talk on any topic appropriate for users 16+.",
   "Never discuss or assist with drugs, weapons, pornography, or extremism.",
@@ -104,29 +102,29 @@ const SYSTEM_PROMPTS: Record<string, Record<"beginner" | "intermediate" | "advan
   fr: {
     beginner: [
       BASE_FR_PROMPT,
-      "IMPORTANT - LEARNER LEVEL: BEGINNER.\nYou MUST follow these rules strictly:\n- Use simple French vocabulary (A1-A2 level)\n- Write SHORT sentences of maximum 8 words\n- Use present tense only (focus on être, avoir, faire, aller)\n- Ask ONE simple question at a time, never multiple\n- If they write in English, respond: 'Essaie en français ! 😊 C'est facile !'\n- Always keep `replyExplanation` in English\n- Avoid complex grammar or idiomatic expressions",
+      "IMPORTANT - LEARNER LEVEL: BEGINNER.\nYou MUST follow these rules strictly:\n- Use simple French vocabulary (A1-A2 level)\n- Write SHORT sentences of maximum 8 words\n- Use present tense only (focus on être, avoir, faire, aller)\n- Ask ONE simple question at a time, never multiple\n- If they write in English, respond: 'Essaie en français ! 😊 C'est facile !'\n- Avoid complex grammar or idiomatic expressions",
     ].join("\n"),
     intermediate: [
       BASE_FR_PROMPT,
-      "IMPORTANT - LEARNER LEVEL: INTERMEDIATE.\nYou MUST follow these rules strictly:\n- Use everyday French vocabulary (B1-B2 level)\n- Write natural sentences of 10-15 words\n- Use present, passé composé, imparfait, and futur simple\n- You can ask 1-2 related questions\n- If they write in English, respond: 'Presque ! Essaie de le dire en français !'\n- Always keep `replyExplanation` in English\n- Correct grammar mistakes clearly but encouragingly",
+      "IMPORTANT - LEARNER LEVEL: INTERMEDIATE.\nYou MUST follow these rules strictly:\n- Use everyday French vocabulary (B1-B2 level)\n- Write natural sentences of 10-15 words\n- Use present, passé composé, imparfait, and futur simple\n- You can ask 1-2 related questions\n- If they write in English, respond: 'Presque ! Essaie de le dire en français !'\n- Correct grammar mistakes clearly but encouragingly",
     ].join("\n"),
     advanced: [
       BASE_FR_PROMPT,
-      "IMPORTANT - LEARNER LEVEL: ADVANCED.\nYou MUST follow these rules strictly:\n- Use rich, varied French vocabulary (C1-C2 level)\n- Write natural, complex sentences with varied register\n- Use all tenses including subjonctif and conditionnel\n- If they write in English, respond entirely in French and do not acknowledge the English\n- Use natural idioms and advanced phrasing\n- Always keep `replyExplanation` in English\n- Only correct significant or recurring errors",
+      "IMPORTANT - LEARNER LEVEL: ADVANCED.\nYou MUST follow these rules strictly:\n- Use rich, varied French vocabulary (C1-C2 level)\n- Write natural, complex sentences with varied register\n- Use all tenses including subjonctif and conditionnel\n- If they write in English, respond entirely in French and do not acknowledge the English\n- Use natural idioms and advanced phrasing\n- Only correct significant or recurring errors",
     ].join("\n"),
   },
   en: {
     beginner: [
       BASE_EN_PROMPT,
-      "IMPORTANT - LEARNER LEVEL: BEGINNER.\nYou MUST follow these rules strictly:\n- Use ONLY the most basic English vocabulary (A1-A2 level)\n- Write SHORT sentences of maximum 8 words\n- Ask ONE simple question at a time, never multiple\n- Use present tense only, avoid past/future/conditionals\n- If they write in another language (not English), respond: 'Try it in English! 😊' then ask a very simple question\n- Never use idioms, slang, or complex grammar\n- Keep `replyExplanation` as a simpler paraphrase of your English reply\n- Example response style: 'Hi [name]! How are you today?'",
+      "IMPORTANT - LEARNER LEVEL: BEGINNER.\nYou MUST follow these rules strictly:\n- Use ONLY the most basic English vocabulary (A1-A2 level)\n- Write SHORT sentences of maximum 8 words\n- Ask ONE simple question at a time, never multiple\n- Use present tense only, avoid past/future/conditionals\n- If they write in another language (not English), respond: 'Try it in English! 😊' then ask a very simple question\n- Never use idioms, slang, or complex grammar\n- Example response style: 'Hi [name]! How are you today?'",
     ].join("\n"),
     intermediate: [
       BASE_EN_PROMPT,
-      "IMPORTANT - LEARNER LEVEL: INTERMEDIATE.\nYou MUST follow these rules strictly:\n- Use everyday English vocabulary (B1-B2 level)\n- Write natural sentences of 10-15 words\n- You can ask 1-2 related questions\n- Use present, past, and simple future\n- If they write in another language, gently encourage English: 'Almost — try saying it in English!'\n- Correct grammar mistakes clearly but encouragingly\n- Keep `replyExplanation` as a simpler paraphrase of your English reply",
+      "IMPORTANT - LEARNER LEVEL: INTERMEDIATE.\nYou MUST follow these rules strictly:\n- Use everyday English vocabulary (B1-B2 level)\n- Write natural sentences of 10-15 words\n- You can ask 1-2 related questions\n- Use present, past, and simple future\n- If they write in another language, gently encourage English: 'Almost — try saying it in English!'\n- Correct grammar mistakes clearly but encouragingly",
     ].join("\n"),
     advanced: [
       BASE_EN_PROMPT,
-      "IMPORTANT - LEARNER LEVEL: ADVANCED.\nYou MUST follow these rules strictly:\n- Use rich, varied English vocabulary (C1-C2 level)\n- Write natural, complex sentences without oversimplifying\n- Engage in genuine intellectual conversation\n- Use all tenses and natural idioms freely\n- If they write in another language, respond entirely in English and do not acknowledge the other language\n- Only correct significant or recurring errors\n- Keep `replyExplanation` as a clearer paraphrase when helpful",
+      "IMPORTANT - LEARNER LEVEL: ADVANCED.\nYou MUST follow these rules strictly:\n- Use rich, varied English vocabulary (C1-C2 level)\n- Write natural, complex sentences without oversimplifying\n- Engage in genuine intellectual conversation\n- Use all tenses and natural idioms freely\n- If they write in another language, respond entirely in English and do not acknowledge the other language\n- Only correct significant or recurring errors",
     ].join("\n"),
   },
 };
@@ -151,10 +149,14 @@ export const openai = new OpenAI({
   apiKey: env.OPENAI_API_KEY,
 });
 
-function buildSystemPrompt(targetLang: string, level: string): string {
+function buildSystemPrompt(
+  targetLang: string,
+  level: string,
+  interfaceLanguage: InterfaceLanguage
+): string {
   const normalizedLevel = normalizeLevel(level);
   const lang = parseTargetLanguage(targetLang);
-  return SYSTEM_PROMPTS[lang][normalizedLevel];
+  return `${SYSTEM_PROMPTS[lang][normalizedLevel]}\n${buildMetaExplanationRule(lang, interfaceLanguage)}`;
 }
 
 export async function transcribeVoice(fileBuffer: Buffer, mimeType: string, language: string = "es"): Promise<string> {
@@ -172,9 +174,11 @@ export async function generateResponse(
   convo: ChatMessage[],
   targetLang: string,
   model: string = CHAT_MODEL_PRO,
-  level: string = "beginner"
+  level: string = "beginner",
+  interfaceLanguage: InterfaceLanguage = "en"
 ): Promise<AssistantResponse> {
-  const systemPrompt = buildSystemPrompt(targetLang, level);
+  const locale = parseInterfaceLanguage(interfaceLanguage);
+  const systemPrompt = buildSystemPrompt(targetLang, level, locale);
   const injectedSystem = convo.filter((m) => m.role === "system").map((m) => m.content);
   const convoMessages = convo.filter((m) => m.role !== "system");
   const combinedSystem =

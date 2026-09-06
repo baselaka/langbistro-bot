@@ -2,6 +2,15 @@ import cron from "node-cron";
 import type { Bot } from "grammy";
 import { getLanguageConfig, parseTargetLanguage } from "../config/languages";
 import { supabase } from "../db/client";
+import {
+  inactivityFinalPause,
+  inactivityMonthProgress,
+  inactivityNeverStarted24h,
+  inactivityNeverStarted72h,
+  inactivityRecall,
+  inactivityWeekPause,
+  parseInterfaceLanguage,
+} from "../i18n";
 import { sendAndClearQuiz } from "../services/quizState";
 
 type InactivityUser = {
@@ -12,6 +21,7 @@ type InactivityUser = {
   inactivity_stage: number;
   words_learned_count: number;
   target_language: string | null;
+  interface_language: string | null;
 };
 
 function daysSinceActive(lastActiveAt: string, now: Date): number {
@@ -38,7 +48,7 @@ export function startInactivityJob(bot: Bot): void {
 
       const { data: users, error } = await supabase
         .from("users")
-        .select("id, telegram_id, last_active_at, created_at, inactivity_stage, words_learned_count, target_language")
+        .select("id, telegram_id, last_active_at, created_at, inactivity_stage, words_learned_count, target_language, interface_language")
         .eq("onboarding_complete", true)
         .eq("is_banned", false);
 
@@ -50,6 +60,8 @@ export function startInactivityJob(bot: Bot): void {
       for (const row of (users ?? []) as InactivityUser[]) {
         const stage = row.inactivity_stage;
         const cfg = getLanguageConfig(parseTargetLanguage(row.target_language));
+        const locale = parseInterfaceLanguage(row.interface_language);
+        const targetLang = cfg.code;
 
         try {
           // Users who finished onboarding but never sent a message.
@@ -57,10 +69,10 @@ export function startInactivityJob(bot: Bot): void {
             const hours = hoursSinceCreated(row.created_at, now);
 
             if (stage === 0 && hours >= 24) {
-              await sendInactivityNudge(bot, row.telegram_id, cfg.inactivity.neverStarted24h);
+              await sendInactivityNudge(bot, row.telegram_id, inactivityNeverStarted24h(locale, targetLang));
               await supabase.from("users").update({ inactivity_stage: 1 }).eq("id", row.id);
             } else if (stage === 1 && hours >= 72) {
-              await sendInactivityNudge(bot, row.telegram_id, cfg.inactivity.neverStarted72h);
+              await sendInactivityNudge(bot, row.telegram_id, inactivityNeverStarted72h(locale, targetLang));
               await supabase.from("users").update({ inactivity_stage: 2 }).eq("id", row.id);
             }
             continue;
@@ -69,7 +81,7 @@ export function startInactivityJob(bot: Bot): void {
           const days = daysSinceActive(row.last_active_at, now);
 
           if (stage === 0 && days >= 7) {
-            await sendInactivityNudge(bot, row.telegram_id, cfg.inactivity.weekPause);
+            await sendInactivityNudge(bot, row.telegram_id, inactivityWeekPause(locale, targetLang));
             await supabase.from("users").update({ inactivity_stage: 1 }).eq("id", row.id);
             continue;
           }
@@ -97,7 +109,7 @@ export function startInactivityJob(bot: Bot): void {
             await sendInactivityNudge(
               bot,
               row.telegram_id,
-              cfg.inactivity.recallTemplate(word, translation)
+              inactivityRecall(locale, word, translation)
             );
             await supabase.from("users").update({ inactivity_stage: 2 }).eq("id", row.id);
             continue;
@@ -107,14 +119,14 @@ export function startInactivityJob(bot: Bot): void {
             await sendInactivityNudge(
               bot,
               row.telegram_id,
-              cfg.inactivity.monthProgress(row.words_learned_count)
+              inactivityMonthProgress(locale, targetLang, row.words_learned_count)
             );
             await supabase.from("users").update({ inactivity_stage: 3 }).eq("id", row.id);
             continue;
           }
 
           if (stage === 3 && days >= 45) {
-            await sendInactivityNudge(bot, row.telegram_id, cfg.inactivity.finalPause);
+            await sendInactivityNudge(bot, row.telegram_id, inactivityFinalPause(locale, targetLang));
             await supabase.from("users").update({ inactivity_stage: 4 }).eq("id", row.id);
           }
         } catch (e) {

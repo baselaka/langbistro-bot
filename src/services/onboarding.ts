@@ -9,7 +9,10 @@ import {
   type LanguageLevel,
 } from "../config/languages";
 import { supabase } from "../db/client";
+import { localizedTargetName, t, type InterfaceLanguage } from "../i18n";
 import { etToUtc } from "../utils/timeConvert";
+import { levelPickerKeyboard, timePickerKeyboard } from "../bot/keyboards";
+import { getInterfaceLocaleByTelegramId } from "./users";
 
 const readPayloadByToken = new Map<string, string>();
 const MAX_READ_PAYLOAD_ENTRIES = 2000;
@@ -51,12 +54,17 @@ export function resolveOnboardingReadCallbackData(data: string): string | null {
   }
 }
 
-async function sendVoiceWithRead(ctx: Context, text: string, level: string = "intermediate"): Promise<void> {
+async function sendVoiceWithRead(
+  ctx: Context,
+  text: string,
+  locale: InterfaceLanguage,
+  level: string = "intermediate"
+): Promise<void> {
   const audio = await generateVoice(text, {
     speed: getVoiceSpeedForLevel(level),
   });
   const callbackData = buildOnboardingReadCallbackData(text);
-  const keyboard = new InlineKeyboard().text("📖 Read", callbackData);
+  const keyboard = new InlineKeyboard().text(t(locale, "button.read"), callbackData);
   await ctx.replyWithVoice(new InputFile(audio, "onboarding.mp3"), { reply_markup: keyboard });
 }
 
@@ -84,30 +92,20 @@ export async function isOnboardingComplete(userId: number): Promise<boolean> {
   return Boolean(data?.onboarding_complete);
 }
 
-export async function startOnboarding(ctx: Context, telegramId: number): Promise<void> {
+export async function startOnboarding(
+  ctx: Context,
+  telegramId: number,
+  locale: InterfaceLanguage
+): Promise<void> {
   addToOnboarding(telegramId);
 
-  await ctx.reply(
-    `Hi! I'm Bistro, your AI language tutor 🍽️
+  const keyboard = new InlineKeyboard();
+  for (const code of SUPPORTED_LANGUAGES) {
+    const lang = getLanguageConfig(code);
+    keyboard.text(`${lang.flag} ${localizedTargetName(locale, code)}`, `onboarding_language:${code}`);
+  }
 
-I'll help you build real conversational skills through:
-- Daily chats in your target language
-- Instant corrections and explanations
-- Daily vocabulary words
-- Voice practice 🎙️
-
-Which language would you like to learn?`,
-    {
-      reply_markup: (() => {
-        const keyboard = new InlineKeyboard();
-        for (const code of SUPPORTED_LANGUAGES) {
-          const lang = getLanguageConfig(code);
-          keyboard.text(`${lang.flag} ${lang.name}`, `onboarding_language:${code}`);
-        }
-        return keyboard;
-      })(),
-    }
-  );
+  await ctx.reply(t(locale, "onboarding.intro"), { reply_markup: keyboard });
 }
 
 export async function completeOnboarding(userId: number, level: string): Promise<void> {
@@ -136,20 +134,10 @@ export async function handleOnboardingLevelCallback(
     throw new Error(`Failed to save onboarding level: ${error.message}`);
   }
 
-  await ctx.reply(
-    "Great! When would you like to receive your daily words?",
-    {
-      reply_markup: new InlineKeyboard()
-        .text("🌅 8:00 AM (ET)", "onboarding_time:08:00")
-        .text("☀️ 11:00 AM (ET)", "onboarding_time:11:00")
-        .row()
-        .text("🌇 2:00 PM (ET)", "onboarding_time:14:00")
-        .text("🌆 5:00 PM (ET)", "onboarding_time:17:00")
-        .row()
-        .text("🌙 8:00 PM (ET)", "onboarding_time:20:00")
-        .text("🌃 11:00 PM (ET)", "onboarding_time:23:00"),
-    }
-  );
+  const locale = await getInterfaceLocaleByTelegramId(telegramId);
+  await ctx.reply(t(locale, "onboarding.dailyWordsWhen"), {
+    reply_markup: timePickerKeyboard(locale, "onboarding_time"),
+  });
   addToOnboarding(telegramId);
 }
 
@@ -160,7 +148,8 @@ export async function handleOnboardingLanguageCallback(
   lang: string
 ): Promise<void> {
   if (!isSupportedLanguage(lang)) {
-    await ctx.reply("Unsupported language. Please choose from the buttons above.");
+    const locale = await getInterfaceLocaleByTelegramId(telegramId);
+    await ctx.reply(t(locale, "onboarding.unsupportedLanguage"));
     return;
   }
 
@@ -172,13 +161,9 @@ export async function handleOnboardingLanguageCallback(
 
   addToOnboarding(telegramId);
 
-  const cfg = getLanguageConfig(lang);
-  await ctx.reply(cfg.levelAsk, {
-    reply_markup: new InlineKeyboard()
-      .text("🌱 Beginner", "onboarding_level:beginner")
-      .text("📈 Intermediate", "onboarding_level:intermediate")
-      .row()
-      .text("🎓 Advanced", "onboarding_level:advanced"),
+  const locale = await getInterfaceLocaleByTelegramId(telegramId);
+  await ctx.reply(t(locale, "onboarding.levelAsk", { language: localizedTargetName(locale, lang) }), {
+    reply_markup: levelPickerKeyboard(locale, "onboarding_level"),
   });
 }
 
@@ -218,6 +203,7 @@ export async function handleOnboardingTimeCallback(
     levelRaw === "intermediate" || levelRaw === "advanced" ? levelRaw : "beginner";
   const cfg = getLanguageConfig(parseTargetLanguage(userRow?.target_language));
   const openingText = cfg.openingLines[level];
+  const locale = await getInterfaceLocaleByTelegramId(telegramId);
   await ctx.reply(openingText);
-  await sendVoiceWithRead(ctx, openingText, level);
+  await sendVoiceWithRead(ctx, openingText, locale, level);
 }

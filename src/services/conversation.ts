@@ -1,6 +1,7 @@
 import { AssistantResponse, ChatMessage, generateResponse, generateVoice, getVoiceSpeedForLevel } from "../ai/openai";
 import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
+import { parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
 
 type MessageType = "text" | "voice";
 
@@ -15,13 +16,19 @@ export async function runAssistantTurn(
   userContent: string,
   userMessageType: MessageType,
   isSubscribed: boolean,
+  interfaceLanguage: InterfaceLanguage = "en",
   level: string = "beginner"
 ): Promise<AssistantTurnResult> {
-  const { data: userRow, error: userError } = await supabase.from("users").select("level").eq("id", userId).single();
+  const { data: userRow, error: userError } = await supabase
+    .from("users")
+    .select("level, interface_language")
+    .eq("id", userId)
+    .single();
   if (userError) {
     throw new Error(`Failed to fetch user level: ${userError.message}`);
   }
   const effectiveLevel = userRow?.level ?? level ?? "beginner";
+  const locale = parseInterfaceLanguage(userRow?.interface_language, interfaceLanguage);
 
   const { data: historyRows, error: historyError } = await supabase
     .from("messages")
@@ -47,7 +54,8 @@ export async function runAssistantTurn(
     [...history, { role: "user", content: userContent }],
     targetLanguage,
     model,
-    effectiveLevel
+    effectiveLevel,
+    locale
   );
 
   const { error: saveMessagesError } = await supabase.from("messages").insert([
