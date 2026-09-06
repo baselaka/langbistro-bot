@@ -1,5 +1,10 @@
 import { InputFile, type Context } from "grammy";
 import { generateVoice } from "../../ai/openai";
+import {
+  isSupportedLanguage,
+  languageDisplayLabel,
+  parseTargetLanguage,
+} from "../../config/languages";
 import { supabase } from "../../db/client";
 import {
   handleOnboardingLanguageCallback,
@@ -19,12 +24,12 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
   }
 
   if (data.startsWith("read_onboarding:")) {
-    const spanish = resolveOnboardingReadCallbackData(data);
-    if (!spanish) {
+    const openingText = resolveOnboardingReadCallbackData(data);
+    if (!openingText) {
       await ctx.answerCallbackQuery({ text: "This text is no longer available." });
       return;
     }
-    await ctx.reply(spanish);
+    await ctx.reply(openingText);
     await ctx.answerCallbackQuery();
     return;
   }
@@ -59,6 +64,10 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
 
   if (data.startsWith("onboarding_language:")) {
     const lang = data.slice("onboarding_language:".length);
+    if (!isSupportedLanguage(lang)) {
+      await ctx.answerCallbackQuery({ text: "Unsupported language." });
+      return;
+    }
     const telegramId = ctx.from?.id;
     if (!telegramId) {
       await ctx.answerCallbackQuery({ text: "User not found." });
@@ -118,7 +127,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
 
   if (data.startsWith("settings_language:")) {
     const newLang = data.slice("settings_language:".length);
-    if (newLang !== "es" && newLang !== "fr") {
+    if (!isSupportedLanguage(newLang)) {
       await ctx.answerCallbackQuery({ text: "Unsupported language." });
       return;
     }
@@ -128,7 +137,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       return;
     }
 
-    const langLabel = newLang === "fr" ? "French 🇫🇷" : "Spanish 🇪🇸";
+    const langLabel = languageDisplayLabel(newLang);
 
     const { data: currentUser } = await supabase
       .from("users")
@@ -136,7 +145,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
       .eq("telegram_id", telegramId)
       .single();
 
-    const currentLang = currentUser?.target_language ?? "es";
+    const currentLang = parseTargetLanguage(currentUser?.target_language);
     const existingProgress = (currentUser?.language_progress as Record<string, { level: string; current_tier: number }>) ?? {};
     const updatedProgress: Record<string, { level: string; current_tier: number }> = {
       ...existingProgress,

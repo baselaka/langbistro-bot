@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import type { Bot } from "grammy";
+import { getLanguageConfig, parseTargetLanguage } from "../config/languages";
 import { supabase } from "../db/client";
 import { sendAndClearQuiz } from "../services/quizState";
 
@@ -10,6 +11,7 @@ type InactivityUser = {
   created_at: string;
   inactivity_stage: number;
   words_learned_count: number;
+  target_language: string | null;
 };
 
 function daysSinceActive(lastActiveAt: string, now: Date): number {
@@ -36,7 +38,7 @@ export function startInactivityJob(bot: Bot): void {
 
       const { data: users, error } = await supabase
         .from("users")
-        .select("id, telegram_id, last_active_at, created_at, inactivity_stage, words_learned_count")
+        .select("id, telegram_id, last_active_at, created_at, inactivity_stage, words_learned_count, target_language")
         .eq("onboarding_complete", true)
         .eq("is_banned", false);
 
@@ -47,6 +49,7 @@ export function startInactivityJob(bot: Bot): void {
 
       for (const row of (users ?? []) as InactivityUser[]) {
         const stage = row.inactivity_stage;
+        const cfg = getLanguageConfig(parseTargetLanguage(row.target_language));
 
         try {
           // Users who finished onboarding but never sent a message.
@@ -54,14 +57,10 @@ export function startInactivityJob(bot: Bot): void {
             const hours = hoursSinceCreated(row.created_at, now);
 
             if (stage === 0 && hours >= 24) {
-              await sendInactivityNudge(bot, row.telegram_id, "¡Hola! Ready to start practicing? Just send me a message 🇪🇸");
+              await sendInactivityNudge(bot, row.telegram_id, cfg.inactivity.neverStarted24h);
               await supabase.from("users").update({ inactivity_stage: 1 }).eq("id", row.id);
             } else if (stage === 1 && hours >= 72) {
-              await sendInactivityNudge(
-                bot,
-                row.telegram_id,
-                "Still here when you're ready! Even 5 minutes of Spanish practice makes a difference 💪"
-              );
+              await sendInactivityNudge(bot, row.telegram_id, cfg.inactivity.neverStarted72h);
               await supabase.from("users").update({ inactivity_stage: 2 }).eq("id", row.id);
             }
             continue;
@@ -70,16 +69,14 @@ export function startInactivityJob(bot: Bot): void {
           const days = daysSinceActive(row.last_active_at, now);
 
           if (stage === 0 && days >= 7) {
-            const text =
-              "Hola! 👋 You haven't practiced in a week, so I'm pausing your daily words for now. When you're ready to continue, just send me any message and we'll pick up right where you left off. ¡Hasta pronto!";
-            await sendInactivityNudge(bot, row.telegram_id, text);
+            await sendInactivityNudge(bot, row.telegram_id, cfg.inactivity.weekPause);
             await supabase.from("users").update({ inactivity_stage: 1 }).eq("id", row.id);
             continue;
           }
 
           if (stage === 1 && days >= 15) {
-            let word = "te amo";
-            let translation = "I love you";
+            let word = cfg.code === "es" ? "te amo" : cfg.code === "fr" ? "je t'aime" : "hello";
+            let translation = cfg.code === "en" ? "a greeting" : "I love you";
 
             const { data: uvRows } = await supabase.from("user_vocabulary").select("vocabulary_id").eq("user_id", row.id);
 
@@ -87,8 +84,9 @@ export function startInactivityJob(bot: Bot): void {
               const pick = uvRows[Math.floor(Math.random() * uvRows.length)]!;
               const { data: vocabRow } = await supabase
                 .from("vocabulary")
-                .select("word, translation")
+                .select("word, translation, language")
                 .eq("id", pick.vocabulary_id)
+                .eq("language", cfg.code)
                 .single();
               if (vocabRow?.word) {
                 word = vocabRow.word;
@@ -96,23 +94,27 @@ export function startInactivityJob(bot: Bot): void {
               }
             }
 
-            const text = `¿Todavía recuerdas qué significa «${word}»? It means "${translation}" — and you learned it! Come back and keep going. 💪`;
-            await sendInactivityNudge(bot, row.telegram_id, text);
+            await sendInactivityNudge(
+              bot,
+              row.telegram_id,
+              cfg.inactivity.recallTemplate(word, translation)
+            );
             await supabase.from("users").update({ inactivity_stage: 2 }).eq("id", row.id);
             continue;
           }
 
           if (stage === 2 && days >= 30) {
-            const text = `You've already learned ${row.words_learned_count} Spanish words. That's real progress — don't let it go to waste. The next word is waiting for you. 👀`;
-            await sendInactivityNudge(bot, row.telegram_id, text);
+            await sendInactivityNudge(
+              bot,
+              row.telegram_id,
+              cfg.inactivity.monthProgress(row.words_learned_count)
+            );
             await supabase.from("users").update({ inactivity_stage: 3 }).eq("id", row.id);
             continue;
           }
 
           if (stage === 3 && days >= 45) {
-            const text =
-              "We gave it our best shot! 😄 I'm pausing all messages for now so I don't bother you. Whenever you want to pick up Spanish again, just send me a message — I'll be here. ¡Buena suerte!";
-            await sendInactivityNudge(bot, row.telegram_id, text);
+            await sendInactivityNudge(bot, row.telegram_id, cfg.inactivity.finalPause);
             await supabase.from("users").update({ inactivity_stage: 4 }).eq("id", row.id);
           }
         } catch (e) {

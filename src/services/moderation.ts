@@ -1,4 +1,5 @@
 import { openai } from "../ai/openai";
+import { getLanguageConfig, parseTargetLanguage } from "../config/languages";
 import { supabase } from "../db/client";
 
 type ViolationResult = {
@@ -27,7 +28,13 @@ export async function checkViolation(text: string): Promise<ViolationResult> {
   };
 }
 
-export async function handleViolation(userId: number, violationType: string): Promise<string> {
+export async function handleViolation(
+  userId: number,
+  violationType: string,
+  targetLanguage: string = "es"
+): Promise<string> {
+  const cfg = getLanguageConfig(parseTargetLanguage(targetLanguage));
+
   const { error: insertViolationError } = await supabase.from("violations").insert({
     user_id: userId,
     violation_type: violationType,
@@ -44,7 +51,7 @@ export async function handleViolation(userId: number, violationType: string): Pr
 
   if (userFetchError || !user) {
     console.error("Failed to fetch user violation count:", userFetchError);
-    return "Let's keep things focused on safe Spanish practice. Try a friendly topic and we can continue.";
+    return cfg.moderationRedirect;
   }
 
   const nextViolationCount = (user.violation_count ?? 0) + 1;
@@ -70,5 +77,5 @@ export async function handleViolation(userId: number, violationType: string): Pr
     return "Warning: this topic is restricted. Please keep the chat safe and learning-focused, or your account may be suspended.";
   }
 
-  return "Let's switch to a safer topic and keep practicing Spanish together. Try asking about travel, food, or daily conversation.";
+  return cfg.moderationSafeTopic;
 }

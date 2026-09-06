@@ -1,6 +1,7 @@
 import type { Context } from "grammy";
 import type { AssistantResponse } from "../../ai/openai";
 import { generateVoice } from "../../ai/openai";
+import { getLanguageConfig, parseTargetLanguage } from "../../config/languages";
 import { checkViolation, handleViolation } from "../../services/moderation";
 import { getMilestoneMessage } from "../../services/vocabulary";
 import { checkAndIncrementUsage } from "../../services/usage";
@@ -44,29 +45,28 @@ export async function handleMessage(ctx: Context): Promise<void> {
     return;
   }
 
+  const targetLang = parseTargetLanguage(user.target_language);
   const moderation = await checkViolation(text);
   if (moderation.flagged) {
-    const violationReply = await handleViolation(user.id, moderation.violationType ?? "restricted_content");
+    const violationReply = await handleViolation(
+      user.id,
+      moderation.violationType ?? "restricted_content",
+      targetLang
+    );
     await ctx.reply(violationReply);
     return;
   }
 
-  const targetLang = (user.target_language ?? "es") as "es" | "fr";
   const isCorrectLang = await isTargetLanguage(text, targetLang);
   if (!isCorrectLang) {
-    const nudgeText = (user.target_language ?? "es") === "fr"
-      ? "Essaie en français ! 😊 Ce n'est pas grave si tu fais des erreurs."
-      : "¡Inténtalo en español! 😊 No importa si cometes errores.";
-    const nudgeExplanation = (user.target_language ?? "es") === "fr"
-      ? "I encouraged you to try replying in French, letting you know it's okay to make mistakes."
-      : "I encouraged you to try replying in Spanish, letting you know it's okay to make mistakes.";
+    const nudge = getLanguageConfig(targetLang).conversationNudge;
     const structured: AssistantResponse = {
       correction: null,
-      reply: nudgeText,
-      replyExplanation: nudgeExplanation,
+      reply: nudge.reply,
+      replyExplanation: nudge.replyExplanation,
     };
-    const responseVoice = await generateVoice(nudgeText);
-    await sendStructuredUxResponse(ctx, structured, responseVoice, true, undefined, user.target_language ?? "es");
+    const responseVoice = await generateVoice(nudge.reply);
+    await sendStructuredUxResponse(ctx, structured, responseVoice, true, undefined, targetLang);
     return;
   }
 
@@ -80,13 +80,13 @@ export async function handleMessage(ctx: Context): Promise<void> {
 
   const { structured, responseVoice } = await runAssistantTurn(
     user.id,
-    user.target_language ?? "es",
+    targetLang,
     text,
     "text",
     user.is_subscribed
   );
 
-  await sendStructuredUxResponse(ctx, structured, responseVoice, false, undefined, user.target_language ?? "es");
+  await sendStructuredUxResponse(ctx, structured, responseVoice, false, undefined, targetLang);
 
   const { data: updatedUser } = await supabase
     .from("users")
@@ -94,7 +94,7 @@ export async function handleMessage(ctx: Context): Promise<void> {
     .eq("id", user.id)
     .single();
   const wordsCount = updatedUser?.words_learned_count ?? 0;
-  const milestoneMessage = getMilestoneMessage(wordsCount);
+  const milestoneMessage = getMilestoneMessage(wordsCount, targetLang);
   if (milestoneMessage) {
     await ctx.reply(milestoneMessage);
   }

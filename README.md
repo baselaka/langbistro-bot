@@ -2,7 +2,7 @@
 
 A voice-first, AI-powered language learning Telegram bot. LangBistro delivers daily vocabulary, fill-in-the-blank quizzes, and text-to-speech pronunciation — all inside Telegram, no app download required.
 
-**Supported languages:** Spanish 🇪🇸 · French 🇫🇷
+**Supported languages:** Spanish 🇪🇸 · French 🇫🇷 · English 🇬🇧
 
 **Try it:** [@LangBistroBot](https://t.me/LangBistroBot)
 
@@ -85,6 +85,7 @@ This calls OpenAI to generate translations and example sentences — expect ~$2�
 ```bash
 npm run seed:vocab   # Spanish (5,000 words)
 npm run seed:fr      # French (10,000 words)
+npm run seed:en      # English (5,000 words)
 ```
 
 ### 5. Run locally
@@ -133,10 +134,11 @@ Contributions are welcome. Please follow this process:
 
 ### Adding a new language
 
-1. Add word frequency data to `src/db/seeds/data/` (see existing `.txt` files for format)
-2. Create a seed script following the pattern in `src/db/seeds/vocabulary-fr.ts`
-3. Update the language selector in the onboarding handler
-4. Open a PR
+1. Add an entry to `src/config/languages.ts` (`SUPPORTED_LANGUAGES` + `LANGUAGES` config)
+2. Add word frequency data to `src/db/seeds/data/` (see existing `.txt` files for format)
+3. Create a seed script following the pattern in `src/db/seeds/vocabulary-en.ts`
+4. Add system prompts in `src/ai/openai.ts`
+5. Open a PR with seed instructions and estimated OpenAI seeding cost
 
 ### Good first issues
 
@@ -150,7 +152,7 @@ Contributions are welcome. Please follow this process:
 
 ## Vocabulary Data
 
-Spanish and French word frequency lists are sourced from [FrequencyWords](https://github.com/hermitdave/FrequencyWords) by Hermit Dave, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Spanish, French, and English word frequency lists are sourced from [FrequencyWords](https://github.com/hermitdave/FrequencyWords) by Hermit Dave, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ---
 

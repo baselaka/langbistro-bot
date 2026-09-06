@@ -1,4 +1,5 @@
 import { InlineKeyboard, type Context } from "grammy";
+import { parseTargetLanguage, settingsLevelAsk } from "../../config/languages";
 import { supabase } from "../../db/client";
 
 export async function handleSettings(ctx: Context): Promise<void> {
@@ -14,9 +15,9 @@ export async function handleSettings(ctx: Context): Promise<void> {
 
   const normalizedLevel = (user?.level ?? "beginner").toLowerCase();
   const formattedLevel = normalizedLevel.charAt(0).toUpperCase() + normalizedLevel.slice(1);
-  const lang = user?.target_language ?? "es";
+  const lang = parseTargetLanguage(user?.target_language);
   lines.push(`📊 Level: ${formattedLevel}`);
-  lines.push("", lang === "fr" ? "Quel est ton niveau de français ?" : "What is your Spanish level?");
+  lines.push("", settingsLevelAsk(lang));
 
   keyboard
     .text("🌱 Beginner", "settings_level:beginner")

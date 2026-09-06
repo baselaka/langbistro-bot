@@ -1,6 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { InlineKeyboard, InputFile, type Context } from "grammy";
 import { generateVoice, getVoiceSpeedForLevel } from "../ai/openai";
+import {
+  SUPPORTED_LANGUAGES,
+  getLanguageConfig,
+  isSupportedLanguage,
+  parseTargetLanguage,
+  type LanguageLevel,
+} from "../config/languages";
 import { supabase } from "../db/client";
 import { etToUtc } from "../utils/timeConvert";
 
@@ -91,9 +98,14 @@ I'll help you build real conversational skills through:
 
 Which language would you like to learn?`,
     {
-      reply_markup: new InlineKeyboard()
-        .text("🇪🇸 Spanish", "onboarding_language:es")
-        .text("🇫🇷 French", "onboarding_language:fr"),
+      reply_markup: (() => {
+        const keyboard = new InlineKeyboard();
+        for (const code of SUPPORTED_LANGUAGES) {
+          const lang = getLanguageConfig(code);
+          keyboard.text(`${lang.flag} ${lang.name}`, `onboarding_language:${code}`);
+        }
+        return keyboard;
+      })(),
     }
   );
 }
@@ -147,6 +159,11 @@ export async function handleOnboardingLanguageCallback(
   userId: number,
   lang: string
 ): Promise<void> {
+  if (!isSupportedLanguage(lang)) {
+    await ctx.reply("Unsupported language. Please choose from the buttons above.");
+    return;
+  }
+
   const { error } = await supabase.from("users").update({ target_language: lang }).eq("id", userId);
 
   if (error) {
@@ -155,7 +172,8 @@ export async function handleOnboardingLanguageCallback(
 
   addToOnboarding(telegramId);
 
-  await ctx.reply(lang === "es" ? "Great! What's your Spanish level?" : "Super ! Quel est ton niveau de français ?", {
+  const cfg = getLanguageConfig(lang);
+  await ctx.reply(cfg.levelAsk, {
     reply_markup: new InlineKeyboard()
       .text("🌱 Beginner", "onboarding_level:beginner")
       .text("📈 Intermediate", "onboarding_level:intermediate")
@@ -195,21 +213,11 @@ export async function handleOnboardingTimeCallback(
 
   removeFromOnboarding(telegramId);
 
-  const level = (userRow?.level ?? "beginner").toLowerCase();
-  const openingByLang: Record<string, Record<string, string>> = {
-    es: {
-      beginner: "¡Hola! Soy Bistro. ¿Cómo te llamas?",
-      intermediate: "¡Hola! Soy Bistro. ¿Cómo te llamas y de dónde eres?",
-      advanced: "¡Buenas! Soy Bistro. Cuéntame — ¿cómo te llamas y qué te trae aquí?",
-    },
-    fr: {
-      beginner: "Bonjour ! Je suis Bistro. Comment tu t'appelles ?",
-      intermediate: "Bonjour ! Je suis Bistro. Comment tu t'appelles et d'où viens-tu ?",
-      advanced: "Bonjour ! Je suis Bistro. Raconte-moi — comment tu t'appelles et qu'est-ce qui t'amène ici ?",
-    },
-  };
-  const targetLang = (userRow?.target_language ?? "es") as string;
-  const openingText = openingByLang[targetLang]?.[level] ?? openingByLang["es"]["beginner"];
+  const levelRaw = (userRow?.level ?? "beginner").toLowerCase();
+  const level: LanguageLevel =
+    levelRaw === "intermediate" || levelRaw === "advanced" ? levelRaw : "beginner";
+  const cfg = getLanguageConfig(parseTargetLanguage(userRow?.target_language));
+  const openingText = cfg.openingLines[level];
   await ctx.reply(openingText);
   await sendVoiceWithRead(ctx, openingText, level);
 }

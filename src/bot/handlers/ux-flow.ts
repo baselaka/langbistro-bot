@@ -1,24 +1,8 @@
 import { InlineKeyboard, InputFile, type Context } from "grammy";
 import type { AssistantResponse } from "../../ai/openai";
+import { getLanguageConfig, parseTargetLanguage } from "../../config/languages";
 import { formatCorrectionMarkdownV2 } from "../../utils/correction";
 import { storeCorrectionExplanation, storeReplyMeta } from "../ux-memory";
-
-const CONVERSATION_ENCOURAGEMENT: Record<string, string[]> = {
-  es: [
-    "¡Muy bien! 🌟",
-    "¡Excelente! ✨",
-    "¡Perfecto! 💪",
-    "¡Sigue así! 🎯",
-    "¡Genial! 🎉",
-  ],
-  fr: [
-    "Très bien ! 🌟",
-    "Excellent ! ✨",
-    "Parfait ! 💪",
-    "Continue ! 🎯",
-    "Génial ! 🎉",
-  ],
-};
 
 function pickRandom(arr: string[]): string {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -67,8 +51,8 @@ export async function sendUxFlow(
       ),
     });
   } else if (!skipEncouragement) {
-    const lang = CONVERSATION_ENCOURAGEMENT[targetLang] ? targetLang : "es";
-    const encouragement = pickRandom(CONVERSATION_ENCOURAGEMENT[lang]);
+    const cfg = getLanguageConfig(parseTargetLanguage(targetLang));
+    const encouragement = pickRandom(cfg.conversationEncouragement);
     await ctx.reply(encouragement);
   }
 

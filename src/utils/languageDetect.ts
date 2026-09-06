@@ -1,5 +1,10 @@
 import { openai } from "../ai/openai";
 import { CHAT_MODEL_GRADE, chatParams } from "../config/models";
+import {
+  buildDetectUserPrompt,
+  parseTargetLanguage,
+  type TargetLanguage,
+} from "../config/languages";
 
 function shouldBypassDetection(text: string): boolean {
   const trimmed = text.trim();
@@ -17,23 +22,22 @@ function shouldBypassDetection(text: string): boolean {
 
 const DETECT_SYSTEM_PROMPT = `You are a language detector for short Telegram messages from language learners. Reply only with 'yes' or 'no'.
 
-Treat minor typos and missing accents as still the target language when the message is clearly intended to be that language (e.g. "bonjor" is French, "grasias" is Spanish, "como estas" is Spanish).
+Treat minor typos and missing accents as still the target language when the message is clearly intended to be that language (e.g. "bonjor" is French, "grasias" is Spanish, "como estas" is Spanish, "helo" is English).
 
-Code-switched messages count as yes when the target language is clearly present or the message is a learner attempt in the target language mixed with English.
+Code-switched messages count as yes when the target language is clearly present or the message is a learner attempt in the target language mixed with another language.
 
-Answer 'no' when the message is clearly in another language (especially English) or a different Romance language than the target.`;
-
-function buildDetectUserPrompt(text: string, targetLang: "es" | "fr"): string {
-  return targetLang === "fr"
-    ? `Is the following message written in French? Answer 'no' if it appears to be Spanish, Italian, Portuguese, or any other language. Message: ${text}`
-    : `Is the following message written in Spanish? Answer 'no' if it appears to be French, Italian, Portuguese, or any other language. Message: ${text}`;
-}
+Answer 'no' when the message is clearly in a different language than the target. When the target is English, English counts as yes. When the target is Spanish or French, English (or any other non-target language) counts as no.`;
 
 /** True when text appears to be in the learner's target language. Uses LLM (not franc/tinyld) — short Telegram replies are too ambiguous for n-gram detectors. */
-export async function isTargetLanguage(text: string, targetLang: "es" | "fr"): Promise<boolean> {
+export async function isTargetLanguage(
+  text: string,
+  targetLang: TargetLanguage | string
+): Promise<boolean> {
   if (shouldBypassDetection(text)) {
     return true;
   }
+
+  const lang = parseTargetLanguage(targetLang);
 
   try {
     const completion = await openai.chat.completions.create({
@@ -45,7 +49,7 @@ export async function isTargetLanguage(text: string, targetLang: "es" | "fr"): P
         },
         {
           role: "user",
-          content: buildDetectUserPrompt(text, targetLang),
+          content: buildDetectUserPrompt(text, lang),
         },
       ],
     });
