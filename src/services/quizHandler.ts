@@ -39,6 +39,7 @@ export async function handleQuizResponse(
   const quizMessages = cfg.quizMessages;
   const randomCorrect = pickRandom(quizMessages.correct);
   const randomEncouragement = pickRandom(quizMessages.encouragement);
+  const randomRetry = pickRandom(quizMessages.retry);
 
   const isCorrect =
     state.type === "fill_blank"
@@ -73,6 +74,7 @@ Instructions:
 - Naturally transition into a conversational question related to the word topic
 - End with "${cfg.quizOutro}" to give them an out
 - Keep it warm and natural, not robotic
+- Do NOT say the answer was wrong or tell them to try again
 - Do NOT show any correction — there is none needed
 - Always return "correction": null in your JSON response
 - Do NOT set correction — set it to null]`
@@ -84,7 +86,7 @@ User answer: ${text}
 Instructions:
 - Do NOT correct grammar — only address the quiz answer
 - Do NOT say anything encouraging — the user got it wrong
-- Start your response with "${randomEncouragement}" and acknowledge they got it wrong, warmly but clearly
+- Start your response with "${randomRetry}" and acknowledge they got it wrong, warmly but clearly
 - Naturally transition into a conversational question related to the word topic
 - End with "${cfg.quizOutro}" to give them an out
 - Keep it warm and natural, not robotic
@@ -162,7 +164,7 @@ Instructions:
         encouragement: randomEncouragement,
       })
     : t(locale, "quiz.wrongExplain", {
-        encouragement: randomEncouragement,
+        encouragement: randomRetry,
         word: state.word,
         translation,
       });

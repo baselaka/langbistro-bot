@@ -15,6 +15,7 @@ export type LanguageConfig = {
   quizMessages: {
     correct: string[];
     encouragement: string[];
+    retry: string[];
   };
   conversationEncouragement: string[];
   openingLines: Record<LanguageLevel, string>;
@@ -40,7 +41,8 @@ export const LANGUAGES: Record<TargetLanguage, LanguageConfig> = {
     },
     quizMessages: {
       correct: ["¡Correcto! 🎉", "¡Muy bien! ✨", "¡Exacto! 🌟", "¡Perfecto! 💪", "¡Excelente! 🎯"],
-      encouragement: ["¡Sigue así! 💪", "¡Tú puedes! 🌟", "¡Casi! Inténtalo de nuevo 😊"],
+      encouragement: ["¡Sigue así! 💪", "¡Tú puedes! 🌟"],
+      retry: ["¡Casi! Inténtalo de nuevo 😊"],
     },
     conversationEncouragement: ["¡Muy bien! 🌟", "¡Excelente! ✨", "¡Perfecto! 💪", "¡Sigue así! 🎯", "¡Genial! 🎉"],
     openingLines: {
@@ -87,7 +89,8 @@ Examples that MUST be correct: false:
     },
     quizMessages: {
       correct: ["Correct ! 🎉", "Très bien ! ✨", "Exactement ! 🌟", "Parfait ! 💪", "Excellent ! 🎯"],
-      encouragement: ["Continue comme ça ! 💪", "Tu y arrives ! 🌟", "Presque ! Réessaie 😊"],
+      encouragement: ["Continue comme ça ! 💪", "Tu y arrives ! 🌟"],
+      retry: ["Presque ! Réessaie 😊"],
     },
     conversationEncouragement: ["Très bien ! 🌟", "Excellent ! ✨", "Parfait ! 💪", "Continue ! 🎯", "Génial ! 🎉"],
     openingLines: {
@@ -127,7 +130,8 @@ Examples that MUST be correct: false:
     },
     quizMessages: {
       correct: ["Correct! 🎉", "Nice work! ✨", "Exactly! 🌟", "Perfect! 💪", "Excellent! 🎯"],
-      encouragement: ["Keep going! 💪", "You've got this! 🌟", "Almost! Try again 😊"],
+      encouragement: ["Keep going! 💪", "You've got this! 🌟"],
+      retry: ["Almost! Try again 😊"],
     },
     conversationEncouragement: ["Nice work! 🌟", "Excellent! ✨", "Perfect! 💪", "Keep going! 🎯", "Great! 🎉"],
     openingLines: {
