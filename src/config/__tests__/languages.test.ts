@@ -89,6 +89,15 @@ describe("languages config", () => {
     const messages = getLanguageConfig("en").quizMessages;
     expect(messages.correct[0]).toBe("Correct! 🎉");
     expect(messages.encouragement[0]).toBe("Keep going! 💪");
+    expect(messages.retry[0]).toBe("Almost! Try again 😊");
+  });
+
+  it("keeps retry phrasing off the correct-answer encouragement lists", () => {
+    for (const lang of SUPPORTED_LANGUAGES) {
+      const messages = getLanguageConfig(lang).quizMessages;
+      expect(messages.retry.length).toBeGreaterThan(0);
+      expect(messages.encouragement.join(" ")).not.toMatch(/try again|inténtalo de nuevo|réessaie/i);
+    }
   });
 
   it("builds language-aware review prompts via i18n", () => {
