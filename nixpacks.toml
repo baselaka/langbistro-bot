@@ -1,0 +1,10 @@
+# Nixpacks defaults NODE_ENV=production during install, which omits
+# package.json "devDependencies". Force a full install so `tsc` exists.
+[phases.install]
+cmds = ["npm ci --include=dev"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"

@@ -1,9 +1,5 @@
 [build]
 builder = "NIXPACKS"
-# PR / production services often set NODE_ENV=production, which makes
-# `npm ci` omit devDependencies — then `tsc` is missing. Force them in
-# for the compile step only; the runtime image still starts with `node`.
-buildCommand = "npm ci --include=dev && npm run build"
 
 [deploy]
 startCommand = "npm run start"
