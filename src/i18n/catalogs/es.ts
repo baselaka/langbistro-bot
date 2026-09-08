@@ -6,13 +6,15 @@ export const es: Record<MessageKey, string> = {
   "start.welcomeBack":
     "¡Qué bueno verte de nuevo! ¿Listo para practicar? Envíame un mensaje o una nota de voz para continuar 🎙️",
 
-  "onboarding.intro": `¡Hola! Soy Bistro, tu tutor de idiomas con IA 🍽️
+  "onboarding.intro": `¡Hola! Soy Bistro, tu tutor de idiomas 🍽️
 
-Te ayudo a desarrollar habilidades reales de conversación con:
-- Chats diarios en tu idioma objetivo
-- Correcciones y explicaciones al instante
-- Palabras de vocabulario todos los días
-- Práctica con voz 🎙️
+Así funciona un día:
+
+Te mando 10 palabras. Úsalas hablando conmigo — texto o voz, como prefieras. Te corrijo sobre la marcha.
+
+Si usas las 10, el día se cierra solo. Una buena conversación también basta — unos cinco intercambios. O envía /done cuando termines. Todo cuenta igual.
+
+Y las palabras son solo un punto de partida. Si prefieres hablar de tu fin de semana, del trabajo o de nada en particular, hazlo. Practicar es practicar.
 
 ¿Qué idioma te gustaría aprender?`,
   "onboarding.unsupportedLanguage": "Idioma no compatible. Elige uno de los botones de arriba.",
@@ -90,6 +92,7 @@ Te ayudo a desarrollar habilidades reales de conversación con:
   "callback.interfaceUpdateFailed": "No se pudo actualizar el idioma de la interfaz.",
 
   "daily.wordsHeader": "📚 *Tus 10 palabras de hoy:*",
+  "daily.goalLine": "Úsalas conmigo hoy — texto o voz. /done cuando termines.",
   "daily.fillBlank": 'Completa el espacio:\n"{blanked}"\n(Responde por voz o texto)',
   "daily.fillBlankFallback": "Completa esta oración usando: {word}\n_____",
 
@@ -98,6 +101,8 @@ Te ayudo a desarrollar habilidades reales de conversación con:
   "session.wrapUpWords": "Palabras usadas hoy: {used}/{total}",
   "session.wrapUpWin": "Logro: acertaste “{win}”.",
   "session.wrapUpStreak": "Racha: {streak} día(s)",
+  "session.wrapUpStreakExplainer":
+    "Esa fue tu primera sesión. Completa una al día y tu racha crece — si te saltas un día, se reinicia.",
   "session.wrapUpTomorrowWord": "Mañana: intenta usar “{word}”.",
   "session.wrapUpTomorrowFresh": "Mañana: te espera un set nuevo de palabras.",
   "session.alreadyDone": "Ya terminaste por hoy. Hasta mañana.",

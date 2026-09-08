@@ -4,13 +4,15 @@ export const en = {
   "start.welcomeBack":
     "Welcome back! Ready to practice? Send me a message or voice note to continue! 🎙️",
 
-  "onboarding.intro": `Hi! I'm Bistro, your AI language tutor 🍽️
+  "onboarding.intro": `Hi! I'm Bistro, your language tutor 🍽️
 
-I'll help you build real conversational skills through:
-- Daily chats in your target language
-- Instant corrections and explanations
-- Daily vocabulary words
-- Voice practice 🎙️
+Here's how a day works:
+
+I send you 10 words. Use them talking to me — text or voice, whatever you like. I'll correct you as we go.
+
+Use all 10 words and the day wraps up on its own. A good conversation does it too — about five exchanges. Or send /done whenever you're finished. It all counts the same.
+
+And the words are just a starting point. If you'd rather talk about your weekend, your work, or nothing in particular, do that. Practice is practice.
 
 Which language would you like to learn?`,
   "onboarding.unsupportedLanguage": "Unsupported language. Please choose from the buttons above.",
@@ -86,6 +88,7 @@ Which language would you like to learn?`,
   "callback.interfaceUpdateFailed": "Could not update interface language.",
 
   "daily.wordsHeader": "📚 *Your 10 words for today:*",
+  "daily.goalLine": "Use them with me today — text or voice. /done whenever you're finished.",
   "daily.fillBlank": 'Fill in the blank:\n"{blanked}"\n(Reply by voice or text!)',
   "daily.fillBlankFallback": "Complete this sentence using: {word}\n_____",
 
@@ -94,6 +97,8 @@ Which language would you like to learn?`,
   "session.wrapUpWords": "Words used today: {used}/{total}",
   "session.wrapUpWin": "Win: you got “{win}” right.",
   "session.wrapUpStreak": "Streak: {streak} day(s)",
+  "session.wrapUpStreakExplainer":
+    "That's your first session done. Complete one a day and your streak grows — miss a day and it resets.",
   "session.wrapUpTomorrowWord": "Tomorrow: try weaving in “{word}”.",
   "session.wrapUpTomorrowFresh": "Tomorrow: a fresh set of words is waiting.",
   "session.alreadyDone": "You're already done for today. See you tomorrow.",

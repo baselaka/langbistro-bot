@@ -172,6 +172,7 @@ export async function completeSession(
     streak,
     sessionWin: session.session_win ?? null,
     leftoverWord: leftovers[0]?.word ?? null,
+    sessionsCompleted: streakUpdate.sessions_completed,
   });
 
   return { completed: true, wrapUpText, streak };

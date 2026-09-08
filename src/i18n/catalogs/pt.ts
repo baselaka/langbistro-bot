@@ -6,13 +6,15 @@ export const pt: Record<MessageKey, string> = {
   "start.welcomeBack":
     "Que bom te ver de novo! Pronto para praticar? Envie uma mensagem ou um áudio para continuar 🎙️",
 
-  "onboarding.intro": `Oi! Eu sou o Bistro, seu tutor de idiomas com IA 🍽️
+  "onboarding.intro": `Oi! Eu sou o Bistro, seu tutor de idiomas 🍽️
 
-Vou te ajudar a desenvolver conversação de verdade com:
-- Chats diários no seu idioma-alvo
-- Correções e explicações na hora
-- Palavras de vocabulário todos os dias
-- Prática com voz 🎙️
+É assim que um dia funciona:
+
+Eu te mando 10 palavras. Use-as conversando comigo — texto ou voz, como preferir. Eu corrijo ao longo do caminho.
+
+Use as 10 e o dia se encerra sozinho. Uma boa conversa também conta — umas cinco trocas. Ou envie /done quando terminar. Tudo vale igual.
+
+E as palavras são só um ponto de partida. Se preferir falar do fim de semana, do trabalho ou de nada em particular, vá em frente. Praticar é praticar.
 
 Qual idioma você gostaria de aprender?`,
   "onboarding.unsupportedLanguage": "Idioma não suportado. Escolha um dos botões acima.",
@@ -90,6 +92,7 @@ Qual idioma você gostaria de aprender?`,
   "callback.interfaceUpdateFailed": "Não foi possível atualizar o idioma da interface.",
 
   "daily.wordsHeader": "📚 *Suas 10 palavras de hoje:*",
+  "daily.goalLine": "Use-as comigo hoje — texto ou voz. /done quando terminar.",
   "daily.fillBlank": 'Preencha a lacuna:\n"{blanked}"\n(Responda por voz ou texto!)',
   "daily.fillBlankFallback": "Complete esta frase usando: {word}\n_____",
 
@@ -98,6 +101,8 @@ Qual idioma você gostaria de aprender?`,
   "session.wrapUpWords": "Palavras usadas hoje: {used}/{total}",
   "session.wrapUpWin": "Vitória: você acertou “{win}”.",
   "session.wrapUpStreak": "Sequência: {streak} dia(s)",
+  "session.wrapUpStreakExplainer":
+    "Essa foi sua primeira sessão. Complete uma por dia e sua sequência cresce — pule um dia e ela zera.",
   "session.wrapUpTomorrowWord": "Amanhã: tente usar “{word}”.",
   "session.wrapUpTomorrowFresh": "Amanhã: um novo conjunto de palavras te espera.",
   "session.alreadyDone": "Você já terminou por hoje. Até amanhã.",
