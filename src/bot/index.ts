@@ -4,6 +4,7 @@ import { startInactivityJob } from "../jobs/inactivityJob";
 import { startWordDeliveryJob } from "../jobs/wordDelivery";
 import { handleCallbackQuery } from "./handlers/callback";
 import { handleDone } from "./handlers/done";
+import { handleGrant } from "./handlers/grant";
 import { handleInterfaceCommand } from "./handlers/interface";
 import { handleLanguageCommand } from "./handlers/language";
 import { handleMessage } from "./handlers/message";
@@ -21,6 +22,7 @@ export function createBot(): Bot {
   bot.command("settings", handleSettings);
   bot.command("done", handleDone);
   bot.command("subscribe", handleSubscribe);
+  bot.command("grant", handleGrant);
   bot.on("message:voice", handleVoice);
   bot.on("message:text", handleMessage);
   bot.on("callback_query:data", handleCallbackQuery);
