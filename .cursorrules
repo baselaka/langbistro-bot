@@ -81,7 +81,7 @@ LangBistro is a voice-first, AI-powered Telegram language learning bot for Engli
 - Always check RLS policies first when debugging silent DB failures — they can block operations without errors.
 - Use `SUPABASE_ANON_KEY` from env. Never hardcode credentials.
 - Read-modify-write sequences (usage quotas, session flags, message counts) are **not atomic**. Add `FOR UPDATE` locking or use Postgres functions before scaling beyond ~500 DAU.
-- The `engaged` flag on `daily_sessions` **must be set BEFORE sending** the daily word/delivery — prevents duplicate delivery on same-minute cron ticks.
+- Write `daily_sessions.delivered_at` **only after** the daily word Telegram sends succeed. Same-day catch-up uses `preferred_word_time <= now` so transient send failures can retry on the next cron tick; an in-process set plus the `.is("delivered_at", null)` CAS prevents duplicate delivery.
 - `target_language` is on the `users` table. Always filter vocabulary queries by `vocabulary.language` when fetching language-specific content.
 
 ---
