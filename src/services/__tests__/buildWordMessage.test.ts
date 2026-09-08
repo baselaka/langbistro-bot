@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWordMessage } from "../dailySession";
+import { buildWordMessage } from "../wordMessage";
 import type { DailyWord } from "../srs";
 
 function word(partial: Partial<DailyWord> & Pick<DailyWord, "id" | "word" | "kind">): DailyWord {

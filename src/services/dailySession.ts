@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { InlineKeyboard } from "grammy";
 import { openai } from "../ai/openai";
 import {
   buildFillBlankPrompts,
@@ -11,16 +10,16 @@ import {
 export { buildFillBlankPrompts };
 import { CHAT_MODEL_FREE, CHAT_MODEL_GRADE, chatParams } from "../config/models";
 import { supabase } from "../db/client";
-import { reviewAsk, t, tMd2, type InterfaceLanguage } from "../i18n";
+import { reviewAsk, t, type InterfaceLanguage } from "../i18n";
 import { getLocalDateString } from "../utils/dateTz";
-import { escapeMarkdownV2 } from "../utils/markdown";
 import { checkAnswerMatch, startsWithExpectedPhrase } from "../utils/text";
 import { type Vocabulary } from "./vocabulary";
-import { type DailyWord } from "./srs";
 import { resolveGloss } from "./vocabGloss";
 import { isDailyWordDelivered, nextUserTurnFields } from "./dailySessionMetrics";
+import { buildWordMessage } from "./wordMessage";
 
 export { isDailyWordDelivered };
+export { buildWordMessage };
 export type DailySession = {
   id: number;
   user_id: number;
@@ -160,49 +159,6 @@ export async function recordDailySessionUserTurn(userId: number): Promise<void> 
   if (updateError) {
     throw new Error(`Failed to record daily session user turn: ${updateError.message}`);
   }
-}
-
-function keycapForIndex(index: number): string {
-  const n = index + 1;
-  if (n === 10) {
-    return "1️⃣0️⃣";
-  }
-  return `${n}️⃣`;
-}
-
-export function buildWordMessage(
-  words: DailyWord[],
-  locale: InterfaceLanguage = "en"
-): {
-  text: string;
-  keyboard: InlineKeyboard;
-} {
-  const blocks: string[] = [tMd2(locale, "daily.wordsHeader"), ""];
-
-  words.forEach((w, index) => {
-    const emoji = keycapForIndex(index);
-    const word = escapeMarkdownV2(w.word);
-    const translation = escapeMarkdownV2(w.translation ?? "");
-    const example = escapeMarkdownV2(w.example_sentence ?? "");
-    const dueMark = w.kind === "due" ? " 🔁" : "";
-    blocks.push(`${emoji} *${word}*${dueMark} — ${translation}\n   _"${example}"_`);
-    blocks.push("");
-  });
-
-  blocks.push(escapeMarkdownV2(t(locale, "daily.goalLine")));
-
-  const keyboard = new InlineKeyboard();
-  words.forEach((w, i) => {
-    keyboard.text(`🔊 ${w.word}`, `listen_word:${w.id}`);
-    if ((i + 1) % 3 === 0 && i < words.length - 1) {
-      keyboard.row();
-    }
-  });
-
-  return {
-    text: blocks.join("\n").trimEnd(),
-    keyboard,
-  };
 }
 
 type FillBlankSentence = {
