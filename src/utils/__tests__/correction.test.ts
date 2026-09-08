@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifyCorrectionSeverity,
   formatCorrectionMarkdownV2,
+  invitePhraseFromCorrection,
+  matchesCorrectionReattempt,
   normalizeCorrection,
   shouldKeepCorrection,
+  shouldShowCorrectionForLevel,
 } from "../correction";
 
 function identity(value: string): string {
@@ -220,6 +224,80 @@ describe("shouldKeepCorrection", () => {
   it("keeps a duplicate-word grammar error", () => {
     expect(
       shouldKeepCorrection("I like the the food", "I like the food", "I like the the food")
+    ).toBe(true);
+  });
+});
+
+describe("invitePhraseFromCorrection", () => {
+  it("highlights the inserted article phrase", () => {
+    expect(invitePhraseFromCorrection("I'm eating pancake", "I'm eating a pancake")).toBe(
+      "a pancake"
+    );
+  });
+
+  it("highlights a content-word swap", () => {
+    expect(
+      invitePhraseFromCorrection(
+        "El repetir de idiomas es importante",
+        "El estudio de idiomas es importante"
+      )
+    ).toBe("estudio");
+  });
+
+  it("expands a mistake fragment with a preceding article in the corrected sentence", () => {
+    expect(invitePhraseFromCorrection("pancake", "I'm eating a pancake")).toBe("a pancake");
+  });
+});
+
+describe("correction severity by level", () => {
+  it("classifies missing articles as medium and keeps them at beginner", () => {
+    const severity = classifyCorrectionSeverity("I'm eating pancake", "I'm eating a pancake");
+    expect(severity).toBe("medium");
+    expect(shouldShowCorrectionForLevel(severity, "beginner")).toBe(true);
+    expect(shouldShowCorrectionForLevel(severity, "intermediate")).toBe(true);
+  });
+
+  it("classifies verb/content fixes as high", () => {
+    expect(
+      classifyCorrectionSeverity(
+        "Yesterday I go to the market",
+        "Yesterday I went to the market"
+      )
+    ).toBe("high");
+  });
+
+  it("classifies style-only pronoun swaps as low and hides them for beginners", () => {
+    const severity = classifyCorrectionSeverity("Protect yourself", "Protect you");
+    expect(severity).toBe("low");
+    expect(shouldShowCorrectionForLevel(severity, "beginner")).toBe(false);
+    expect(shouldShowCorrectionForLevel(severity, "advanced")).toBe(true);
+  });
+});
+
+describe("matchesCorrectionReattempt", () => {
+  const target = {
+    correctedPhrase: "a pancake",
+    correctedSentence: "I'm eating a pancake",
+  };
+
+  it("matches when the learner includes the invited phrase", () => {
+    expect(matchesCorrectionReattempt("I'm eating a pancake now", target)).toBe(true);
+  });
+
+  it("matches case-insensitively", () => {
+    expect(matchesCorrectionReattempt("A Pancake!", target)).toBe(true);
+  });
+
+  it("does not match when the fix is ignored", () => {
+    expect(matchesCorrectionReattempt("Yes it is sweet", target)).toBe(false);
+  });
+
+  it("matches token overlap for the phrase", () => {
+    expect(
+      matchesCorrectionReattempt("pancake with a syrup", {
+        correctedPhrase: "a pancake",
+        correctedSentence: "I'm eating a pancake",
+      })
     ).toBe(true);
   });
 });

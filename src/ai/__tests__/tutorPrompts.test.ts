@@ -9,6 +9,7 @@ describe("tutor system prompts", () => {
     const rules = CORRECTION_RULES.join("\n");
     expect(rules).toContain("missing articles");
     expect(rules).toContain("I'm eating pancake");
+    expect(rules).toContain("optional re-attempt invite");
     expect(rules).not.toContain("When in doubt, set correction to null");
 
     for (const lang of LANGS) {
@@ -16,6 +17,7 @@ describe("tutor system prompts", () => {
         const prompt = buildTutorSystemPrompt(lang, level, "en");
         expect(prompt).toContain("missing articles");
         expect(prompt).toContain("grammatical native");
+        expect(prompt).toContain("optional re-attempt invite");
       }
     }
   });
