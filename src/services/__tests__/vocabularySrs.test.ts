@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSentWords } from "../dailySession";
+import { parseSentWords } from "../../utils/sentWords";
 
 describe("parseSentWords kind", () => {
   it("preserves new/due kind when present", () => {
