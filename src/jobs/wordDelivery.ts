@@ -1,5 +1,6 @@
 import cron from "node-cron";
-import { GrammyError, type Bot } from "grammy";
+import type { Bot } from "grammy";
+import { env } from "../config/env";
 import { parseTargetLanguage } from "../config/languages";
 import { supabase } from "../db/client";
 import { parseInterfaceLanguage } from "../i18n";
@@ -11,10 +12,17 @@ import {
   markDailyWordDelivered,
 } from "../services/dailySession";
 import { saveChecklistMessageId } from "../services/dailyLoop";
+import {
+  trailingUnengagedDeliveryCount,
+  UNENGAGED_SUPPRESS_DAYS,
+} from "../services/dailySessionMetrics";
 import { buildChecklistMessage } from "../services/sessionWrapUp";
 import { replaceQuizAfterWordSet } from "../services/quizState";
 import { attachGlosses } from "../services/vocabGloss";
 import { getDailyWords } from "../services/vocabulary";
+import { isTelegramBotBlockedError } from "../utils/telegramErrors";
+
+export { isTelegramBotBlockedError };
 
 export type DeliveryUser = {
   id: number;
@@ -29,22 +37,41 @@ export type DeliveryUser = {
 /** Users currently mid-delivery in this process (guards overlapping cron ticks). */
 const deliveringUserIds = new Set<number>();
 
-export function isTelegramBotBlockedError(err: unknown): boolean {
-  if (!(err instanceof GrammyError)) {
-    return false;
-  }
-  if (err.error_code !== 403) {
-    return false;
-  }
-  const description = (err.description ?? err.message).toLowerCase();
-  return description.includes("blocked by the user") || description.includes("bot was blocked");
-}
-
 async function suppressBlockedUser(userId: number): Promise<void> {
   const { error } = await supabase.from("users").update({ inactivity_stage: 4 }).eq("id", userId);
   if (error) {
     throw new Error(`Failed to suppress blocked user ${userId}: ${error.message}`);
   }
+}
+
+async function softPauseUnengagedUser(userId: number): Promise<void> {
+  const { error } = await supabase.from("users").update({ inactivity_stage: 1 }).eq("id", userId);
+  if (error) {
+    throw new Error(`Failed to soft-pause unengaged user ${userId}: ${error.message}`);
+  }
+}
+
+/**
+ * True when the user has enough consecutive unengaged deliveries to skip daily words.
+ * Feature-flagged via WINBACK_SUPPRESS_ENABLED (default on).
+ */
+export async function shouldSuppressUnengagedDelivery(userId: number): Promise<boolean> {
+  if (!env.winbackSuppressEnabled) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from("daily_sessions")
+    .select("date, delivered_at, engaged_at")
+    .eq("user_id", userId)
+    .order("date", { ascending: false })
+    .limit(14);
+
+  if (error) {
+    throw new Error(`Failed to load sessions for unengaged suppress (${userId}): ${error.message}`);
+  }
+
+  return trailingUnengagedDeliveryCount(data ?? []) >= UNENGAGED_SUPPRESS_DAYS;
 }
 
 /**
@@ -60,6 +87,14 @@ export async function deliverDailyWordsForUser(bot: Bot, user: DeliveryUser): Pr
   deliveringUserIds.add(user.id);
 
   try {
+    if (await shouldSuppressUnengagedDelivery(user.id)) {
+      await softPauseUnengagedUser(user.id);
+      console.warn(
+        `[WordDelivery] User ${user.id} soft-paused after ${UNENGAGED_SUPPRESS_DAYS}+ unengaged deliveries (inactivity_stage=1)`
+      );
+      return;
+    }
+
     const session = await getOrCreateDailySession(user.id, user.preferred_word_timezone);
     console.log(`[WordDelivery] Session for user ${user.id}:`, session.delivered_at, user.words_learned_count);
     if (isDailyWordDelivered(session)) {

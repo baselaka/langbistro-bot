@@ -112,52 +112,16 @@ export function getMilestoneMessage(
   });
 }
 
-export function inactivityNeverStarted24h(
-  locale: InterfaceLanguage,
-  targetLang: TargetLanguage
-): string {
-  const cfg = getLanguageConfig(targetLang);
-  return t(locale, "inactivity.neverStarted24h", {
-    greeting: cfg.inactivityGreeting,
-    flag: cfg.flag,
-  });
+export function winbackHook(locale: InterfaceLanguage, word: string, translation: string): string {
+  return t(locale, "winback.hook", { word, translation });
 }
 
-export function inactivityNeverStarted72h(
-  locale: InterfaceLanguage,
-  targetLang: TargetLanguage
-): string {
-  return t(locale, "inactivity.neverStarted72h", {
-    language: localizedTargetName(locale, targetLang),
-  });
+export function winbackSettings(locale: InterfaceLanguage): string {
+  return t(locale, "winback.settings");
 }
 
-export function inactivityWeekPause(locale: InterfaceLanguage, targetLang: TargetLanguage): string {
-  const cfg = getLanguageConfig(targetLang);
-  return t(locale, "inactivity.weekPause", { greeting: cfg.inactivityGreeting });
-}
-
-export function inactivityRecall(
-  locale: InterfaceLanguage,
-  word: string,
-  translation: string
-): string {
-  return t(locale, "inactivity.recall", { word, translation });
-}
-
-export function inactivityMonthProgress(
-  locale: InterfaceLanguage,
-  targetLang: TargetLanguage,
-  count: number
-): string {
-  return t(locale, "inactivity.monthProgress", {
-    count,
-    language: localizedTargetName(locale, targetLang),
-  });
-}
-
-export function inactivityFinalPause(locale: InterfaceLanguage, targetLang: TargetLanguage): string {
-  return t(locale, "inactivity.finalPause", {
+export function winbackFinal(locale: InterfaceLanguage, targetLang: TargetLanguage): string {
+  return t(locale, "winback.final", {
     language: localizedTargetName(locale, targetLang),
   });
 }

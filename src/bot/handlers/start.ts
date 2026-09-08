@@ -18,7 +18,7 @@ export async function handleStart(ctx: Context): Promise<void> {
         username: from.username ?? null,
         languageCode: from.language_code ?? null,
       },
-      { touchLastActive: false }
+      { touchLastActive: true }
     );
     const locale = interfaceLocaleOf(user);
 

@@ -124,17 +124,12 @@ Qual idioma você gostaria de aprender?`,
   "nudge.explanation":
     "Eu te incentivei a responder em {language} e disse que errar faz parte.",
 
-  "inactivity.neverStarted24h": "{greeting} Pronto para começar a praticar? É só me mandar uma mensagem {flag}",
-  "inactivity.neverStarted72h":
-    "Continuo aqui quando você quiser! Até 5 minutos de {language} já fazem diferença 💪",
-  "inactivity.weekPause":
-    "{greeting} 👋 Faz uma semana que você não pratica, então pausei as palavras do dia por enquanto. Quando quiser continuar, envie qualquer mensagem e seguimos de onde paramos.",
-  "inactivity.recall":
-    'Você ainda lembra o que "{word}" significa? Significa "{translation}" — e você já aprendeu! Volte e continue. 💪',
-  "inactivity.monthProgress":
-    "Você já aprendeu {count} palavras de {language}. Isso é progresso de verdade — não deixe isso ir embora. A próxima palavra está esperando. 👀",
-  "inactivity.finalPause":
-    "Demos o nosso melhor! 😄 Vou pausar todas as mensagens por agora para não te incomodar. Quando quiser retomar {language}, é só me mandar uma mensagem — eu estarei aqui.",
+  "winback.hook":
+    'Rápido: "{word}" significa "{translation}". Manda qualquer resposta e praticamos juntos.',
+  "winback.settings":
+    "Quer mudar o horário da palavra do dia ou o idioma? Abra /settings — ou envie uma mensagem e seguimos de onde paramos.",
+  "winback.final":
+    "Vou parar de enviar mensagens para não te incomodar. Quando quiser retomar {language}, envie /start ou qualquer mensagem — eu estarei aqui.",
 
   "target.es": "espanhol",
   "target.fr": "francês",

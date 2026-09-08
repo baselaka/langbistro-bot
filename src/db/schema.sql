@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS users (
   preferred_word_timezone TEXT NOT NULL DEFAULT 'America/New_York',
   last_active_at TIMESTAMPTZ,
   inactivity_stage INTEGER NOT NULL DEFAULT 0,
+  winback_hook_sent_at TIMESTAMPTZ,
+  winback_settings_sent_at TIMESTAMPTZ,
+  winback_final_sent_at TIMESTAMPTZ,
   target_language TEXT NOT NULL DEFAULT 'es',
   interface_language TEXT NOT NULL DEFAULT 'en',
   streak_current INTEGER NOT NULL DEFAULT 0,
@@ -629,4 +632,22 @@ ALTER TABLE user_vocabulary
   DROP COLUMN IF EXISTS last_produced_at,
   DROP COLUMN IF EXISTS interval_days,
   DROP COLUMN IF EXISTS due_at;
+*/
+
+-- MIGRATION 013
+/*
+-- UP
+-- PRS-87: win-back ladder timestamps for conversion measurement.
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS winback_hook_sent_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS winback_settings_sent_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS winback_final_sent_at TIMESTAMPTZ;
+
+NOTIFY pgrst, 'reload schema';
+
+-- DOWN
+ALTER TABLE users
+  DROP COLUMN IF EXISTS winback_hook_sent_at,
+  DROP COLUMN IF EXISTS winback_settings_sent_at,
+  DROP COLUMN IF EXISTS winback_final_sent_at;
 */

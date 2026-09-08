@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GrammyError, type Bot } from "grammy";
 
+const envState = vi.hoisted(() => ({ winbackSuppressEnabled: true }));
+
 const {
   getOrCreateDailySessionMock,
   isDailyWordDeliveredMock,
@@ -25,6 +27,10 @@ const {
   saveChecklistMessageIdMock: vi.fn(),
   replaceQuizAfterWordSetMock: vi.fn(),
   fromMock: vi.fn(),
+}));
+
+vi.mock("../../config/env", () => ({
+  env: envState,
 }));
 
 vi.mock("../../db/client", () => ({
@@ -100,6 +106,14 @@ function blockedError(): GrammyError {
   );
 }
 
+function mockSessionQuery(rows: Array<{ date: string; delivered_at: string | null; engaged_at: string | null }>) {
+  const limit = vi.fn().mockResolvedValue({ data: rows, error: null });
+  const order = vi.fn().mockReturnValue({ limit });
+  const eq = vi.fn().mockReturnValue({ order });
+  const select = vi.fn().mockReturnValue({ eq });
+  return { select, eq, order, limit };
+}
+
 describe("isTelegramBotBlockedError", () => {
   it("is true for Grammy 403 blocked-by-user", () => {
     expect(isTelegramBotBlockedError(blockedError())).toBe(true);
@@ -124,6 +138,7 @@ describe("deliverDailyWordsForUser", () => {
   beforeEach(() => {
     resetDeliveringUserIdsForTests();
     vi.clearAllMocks();
+    envState.winbackSuppressEnabled = true;
 
     getOrCreateDailySessionMock.mockResolvedValue({
       id: 42,
@@ -157,6 +172,17 @@ describe("deliverDailyWordsForUser", () => {
     );
 
     fromMock.mockReset();
+    fromMock.mockImplementation((table: string) => {
+      if (table === "daily_sessions") {
+        return mockSessionQuery([]);
+      }
+      if (table === "users") {
+        const updateEq = vi.fn().mockResolvedValue({ error: null });
+        const update = vi.fn().mockReturnValue({ eq: updateEq });
+        return { update };
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
   });
 
   it("marks delivered_at only after successful sends", async () => {
@@ -181,7 +207,7 @@ describe("deliverDailyWordsForUser", () => {
       fillBlankWordId: 101,
     });
     expect(callOrder.indexOf("send")).toBeLessThan(callOrder.indexOf("mark"));
-    expect(fromMock).not.toHaveBeenCalled();
+    expect(fromMock).toHaveBeenCalledWith("daily_sessions");
   });
 
   it("leaves delivered_at unset when sendMessage fails transiently", async () => {
@@ -190,7 +216,6 @@ describe("deliverDailyWordsForUser", () => {
     await expect(deliverDailyWordsForUser(makeBot(vi.fn()), user)).rejects.toThrow("telegram 5xx");
 
     expect(markDailyWordDeliveredMock).not.toHaveBeenCalled();
-    expect(fromMock).not.toHaveBeenCalled();
   });
 
   it("suppresses blocked users without marking delivered_at", async () => {
@@ -198,13 +223,70 @@ describe("deliverDailyWordsForUser", () => {
 
     const updateEq = vi.fn().mockResolvedValue({ error: null });
     const update = vi.fn().mockReturnValue({ eq: updateEq });
-    fromMock.mockReturnValue({ update });
+    fromMock.mockImplementation((table: string) => {
+      if (table === "daily_sessions") {
+        return mockSessionQuery([]);
+      }
+      if (table === "users") {
+        return { update };
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
 
     await deliverDailyWordsForUser(makeBot(vi.fn()), user);
 
     expect(markDailyWordDeliveredMock).not.toHaveBeenCalled();
+    expect(fromMock).toHaveBeenCalledWith("daily_sessions");
     expect(fromMock).toHaveBeenCalledWith("users");
     expect(update).toHaveBeenCalledWith({ inactivity_stage: 4 });
     expect(updateEq).toHaveBeenCalledWith("id", 7);
+  });
+
+  it("soft-pauses after 7 consecutive unengaged deliveries", async () => {
+    const rows = Array.from({ length: 7 }, (_, i) => ({
+      date: `2026-09-${String(8 - i).padStart(2, "0")}`,
+      delivered_at: "2026-09-08T08:00:00.000Z",
+      engaged_at: null,
+    }));
+    const updateEq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn().mockReturnValue({ eq: updateEq });
+    fromMock.mockImplementation((table: string) => {
+      if (table === "daily_sessions") {
+        return mockSessionQuery(rows);
+      }
+      if (table === "users") {
+        return { update };
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+
+    await deliverDailyWordsForUser(makeBot(vi.fn()), user);
+
+    expect(getOrCreateDailySessionMock).not.toHaveBeenCalled();
+    expect(markDailyWordDeliveredMock).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith({ inactivity_stage: 1 });
+    expect(updateEq).toHaveBeenCalledWith("id", 7);
+  });
+
+  it("skips suppress check when WINBACK_SUPPRESS_ENABLED is off", async () => {
+    envState.winbackSuppressEnabled = false;
+    const rows = Array.from({ length: 7 }, (_, i) => ({
+      date: `2026-09-${String(8 - i).padStart(2, "0")}`,
+      delivered_at: "2026-09-08T08:00:00.000Z",
+      engaged_at: null,
+    }));
+    fromMock.mockImplementation((table: string) => {
+      if (table === "daily_sessions") {
+        return mockSessionQuery(rows);
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+
+    const sendMessage = vi.fn().mockResolvedValue({ message_id: 99 });
+    await deliverDailyWordsForUser(makeBot(sendMessage), user);
+
+    expect(fromMock).not.toHaveBeenCalled();
+    expect(getOrCreateDailySessionMock).toHaveBeenCalled();
+    expect(markDailyWordDeliveredMock).toHaveBeenCalled();
   });
 });
