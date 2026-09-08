@@ -11,7 +11,7 @@ import { maxReplyCharsForLevel, truncateAtSentenceBoundary } from "../utils/repl
 import { evaluateFillBlank, evaluateReviewAnswer, recordDailySessionUserTurn } from "./dailySession";
 import { processDailyUtterance } from "./dailyLoop";
 import { CLOSING_TURN_HINT, unusedWords, unusedWordsPromptInjection } from "./sessionWrapUp";
-import { markWordsLearned } from "./vocabulary";
+import { markWordsLearned, recordProductionFailure } from "./vocabulary";
 import { clearQuizState, getQuizState } from "./quizState";
 import { resolveGloss } from "./vocabGloss";
 
@@ -176,7 +176,15 @@ Instructions:
   clearQuizState(telegramId);
 
   if (isCorrect) {
-    await markWordsLearned(userId, [state.vocabularyId]);
+    const alreadyGraded = loop.newlyMatched.some((w) => w.id === state.vocabularyId);
+    if (!alreadyGraded) {
+      await markWordsLearned(userId, [state.vocabularyId]);
+    }
+  } else {
+    const wasDue = loop.wordsSent.some((w) => w.id === state.vocabularyId && w.kind === "due");
+    if (wasDue) {
+      await recordProductionFailure(userId, [state.vocabularyId]);
+    }
   }
 
   const { data: userRow } = await supabase.from("users").select("words_learned_count").eq("id", userId).single();

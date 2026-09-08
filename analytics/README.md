@@ -4,11 +4,12 @@ On-demand SQL for retention and funnel metrics. No dashboard app — run these i
 
 ## Prerequisites
 
-1. Apply **migrations 008, 009, 011, and 012** from [`src/db/schema.sql`](../src/db/schema.sql):
+1. Apply **migrations 008, 009, 011, 012, and 013** from [`src/db/schema.sql`](../src/db/schema.sql):
    - 008 — `daily_sessions.delivered_at` / `engaged_at` / `user_turns`
    - 009 — `daily_sessions.words_used` / `completed_at`
    - 011 — `users.is_internal` (flag user id 2)
-   - 012 — `users.winback_hook_sent_at` / `winback_settings_sent_at` / `winback_final_sent_at`
+   - 012 — `user_vocabulary` SRS fields (`due_at` / `interval_days` / `last_produced_at`)
+   - 013 — `users.winback_hook_sent_at` / `winback_settings_sent_at` / `winback_final_sent_at`
 2. Apply [`learners.sql`](./learners.sql) so queries can use the `learners` view.
 
 Always filter with `is_internal = false` (or join `learners`). Never include QA/admin accounts in retention numbers.
@@ -61,7 +62,7 @@ Run [`voiceCost.sql`](./voiceCost.sql) in the Supabase SQL editor for a day-by-d
 
 ## Win-back conversion (PRS-87)
 
-Run [`winbackConversion.sql`](./winbackConversion.sql) after migration 012.
+Run [`winbackConversion.sql`](./winbackConversion.sql) after migration 013.
 
 | Step | Meaning |
 | -- | -- |

@@ -232,6 +232,183 @@ export function formatCorrectionMarkdownV2(
   return correctedMarkdown;
 }
 
+/** Changed span on the corrected side (e.g. "a pancake" for a missing article). */
+function extractChangedToSpan(fromText: string, toText: string): string | null {
+  const fromTokens = tokenize(fromText);
+  const toTokens = tokenize(toText);
+  if (toTokens.length === 0) {
+    return null;
+  }
+
+  let prefix = 0;
+  while (
+    prefix < fromTokens.length &&
+    prefix < toTokens.length &&
+    tokenCore(fromTokens[prefix]!) === tokenCore(toTokens[prefix]!)
+  ) {
+    prefix += 1;
+  }
+
+  let fromEnd = fromTokens.length;
+  let toEnd = toTokens.length;
+  while (
+    fromEnd > prefix &&
+    toEnd > prefix &&
+    tokenCore(fromTokens[fromEnd - 1]!) === tokenCore(toTokens[toEnd - 1]!)
+  ) {
+    fromEnd -= 1;
+    toEnd -= 1;
+  }
+
+  const changed = toTokens.slice(prefix, toEnd);
+  if (changed.length === 0) {
+    return null;
+  }
+  if (changed.length > MAX_STRIKE_TOKENS) {
+    return null;
+  }
+  return changed.join(" ");
+}
+
+/**
+ * Short phrase to highlight in the elicit invite (prefer the corrected fix span).
+ */
+export function invitePhraseFromCorrection(original: string, corrected: string): string {
+  const orig = original.trim();
+  const corr = corrected.trim();
+  if (!corr) {
+    return orig;
+  }
+
+  const corrTokens = tokenize(corr);
+  const origTokens = tokenize(orig);
+
+  // Mistake fragment already normalized by openai → expand with inserted articles/prepositions.
+  if (
+    origTokens.length > 0 &&
+    origTokens.length <= MAX_STRIKE_TOKENS &&
+    looksLikeFragment(origTokens.length, corrTokens.length)
+  ) {
+    const idx = findTokenSpan(corrTokens, origTokens);
+    if (idx >= 0) {
+      let start = idx;
+      while (start > 0 && isGrammarFunctionWord(tokenCore(corrTokens[start - 1]!))) {
+        start -= 1;
+      }
+      return corrTokens.slice(start, idx + origTokens.length).join(" ");
+    }
+  }
+
+  const toSpan = extractChangedToSpan(orig, corr);
+  if (toSpan) {
+    const toToks = tokenize(toSpan);
+    // Missing article/preposition: TO span is "a" — invite "a pancake" (include next token).
+    if (toToks.every((token) => isGrammarFunctionWord(tokenCore(token)))) {
+      const idx = findTokenSpan(corrTokens, toToks);
+      if (idx >= 0 && idx + toToks.length < corrTokens.length) {
+        return corrTokens.slice(idx, idx + toToks.length + 1).join(" ");
+      }
+    }
+    return toSpan;
+  }
+
+  if (corrTokens.length <= MAX_STRIKE_TOKENS) {
+    return corr;
+  }
+  return corr;
+}
+
+export type CorrectionSeverity = "high" | "medium" | "low";
+
+/**
+ * Classify how serious a correction is for level gating.
+ * Function-word-only diffs (articles/prepositions) are medium; content/verb changes are high.
+ */
+export function classifyCorrectionSeverity(original: string, corrected: string): CorrectionSeverity {
+  const origCores = tokenize(original).map(tokenCore).filter(Boolean);
+  const corrCores = tokenize(corrected).map(tokenCore).filter(Boolean);
+  if (origCores.length === 0 || corrCores.length === 0) {
+    return "low";
+  }
+
+  const origNorm = origCores.map(normalizePronounCore);
+  const corrNorm = corrCores.map(normalizePronounCore);
+  const origSet = new Set(origNorm);
+  const corrSet = new Set(corrNorm);
+  const onlyInOrig = [...origSet].filter((token) => !corrSet.has(token));
+  const onlyInCorr = [...corrSet].filter((token) => !origSet.has(token));
+
+  if (onlyInOrig.length === 0 && onlyInCorr.length === 0) {
+    return "low";
+  }
+
+  const styleOnly =
+    onlyInOrig.every(isStyleOnlyWord) &&
+    onlyInCorr.every(isStyleOnlyWord) &&
+    onlyInOrig.length + onlyInCorr.length > 0;
+  if (styleOnly) {
+    return "low";
+  }
+
+  const allDiffs = [...onlyInOrig, ...onlyInCorr];
+  if (allDiffs.every(isGrammarFunctionWord)) {
+    return "medium";
+  }
+
+  return "high";
+}
+
+/** Keep medium+ at every level; advanced also keeps low (if it survived style filters). */
+export function shouldShowCorrectionForLevel(
+  severity: CorrectionSeverity,
+  level: string
+): boolean {
+  const normalized = level.toLowerCase();
+  if (normalized === "advanced") {
+    return true;
+  }
+  return severity === "medium" || severity === "high";
+}
+
+export type CorrectionReattemptTarget = {
+  correctedPhrase: string;
+  correctedSentence: string;
+};
+
+/** True when the learner's utterance includes the invited fix (optional re-attempt). */
+export function matchesCorrectionReattempt(
+  text: string,
+  target: CorrectionReattemptTarget
+): boolean {
+  const utterance = text.trim().toLowerCase();
+  if (!utterance) {
+    return false;
+  }
+
+  const phrase = target.correctedPhrase.trim().toLowerCase();
+  if (phrase && utterance.includes(phrase)) {
+    return true;
+  }
+
+  const sentence = target.correctedSentence.trim().toLowerCase();
+  if (sentence && utterance.includes(sentence)) {
+    return true;
+  }
+
+  if (phrase) {
+    const phraseCores = tokenize(phrase).map(tokenCore).filter(Boolean);
+    const utteranceCores = new Set(tokenize(utterance).map(tokenCore).filter(Boolean));
+    if (
+      phraseCores.length > 0 &&
+      phraseCores.every((core) => utteranceCores.has(core))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function normalizePronounCore(token: string): string {
   if (token === "yourself" || token === "yourselves" || token === "you") {
     return "you";

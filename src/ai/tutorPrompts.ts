@@ -12,6 +12,7 @@ export const CORRECTION_RULES = [
   "Example: 'I'm eating pancake' MUST become correction.original 'I'm eating pancake' and correction.corrected 'I'm eating a pancake' (or 'I'm eating pancakes').",
   "When the only issue is tone, style, or an equally valid alternative, set correction to null. Do not null missing articles, agreement, or tense errors.",
   "If correction is non-null, `original` must be the user's full latest sentence, and `corrected` must be the full corrected sentence. Never put only the wrong word or only the replacement word in either field.",
+  "The product surfaces an optional re-attempt invite to the learner. Keep correcting in the `correction` field, continue the conversation in `reply`, and never ask them to repeat inside `reply` or refuse to answer until they retry.",
 ];
 
 const SHARED_SAFETY = [

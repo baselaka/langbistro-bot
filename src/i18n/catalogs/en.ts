@@ -105,6 +105,9 @@ Which language would you like to learn?`,
   "quiz.correctExplain": '{praise} "{word}" means "{translation}". {encouragement}',
   "quiz.wrongExplain": '{encouragement} The correct answer was "{word}" — it means "{translation}".',
 
+  "correction.invite": "Almost — *{phrase}*\\. Say it again\\?",
+  "correction.reattemptAck": "Nice — you said it!",
+
   "moderation.banned":
     "Your account has been suspended for repeated policy violations. If you believe this is a mistake, contact @langbistro_support.",
   "moderation.warning":

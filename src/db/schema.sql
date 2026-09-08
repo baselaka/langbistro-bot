@@ -293,6 +293,7 @@ DROP POLICY IF EXISTS allow_all_vocabulary_translations ON vocabulary_translatio
 DROP POLICY IF EXISTS allow_all_vocabulary ON vocabulary;
 
 DROP INDEX IF EXISTS idx_daily_sessions_user_date;
+DROP INDEX IF EXISTS idx_user_vocabulary_user_id_due_at;
 DROP INDEX IF EXISTS idx_user_vocabulary_user_id;
 DROP INDEX IF EXISTS idx_vocab_translations_vocab;
 DROP INDEX IF EXISTS idx_vocabulary_rank;
@@ -582,6 +583,58 @@ ALTER TABLE users DROP COLUMN IF EXISTS is_internal;
 */
 
 -- MIGRATION 012
+/*
+-- UP
+-- PRS-89: production-graded spaced review on user_vocabulary.
+ALTER TABLE user_vocabulary
+  ADD COLUMN IF NOT EXISTS last_produced_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS interval_days INTEGER NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS due_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_user_vocabulary_user_id_due_at
+  ON user_vocabulary (user_id, due_at);
+
+-- Existing learned rows enter the due pool immediately.
+UPDATE user_vocabulary
+SET interval_days = 1, due_at = NOW()
+WHERE due_at IS NULL;
+
+NOTIFY pgrst, 'reload schema';
+
+-- Dashboard metrics (no bot UI):
+-- Due hit rate: share of words_sent items with kind='due' that appear in words_used.
+--   SELECT
+--     COUNT(*) FILTER (WHERE w.elem->>'kind' = 'due') AS due_sent,
+--     COUNT(*) FILTER (
+--       WHERE w.elem->>'kind' = 'due'
+--         AND EXISTS (
+--           SELECT 1 FROM jsonb_array_elements(ds.words_used) u
+--           WHERE (u->>'id') = (w.elem->>'id')
+--         )
+--     ) AS due_produced
+--   FROM daily_sessions ds,
+--        LATERAL jsonb_array_elements(ds.words_sent) AS w(elem)
+--   WHERE ds.delivered_at IS NOT NULL;
+-- Retention at ladder steps: rows at interval 7/14/30 still produced within window.
+--   SELECT interval_days,
+--          COUNT(*) AS n,
+--          COUNT(*) FILTER (
+--            WHERE last_produced_at IS NOT NULL
+--              AND last_produced_at >= NOW() - (interval_days || ' days')::interval
+--          ) AS produced_in_window
+--   FROM user_vocabulary
+--   WHERE interval_days IN (7, 14, 30)
+--   GROUP BY interval_days;
+
+-- DOWN
+DROP INDEX IF EXISTS idx_user_vocabulary_user_id_due_at;
+ALTER TABLE user_vocabulary
+  DROP COLUMN IF EXISTS last_produced_at,
+  DROP COLUMN IF EXISTS interval_days,
+  DROP COLUMN IF EXISTS due_at;
+*/
+
+-- MIGRATION 013
 /*
 -- UP
 -- PRS-87: win-back ladder timestamps for conversion measurement.

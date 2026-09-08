@@ -1,5 +1,5 @@
 -- Win-back ladder conversion (PRS-87).
--- Run in the Supabase SQL editor after migration 012.
+-- Run in the Supabase SQL editor after migration 013.
 -- Learners only (is_internal = false via learners view).
 --
 -- Conversion = users who sent a user message after a ladder timestamp

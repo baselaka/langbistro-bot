@@ -1,8 +1,10 @@
 import type { Api } from "grammy";
 import { AssistantResponse, ChatMessage, generateResponse, generateVoice, getVoiceSpeedForLevel } from "../ai/openai";
+import { clearPendingCorrection, getPendingCorrection } from "../bot/ux-memory";
 import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 import { parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
+import { matchesCorrectionReattempt } from "../utils/correction";
 import { maxReplyCharsForLevel, truncateAtSentenceBoundary } from "../utils/replyLength";
 import { processDailyUtterance } from "./dailyLoop";
 import { recordDailySessionUserTurn } from "./dailySession";
@@ -14,6 +16,7 @@ type AssistantTurnResult = {
   structured: AssistantResponse;
   responseVoice: Buffer;
   wrapUpText: string | null;
+  reattemptMatched: boolean;
 };
 
 export async function runAssistantTurn(
@@ -27,6 +30,7 @@ export async function runAssistantTurn(
   options?: {
     api?: Api;
     chatId?: number;
+    telegramId?: number;
   }
 ): Promise<AssistantTurnResult> {
   const { data: userRow, error: userError } = await supabase
@@ -41,11 +45,23 @@ export async function runAssistantTurn(
   const locale = parseInterfaceLanguage(userRow?.interface_language, interfaceLanguage);
   const timezone = userRow?.preferred_word_timezone ?? "America/New_York";
 
+  const pending =
+    options?.telegramId != null ? getPendingCorrection(options.telegramId) : undefined;
+  const reattemptMatched = pending
+    ? matchesCorrectionReattempt(userContent, pending)
+    : false;
+  if (reattemptMatched && options?.telegramId != null) {
+    clearPendingCorrection(options.telegramId);
+  }
+
   const loop = await processDailyUtterance({
     userId,
     timezone,
     locale,
     text: userContent,
+    priorCorrection: reattemptMatched
+      ? pending?.correctedPhrase || pending?.correctedSentence || null
+      : null,
     api: options?.api,
     chatId: options?.chatId,
   });
@@ -120,5 +136,5 @@ export async function runAssistantTurn(
   const responseVoice = await generateVoice(structured.reply, {
     speed: getVoiceSpeedForLevel(effectiveLevel),
   });
-  return { structured, responseVoice, wrapUpText: loop.wrapUpText };
+  return { structured, responseVoice, wrapUpText: loop.wrapUpText, reattemptMatched };
 }

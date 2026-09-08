@@ -95,6 +95,8 @@ export function textContainsWord(text: string, word: string): boolean {
 export type SentWord = {
   id: number;
   word: string;
+  /** Present on daily delivery after PRS-89 (new vs due mix). */
+  kind?: "new" | "due";
 };
 
 /** Return sent words that appear in the utterance and are not already in used. */

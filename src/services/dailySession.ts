@@ -38,31 +38,10 @@ export type DailySession = {
   created_at: string;
 };
 
-export type SentWordRow = {
-  id: number;
-  word: string;
-};
+import { parseSentWords, type SentWordRow } from "../utils/sentWords";
 
-/** Normalize jsonb words_sent / words_used into {id, word}[]. */
-export function parseSentWords(raw: unknown): SentWordRow[] {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-  const out: SentWordRow[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") {
-      continue;
-    }
-    const row = item as Record<string, unknown>;
-    const id = typeof row.id === "number" ? row.id : Number(row.id);
-    const word = typeof row.word === "string" ? row.word : null;
-    if (!Number.isFinite(id) || !word) {
-      continue;
-    }
-    out.push({ id, word });
-  }
-  return out;
-}
+export type { SentWordRow };
+export { parseSentWords };
 
 const gradeSchema = z.object({
   correct: z.boolean(),

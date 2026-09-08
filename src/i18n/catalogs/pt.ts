@@ -109,6 +109,9 @@ Qual idioma você gostaria de aprender?`,
   "quiz.correctExplain": '{praise} "{word}" significa "{translation}". {encouragement}',
   "quiz.wrongExplain": '{encouragement} A resposta certa era "{word}" — significa "{translation}".',
 
+  "correction.invite": "Quase — *{phrase}*\\. Diz de novo\\?",
+  "correction.reattemptAck": "Ótimo — você disse!",
+
   "moderation.banned":
     "Sua conta foi suspensa por violações repetidas das regras. Se achar que isso é um engano, fale com @langbistro_support.",
   "moderation.warning":

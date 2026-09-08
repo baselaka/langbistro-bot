@@ -3,7 +3,12 @@ import { z } from "zod";
 import { env } from "../config/env";
 import { CHAT_MODEL_PRO, TRANSCRIBE_MODEL, TTS_MODEL, chatParams } from "../config/models";
 import { parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
-import { normalizeCorrection, shouldKeepCorrection } from "../utils/correction";
+import {
+  classifyCorrectionSeverity,
+  normalizeCorrection,
+  shouldKeepCorrection,
+  shouldShowCorrectionForLevel,
+} from "../utils/correction";
 import { buildTutorSystemPrompt, normalizeLevel } from "./tutorPrompts";
 
 export type ChatMessage = {
@@ -110,18 +115,27 @@ export async function generateResponse(
       console.log("[correction] dropped by filter");
       response.correction = null;
     } else {
-      console.log("[correction] kept");
-      const display = normalizeCorrection(
-        response.correction.original,
-        response.correction.corrected,
-        lastUserText
+      const severity = classifyCorrectionSeverity(
+        lastUserText.trim() || response.correction.original,
+        response.correction.corrected
       );
-      if (display.mistake) {
-        response.correction.original = display.mistake;
-      } else if (lastUserText.trim()) {
-        response.correction.original = lastUserText.trim();
+      if (!shouldShowCorrectionForLevel(severity, level)) {
+        console.log(`[correction] dropped by severity severity=${severity} level=${level}`);
+        response.correction = null;
+      } else {
+        console.log(`[correction] kept severity=${severity}`);
+        const display = normalizeCorrection(
+          response.correction.original,
+          response.correction.corrected,
+          lastUserText
+        );
+        if (display.mistake) {
+          response.correction.original = display.mistake;
+        } else if (lastUserText.trim()) {
+          response.correction.original = lastUserText.trim();
+        }
+        response.correction.corrected = display.correctedSentence;
       }
-      response.correction.corrected = display.correctedSentence;
     }
   } else {
     console.log("[correction] model-null");
