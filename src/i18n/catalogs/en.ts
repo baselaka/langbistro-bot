@@ -62,7 +62,7 @@ Which language would you like to learn?`,
 
   "quota.text": "You reached today's free text limit (10/day). Upgrade to continue unlimited practice.",
   "quota.voice":
-    "You reached today's free voice limit (3/day). Upgrade to continue unlimited voice practice.",
+    "You finished today's session — Pro lets you keep going with unlimited voice practice.",
 
   "voice.processFailed": "I couldn't process that voice message. Please try again.",
   "voice.downloadFailed": "I couldn't download your voice message. Please try again.",

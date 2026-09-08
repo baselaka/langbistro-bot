@@ -29,6 +29,14 @@ WHERE telegram_id = <new_id>;
 
 Do not insert a fake user row without a real `telegram_id` — Telegram delivery requires a real chat.
 
+## Voice cost (PRS-84)
+
+Run [`voiceCost.sql`](./voiceCost.sql) in the Supabase SQL editor.
+
+- Estimates spend as `voice_turns × $0.003` for learner accounts only.
+- `monthly_projection_usd` extrapolates from the last 30 days of usage.
+- Treat `alert_over_75_usd = true` as the budget tripwire.
+
 ## Next
 
 [PRS-92](https://linear.app/kp-knowledge/issue/PRS-92) ships `analytics/retention.sql` (D1/D7/D30 and related metrics) filtered on learners.

@@ -88,7 +88,7 @@ LangBistro is a voice-first, AI-powered Telegram language learning bot for Engli
 
 ## Conversation-first UX
 
-LangBistro is conversation-first. Bistro is available to talk from message one. The usage quota (free tier: 10 text / 3 voice per day) is enforced per message, not as a pre-check gate.
+LangBistro is conversation-first. Bistro is available to talk from message one. The usage quota (free tier: 10 text / 15 voice per day, or until today's session completes) is enforced per message, not as a pre-check gate.
 
 Quota enforcement pattern:
 1. Check `daily_sessions` for today's usage count
@@ -103,7 +103,7 @@ Quota enforcement pattern:
 
 ## Pricing and subscription gating
 
-- Free tier: 10 text messages + 3 voice messages per day
+- Free tier: 10 text messages + 15 voice messages per day (voice also ends when today's session completes)
 - Pro: unlimited text & voice, all vocabulary tiers, GPT-5.2 (vs GPT-5.4-mini on free)
 - Check `user.is_subscribed` to determine model and quota access
 - `/subscribe` command triggers Paddle checkout via the website `subscribe.html` page (passes `telegram_id` + `plan` in URL)
