@@ -1,5 +1,6 @@
 import { parseTargetLanguage } from "../config/languages";
 import { buildMetaExplanationRule, type InterfaceLanguage } from "../i18n";
+import { replyCharCapRule } from "../utils/replyLength";
 
 export const CORRECTION_RULES = [
   "A correction must be null only when the latest user sentence is already grammatical and the vocabulary is acceptable.",
@@ -122,5 +123,5 @@ export function buildTutorSystemPrompt(
 ): string {
   const normalizedLevel = normalizeLevel(level);
   const lang = parseTargetLanguage(targetLang);
-  return `${SYSTEM_PROMPTS[lang][normalizedLevel]}\n${buildMetaExplanationRule(lang, interfaceLanguage)}`;
+  return `${SYSTEM_PROMPTS[lang][normalizedLevel]}\n${replyCharCapRule(normalizedLevel)}\n${buildMetaExplanationRule(lang, interfaceLanguage)}`;
 }

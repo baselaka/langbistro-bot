@@ -3,6 +3,7 @@ import { AssistantResponse, ChatMessage, generateResponse, generateVoice, getVoi
 import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 import { parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
+import { maxReplyCharsForLevel, truncateAtSentenceBoundary } from "../utils/replyLength";
 import { processDailyUtterance } from "./dailyLoop";
 import { recordDailySessionUserTurn } from "./dailySession";
 import { CLOSING_TURN_HINT, unusedWords, unusedWordsPromptInjection } from "./sessionWrapUp";
@@ -86,6 +87,13 @@ export async function runAssistantTurn(
     model,
     effectiveLevel,
     locale
+  );
+
+  const maxChars = maxReplyCharsForLevel(effectiveLevel);
+  const originalReply = structured.reply;
+  structured.reply = truncateAtSentenceBoundary(originalReply, maxChars);
+  console.log(
+    `[TTS] chars=${structured.reply.length} max=${maxChars} truncated=${structured.reply.length < originalReply.length} level=${effectiveLevel}`
   );
 
   const { error: saveMessagesError } = await supabase.from("messages").insert([
