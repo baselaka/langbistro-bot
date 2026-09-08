@@ -4,7 +4,7 @@ On-demand SQL for retention and funnel metrics. No dashboard app — run these i
 
 ## Prerequisites
 
-1. Apply **migration 010** from [`src/db/schema.sql`](../src/db/schema.sql) (`users.is_internal`, flag user id 2).
+1. Apply **migration 011** from [`src/db/schema.sql`](../src/db/schema.sql) (`users.is_internal`, flag user id 2).
 2. Apply [`learners.sql`](./learners.sql) so queries can use the `learners` view.
 
 Always filter with `is_internal = false` (or join `learners`). Never include QA/admin accounts in retention numbers.

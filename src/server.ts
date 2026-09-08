@@ -2,6 +2,7 @@ import express, { type Request, type Response } from "express";
 import { Paddle, type EventEntity as WebhookUnmarshal } from "@paddle/paddle-node-sdk";
 import { env } from "./config/env";
 import { supabase } from "./db/client";
+import { upsertPaddleSubscription } from "./services/subscription";
 
 const paddle = new Paddle(env.PADDLE_API_KEY);
 
@@ -29,13 +30,13 @@ function getTelegramIdFromPayload(payload: SubscriptionPayload): number | null {
 
 async function findUserId(payload: SubscriptionPayload): Promise<number | null> {
   if (payload.customerId) {
-    const { data: subRow } = await supabase
+    const { data: subRows } = await supabase
       .from("subscriptions")
       .select("user_id")
       .eq("paddle_customer_id", payload.customerId)
-      .single();
-    if (subRow?.user_id) {
-      return Number(subRow.user_id);
+      .limit(1);
+    if (subRows?.[0]?.user_id) {
+      return Number(subRows[0].user_id);
     }
   }
 
@@ -48,7 +49,7 @@ async function findUserId(payload: SubscriptionPayload): Promise<number | null> 
     .from("users")
     .select("id")
     .eq("telegram_id", telegramId)
-    .single();
+    .maybeSingle();
 
   return userRow?.id ? Number(userRow.id) : null;
 }
@@ -59,19 +60,12 @@ async function upsertSubscription(
   status: string
 ): Promise<void> {
   const currentPeriodEnd = payload.currentBillingPeriod?.endsAt ?? payload.nextBilledAt ?? null;
-  const { error } = await supabase.from("subscriptions").upsert(
-    {
-      user_id: userId,
-      paddle_customer_id: payload.customerId ?? null,
-      paddle_subscription_id: payload.id ?? null,
-      status,
-      current_period_end: currentPeriodEnd,
-    },
-    { onConflict: "user_id" }
-  );
-  if (error) {
-    throw new Error(`Failed to upsert subscription: ${error.message}`);
-  }
+  await upsertPaddleSubscription(userId, {
+    paddleCustomerId: payload.customerId ?? null,
+    paddleSubscriptionId: payload.id ?? null,
+    status,
+    currentPeriodEnd,
+  });
 }
 
 export function startServer(): void {
@@ -145,10 +139,17 @@ export function startServer(): void {
           if (userError) {
             throw new Error(`Failed to set past_due subscription access: ${userError.message}`);
           }
-          const { error: subError } = await supabase
+          let pastDueQuery = supabase
             .from("subscriptions")
             .update({ status: "past_due" })
-            .eq("user_id", userId);
+            .eq("user_id", userId)
+            .eq("source", "paddle");
+          if (payload.id) {
+            pastDueQuery = pastDueQuery.eq("paddle_subscription_id", payload.id);
+          } else {
+            pastDueQuery = pastDueQuery.eq("status", "active");
+          }
+          const { error: subError } = await pastDueQuery;
           if (subError) {
             throw new Error(`Failed to set past_due subscription status: ${subError.message}`);
           }

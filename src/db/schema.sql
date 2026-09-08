@@ -73,12 +73,37 @@ CREATE TABLE IF NOT EXISTS word_sets (
 
 CREATE TABLE IF NOT EXISTS subscriptions (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   paddle_customer_id TEXT,
   paddle_subscription_id TEXT,
   status TEXT,
-  current_period_end TIMESTAMPTZ
+  current_period_end TIMESTAMPTZ,
+  source TEXT NOT NULL DEFAULT 'paddle' CHECK (source IN ('paddle', 'comp', 'trial')),
+  granted_by TEXT,
+  note TEXT
 );
+
+-- At most one active entitlement per user (comps + paddle history may coexist).
+CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_user_active_idx
+  ON subscriptions(user_id) WHERE status = 'active';
+
+-- Conversion / MRR: use this view (or filter source = 'paddle'), never raw is_subscribed alone.
+CREATE OR REPLACE VIEW paying_subscribers AS
+SELECT
+  u.id AS user_id,
+  u.telegram_id,
+  u.username,
+  u.is_subscribed,
+  s.id AS subscription_id,
+  s.status,
+  s.source,
+  s.current_period_end,
+  s.paddle_customer_id,
+  s.paddle_subscription_id
+FROM users u
+JOIN subscriptions s ON s.user_id = u.id
+WHERE u.is_subscribed = true
+  AND s.source = 'paddle';
 
 CREATE TABLE IF NOT EXISTS violations (
   id BIGSERIAL PRIMARY KEY,
@@ -284,6 +309,7 @@ DROP INDEX IF EXISTS idx_violations_user_id;
 DROP POLICY IF EXISTS allow_all_violations ON violations;
 DROP POLICY IF EXISTS allow_all_users ON users;
 DROP TABLE IF EXISTS violations;
+DROP VIEW IF EXISTS paying_subscribers;
 DROP TABLE IF EXISTS subscriptions;
 DROP TABLE IF EXISTS word_sets;
 DROP TABLE IF EXISTS usage_daily;
@@ -466,6 +492,81 @@ ALTER TABLE users
 */
 
 -- MIGRATION 010
+/*
+-- UP
+-- PRS-93: subscription source (paddle/comp/trial), NULL period-end semantics,
+-- and analytics that exclude comps. Conversion/MRR must use paying_subscribers
+-- or filter source = 'paddle' — never count is_subscribed alone.
+
+ALTER TABLE public.subscriptions
+  ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'paddle',
+  ADD COLUMN IF NOT EXISTS granted_by text,
+  ADD COLUMN IF NOT EXISTS note text;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'subscriptions_source_check'
+  ) THEN
+    ALTER TABLE public.subscriptions
+      ADD CONSTRAINT subscriptions_source_check
+      CHECK (source IN ('paddle', 'comp', 'trial'));
+  END IF;
+END;
+$$;
+
+ALTER TABLE public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_user_id_key;
+
+CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_user_active_idx
+  ON public.subscriptions(user_id) WHERE status = 'active';
+
+INSERT INTO public.subscriptions (user_id, status, source, note, current_period_end)
+SELECT u.id, 'active', 'comp', 'backfill: pre-existing tester comp', NULL
+FROM users u
+WHERE u.is_subscribed = true
+  AND NOT EXISTS (
+    SELECT 1 FROM subscriptions s WHERE s.user_id = u.id
+  );
+
+-- Refund test account: was stuck on Pro with canceled + NULL period end.
+UPDATE users SET is_subscribed = false WHERE id = 2;
+UPDATE subscriptions
+SET status = 'canceled', source = 'paddle'
+WHERE user_id = 2;
+
+CREATE OR REPLACE VIEW paying_subscribers AS
+SELECT
+  u.id AS user_id,
+  u.telegram_id,
+  u.username,
+  u.is_subscribed,
+  s.id AS subscription_id,
+  s.status,
+  s.source,
+  s.current_period_end,
+  s.paddle_customer_id,
+  s.paddle_subscription_id
+FROM users u
+JOIN subscriptions s ON s.user_id = u.id
+WHERE u.is_subscribed = true
+  AND s.source = 'paddle';
+
+NOTIFY pgrst, 'reload schema';
+
+-- DOWN
+DROP VIEW IF EXISTS paying_subscribers;
+DROP INDEX IF EXISTS subscriptions_user_active_idx;
+ALTER TABLE public.subscriptions DROP CONSTRAINT IF EXISTS subscriptions_source_check;
+ALTER TABLE public.subscriptions
+  DROP COLUMN IF EXISTS note,
+  DROP COLUMN IF EXISTS granted_by,
+  DROP COLUMN IF EXISTS source;
+-- Re-adding UNIQUE(user_id) requires at most one row per user; clean duplicates first if rolling back.
+ALTER TABLE public.subscriptions ADD CONSTRAINT subscriptions_user_id_key UNIQUE (user_id);
+*/
+
+-- MIGRATION 011
 /*
 -- UP
 -- PRS-91: exclude QA / internal accounts from retention & funnel analytics.
