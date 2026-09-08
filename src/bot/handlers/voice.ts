@@ -108,6 +108,7 @@ export async function handleVoice(ctx: Context): Promise<void> {
       correction: null,
       reply: nudge.reply,
       replyExplanation: conversationNudgeExplanation(targetLang, locale),
+      followUpQuestion: "",
     };
     const responseVoice = await generateVoice(nudge.reply);
     await sendStructuredUxResponse(ctx, structured, responseVoice, true, undefined, targetLang, locale);
@@ -140,7 +141,7 @@ export async function handleVoice(ctx: Context): Promise<void> {
     ctx,
     structured,
     responseVoice,
-    false,
+    reattemptMatched,
     undefined,
     targetLang,
     locale,

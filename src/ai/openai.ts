@@ -25,6 +25,8 @@ export type AssistantResponse = {
   } | null;
   reply: string;
   replyExplanation: string;
+  /** Short follow-up; empty on closing / nudge turns. Appended after capping `reply`. */
+  followUpQuestion: string;
 };
 
 export function getVoiceSpeedForLevel(level: string): number {
@@ -98,6 +100,7 @@ export async function generateResponse(
       .nullable(),
     reply: z.string().min(1),
     replyExplanation: z.string().min(1),
+    followUpQuestion: z.string().default(""),
   });
 
   const response = responseSchema.parse(parsed);

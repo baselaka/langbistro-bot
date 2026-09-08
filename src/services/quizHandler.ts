@@ -7,7 +7,7 @@ import { supabase } from "../db/client";
 import { sendUxFlow } from "../bot/handlers/ux-flow";
 import { formatCorrectionMarkdownV2 } from "../utils/correction";
 import { escapeMarkdownV2 } from "../utils/markdown";
-import { maxReplyCharsForLevel, truncateAtSentenceBoundary } from "../utils/replyLength";
+import { maxReplyCharsForLevel, composeSpokenReply, resolveFollowUpQuestion } from "../utils/replyLength";
 import { evaluateFillBlank, evaluateReviewAnswer, recordDailySessionUserTurn } from "./dailySession";
 import { processDailyUtterance } from "./dailyLoop";
 import { CLOSING_TURN_HINT, unusedWords, unusedWordsPromptInjection } from "./sessionWrapUp";
@@ -150,7 +150,11 @@ Instructions:
   const structuredResponse = await generateResponse(messagesForGpt, targetLanguage, model, "beginner", locale);
 
   const maxChars = maxReplyCharsForLevel("beginner");
-  structuredResponse.reply = truncateAtSentenceBoundary(structuredResponse.reply, maxChars);
+  const followUp = resolveFollowUpQuestion(structuredResponse.followUpQuestion, targetLanguage, {
+    closingTurn: loop.closingTurn,
+  });
+  structuredResponse.followUpQuestion = followUp;
+  structuredResponse.reply = composeSpokenReply(structuredResponse.reply, followUp, maxChars);
 
   const { error: saveError } = await supabase.from("messages").insert([
     {
