@@ -109,6 +109,9 @@ Te ayudo a desarrollar habilidades reales de conversación con:
   "quiz.correctExplain": '{praise} "{word}" significa "{translation}". {encouragement}',
   "quiz.wrongExplain": '{encouragement} La respuesta correcta era "{word}" — significa "{translation}".',
 
+  "correction.invite": "Casi — *{phrase}*\\. ¿Lo dices otra vez\\?",
+  "correction.reattemptAck": "¡Bien — lo dijiste!",
+
   "moderation.banned":
     "Tu cuenta fue suspendida por violaciones repetidas de las normas. Si crees que es un error, contacta a @langbistro_support.",
   "moderation.warning":

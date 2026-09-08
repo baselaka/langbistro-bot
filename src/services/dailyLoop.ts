@@ -1,6 +1,7 @@
 import type { Api } from "grammy";
 import { supabase } from "../db/client";
 import { t, type InterfaceLanguage } from "../i18n";
+import { matchesCorrectionReattempt } from "../utils/correction";
 import { getLocalDateString, isoWeekKey } from "../utils/dateTz";
 import { matchNewWords, type SentWord } from "../utils/wordMatch";
 import {
@@ -206,7 +207,13 @@ export async function processDailyUtterance(options: ProcessUtteranceOptions): P
     sessionWin === undefined
   ) {
     const corrected = options.priorCorrection.trim();
-    if (options.text.toLowerCase().includes(corrected.toLowerCase())) {
+    if (
+      options.text.toLowerCase().includes(corrected.toLowerCase()) ||
+      matchesCorrectionReattempt(options.text, {
+        correctedPhrase: corrected,
+        correctedSentence: corrected,
+      })
+    ) {
       sessionWin = corrected;
     }
   }

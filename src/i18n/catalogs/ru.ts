@@ -109,6 +109,9 @@ export const ru: Record<MessageKey, string> = {
   "quiz.correctExplain": '{praise} «{word}» значит «{translation}». {encouragement}',
   "quiz.wrongExplain": '{encouragement} Правильный ответ — «{word}», это значит «{translation}».',
 
+  "correction.invite": "Почти — *{phrase}*\\. Скажи ещё раз\\?",
+  "correction.reattemptAck": "Отлично — ты сказал(а) это!",
+
   "moderation.banned":
     "Аккаунт заблокирован за повторные нарушения правил. Если считаешь, что это ошибка, напиши @langbistro_support.",
   "moderation.warning":

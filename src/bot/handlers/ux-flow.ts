@@ -1,10 +1,9 @@
 import { InlineKeyboard, InputFile, type Context } from "grammy";
 import type { AssistantResponse } from "../../ai/openai";
 import { getLanguageConfig, parseTargetLanguage } from "../../config/languages";
-import { t, type InterfaceLanguage } from "../../i18n";
-import { formatCorrectionMarkdownV2 } from "../../utils/correction";
-import { escapeMarkdownV2 } from "../../utils/markdown";
-import { storeCorrectionExplanation, storeReplyMeta } from "../ux-memory";
+import { t, tMd2, type InterfaceLanguage } from "../../i18n";
+import { invitePhraseFromCorrection } from "../../utils/correction";
+import { storeCorrectionExplanation, storePendingCorrection, storeReplyMeta } from "../ux-memory";
 
 function pickRandom(arr: string[]): string {
   return arr[Math.floor(Math.random() * arr.length)]!;
@@ -17,7 +16,8 @@ export async function sendUxFlow(
   skipEncouragement = false,
   explanationOverride?: string,
   targetLang = "es",
-  interfaceLang: InterfaceLanguage = "en"
+  interfaceLang: InterfaceLanguage = "en",
+  telegramId?: number
 ): Promise<void> {
   const chatId = ctx.chat?.id;
   if (!chatId) {
@@ -25,11 +25,11 @@ export async function sendUxFlow(
   }
 
   if (structured.correction) {
-    const correctionText = formatCorrectionMarkdownV2(
+    const phrase = invitePhraseFromCorrection(
       structured.correction.original,
-      structured.correction.corrected,
-      escapeMarkdownV2
+      structured.correction.corrected
     );
+    const correctionText = tMd2(interfaceLang, "correction.invite", { phrase });
     const correctionKeyboard = new InlineKeyboard().text(
       t(interfaceLang, "button.explain"),
       "explain_correction:pending"
@@ -42,6 +42,13 @@ export async function sendUxFlow(
 
     const correctionMessageId = correctionMessage.message_id;
     storeCorrectionExplanation(chatId, correctionMessageId, structured.correction.explanation);
+
+    if (telegramId != null) {
+      storePendingCorrection(telegramId, {
+        correctedPhrase: phrase,
+        correctedSentence: structured.correction.corrected,
+      });
+    }
 
     await ctx.api.editMessageReplyMarkup(chatId, correctionMessageId, {
       reply_markup: new InlineKeyboard().text(
