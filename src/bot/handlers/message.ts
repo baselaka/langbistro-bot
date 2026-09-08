@@ -77,7 +77,7 @@ export async function handleMessage(ctx: Context): Promise<void> {
   }
 
   const chatId = ctx.chat?.id;
-  const { structured, responseVoice, wrapUpText } = await runAssistantTurn(
+  const { structured, responseVoice, wrapUpText, reattemptMatched } = await runAssistantTurn(
     user.id,
     targetLang,
     text,
@@ -85,10 +85,23 @@ export async function handleMessage(ctx: Context): Promise<void> {
     user.is_subscribed,
     locale,
     "beginner",
-    { api: ctx.api, chatId }
+    { api: ctx.api, chatId, telegramId: from.id }
   );
 
-  await sendStructuredUxResponse(ctx, structured, responseVoice, false, undefined, targetLang, locale);
+  if (reattemptMatched) {
+    await ctx.reply(t(locale, "correction.reattemptAck"));
+  }
+
+  await sendStructuredUxResponse(
+    ctx,
+    structured,
+    responseVoice,
+    false,
+    undefined,
+    targetLang,
+    locale,
+    from.id
+  );
 
   if (wrapUpText) {
     await ctx.reply(wrapUpText);
