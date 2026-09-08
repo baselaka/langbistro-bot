@@ -46,7 +46,14 @@ describe("tutor system prompts", () => {
         const prompt = buildTutorSystemPrompt(lang, level, "en");
         const max = REPLY_CHAR_CAPS[level];
         expect(prompt).toContain(`at most ${max} characters`);
+        expect(prompt).toContain("followUpQuestion");
       }
     }
+  });
+
+  it("requires followUpQuestion in the JSON response shape", () => {
+    const prompt = buildTutorSystemPrompt("en", "beginner", "en");
+    expect(prompt).toContain('"followUpQuestion":string');
+    expect(prompt).toContain("exactly ONE short follow-up question");
   });
 });

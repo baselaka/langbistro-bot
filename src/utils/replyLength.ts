@@ -1,5 +1,17 @@
-/** Soft/hard reply length caps by learner level (PRS-90 TTS cost bound). */
+import { getLanguageConfig } from "../config/languages";
+
+/**
+ * Statement-only char caps by learner level (PRS-98).
+ * Follow-up questions are appended uncapped; ~30 chars keeps total near PRS-90 TTS budget.
+ */
 export const REPLY_CHAR_CAPS = {
+  beginner: 60,
+  intermediate: 90,
+  advanced: 150,
+} as const;
+
+/** Pre-PRS-98 combined TTS budgets (statement + short question). */
+export const TTS_BUDGET_CAPS = {
   beginner: 90,
   intermediate: 120,
   advanced: 180,
@@ -21,10 +33,15 @@ export function maxReplyCharsForLevel(level: string): number {
 
 export function replyCharCapRule(level: string): string {
   const max = maxReplyCharsForLevel(level);
-  return `LENGTH: The "reply" field must be at most ${max} characters (including spaces and punctuation). Prefer one short turn the learner can answer.`;
+  return (
+    `LENGTH: The "reply" field (statement only) must be at most ${max} characters ` +
+    `(including spaces and punctuation). Put exactly one short follow-up in "followUpQuestion" ` +
+    `(not inside "reply"); that field is not length-capped but should stay under ~40 characters.`
+  );
 }
 
 const SENTENCE_END = /[.!?…]/u;
+const QUESTION_MARK = /[?¿？]/u;
 
 /**
  * Truncate at the last sentence boundary within maxChars.
@@ -55,4 +72,42 @@ export function truncateAtSentenceBoundary(text: string, maxChars: number): stri
   }
 
   return window;
+}
+
+export function looksLikeQuestion(text: string): boolean {
+  return QUESTION_MARK.test(text);
+}
+
+export function fallbackFollowUpQuestion(lang: string): string {
+  return getLanguageConfig(lang).fallbackFollowUpQuestion;
+}
+
+export function resolveFollowUpQuestion(
+  raw: string | null | undefined,
+  lang: string,
+  options: { closingTurn: boolean }
+): string {
+  if (options.closingTurn) {
+    return "";
+  }
+  const trimmed = (raw ?? "").trim();
+  if (trimmed && looksLikeQuestion(trimmed)) {
+    return trimmed;
+  }
+  return fallbackFollowUpQuestion(lang);
+}
+
+/**
+ * Cap the statement only, then append the follow-up (never truncated).
+ */
+export function composeSpokenReply(reply: string, followUp: string, maxChars: number): string {
+  const statement = truncateAtSentenceBoundary(reply.trim(), maxChars);
+  const question = followUp.trim();
+  if (!question) {
+    return statement;
+  }
+  if (!statement) {
+    return question;
+  }
+  return `${statement} ${question}`;
 }

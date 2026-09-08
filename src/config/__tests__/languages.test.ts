@@ -63,6 +63,13 @@ describe("languages config", () => {
     expect(cfg.conversationNudge.reply).toContain("English");
     expect(cfg.fillBlankTeacherPrompt).toContain("English");
     expect(cfg.quizMessages.correct.length).toBeGreaterThan(0);
+    expect(cfg.fallbackFollowUpQuestion).toBe("And you?");
+  });
+
+  it("exposes fallback follow-up questions for each target language", () => {
+    expect(getLanguageConfig("es").fallbackFollowUpQuestion).toBe("¿Y tú?");
+    expect(getLanguageConfig("fr").fallbackFollowUpQuestion).toBe("Et toi ?");
+    expect(getLanguageConfig("en").fallbackFollowUpQuestion).toBe("And you?");
   });
 
   it("uses English UI for settings level ask across languages", () => {

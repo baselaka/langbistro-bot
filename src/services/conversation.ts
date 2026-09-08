@@ -5,7 +5,11 @@ import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 import { parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
 import { matchesCorrectionReattempt } from "../utils/correction";
-import { maxReplyCharsForLevel, truncateAtSentenceBoundary } from "../utils/replyLength";
+import {
+  composeSpokenReply,
+  maxReplyCharsForLevel,
+  resolveFollowUpQuestion,
+} from "../utils/replyLength";
 import { processDailyUtterance } from "./dailyLoop";
 import { recordDailySessionUserTurn } from "./dailySession";
 import { CLOSING_TURN_HINT, unusedWords, unusedWordsPromptInjection } from "./sessionWrapUp";
@@ -107,9 +111,13 @@ export async function runAssistantTurn(
 
   const maxChars = maxReplyCharsForLevel(effectiveLevel);
   const originalReply = structured.reply;
-  structured.reply = truncateAtSentenceBoundary(originalReply, maxChars);
+  const followUp = resolveFollowUpQuestion(structured.followUpQuestion, targetLanguage, {
+    closingTurn: loop.closingTurn,
+  });
+  structured.followUpQuestion = followUp;
+  structured.reply = composeSpokenReply(originalReply, followUp, maxChars);
   console.log(
-    `[TTS] chars=${structured.reply.length} max=${maxChars} truncated=${structured.reply.length < originalReply.length} level=${effectiveLevel}`
+    `[TTS] chars=${structured.reply.length} statementMax=${maxChars} followUp=${followUp.length} truncated=${originalReply.trim().length > maxChars} level=${effectiveLevel}`
   );
 
   const { error: saveMessagesError } = await supabase.from("messages").insert([

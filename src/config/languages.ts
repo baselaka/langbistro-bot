@@ -18,6 +18,8 @@ export type LanguageConfig = {
     retry: string[];
   };
   conversationEncouragement: string[];
+  /** Generic follow-up when the model omits an interrogative (PRS-98). */
+  fallbackFollowUpQuestion: string;
   openingLines: Record<LanguageLevel, string>;
   quizOutro: string;
   fillBlankTeacherPrompt: string;
@@ -45,6 +47,7 @@ export const LANGUAGES: Record<TargetLanguage, LanguageConfig> = {
       retry: ["¡Casi! Inténtalo de nuevo 😊"],
     },
     conversationEncouragement: ["¡Muy bien! 🌟", "¡Excelente! ✨", "¡Perfecto! 💪", "¡Sigue así! 🎯", "¡Genial! 🎉"],
+    fallbackFollowUpQuestion: "¿Y tú?",
     openingLines: {
       beginner: "¡Hola! Soy Bistro. ¿Cómo te llamas?",
       intermediate: "¡Hola! Soy Bistro. ¿Cómo te llamas y de dónde eres?",
@@ -93,6 +96,7 @@ Examples that MUST be correct: false:
       retry: ["Presque ! Réessaie 😊"],
     },
     conversationEncouragement: ["Très bien ! 🌟", "Excellent ! ✨", "Parfait ! 💪", "Continue ! 🎯", "Génial ! 🎉"],
+    fallbackFollowUpQuestion: "Et toi ?",
     openingLines: {
       beginner: "Bonjour ! Je suis Bistro. Comment tu t'appelles ?",
       intermediate: "Bonjour ! Je suis Bistro. Comment tu t'appelles et d'où viens-tu ?",
@@ -134,6 +138,7 @@ Examples that MUST be correct: false:
       retry: ["Almost! Try again 😊"],
     },
     conversationEncouragement: ["Nice work! 🌟", "Excellent! ✨", "Perfect! 💪", "Keep going! 🎯", "Great! 🎉"],
+    fallbackFollowUpQuestion: "And you?",
     openingLines: {
       beginner: "Hi! I'm Bistro. What's your name?",
       intermediate: "Hi! I'm Bistro. What's your name, and where are you from?",
