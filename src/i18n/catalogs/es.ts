@@ -49,6 +49,7 @@ Te ayudo a desarrollar habilidades reales de conversación con:
   "command.interface": "Idioma de menús, pistas y explicaciones",
   "command.settings": "Nivel y hora de las palabras del día",
   "command.subscribe": "Suscribirse a Pro",
+  "command.done": "Terminar la sesión de hoy",
   "language.switchedRestored":
     "✅ Cambiaste a {language}.\n\nSe restauró tu progreso de {language} (Nivel: {level}, nivel de vocabulario {tier}).",
   "language.switchedFresh":
@@ -91,6 +92,16 @@ Te ayudo a desarrollar habilidades reales de conversación con:
   "daily.wordsHeader": "📚 *Tus 10 palabras de hoy:*",
   "daily.fillBlank": 'Completa el espacio:\n"{blanked}"\n(Responde por voz o texto)',
   "daily.fillBlankFallback": "Completa esta oración usando: {word}\n_____",
+
+  "session.checklistHeader": "{used}/{total} palabras usadas hoy",
+  "session.wrapUpHeader": "Sesión completa — buen trabajo.",
+  "session.wrapUpWords": "Palabras usadas hoy: {used}/{total}",
+  "session.wrapUpWin": "Logro: acertaste “{win}”.",
+  "session.wrapUpStreak": "Racha: {streak} día(s)",
+  "session.wrapUpTomorrowWord": "Mañana: intenta usar “{word}”.",
+  "session.wrapUpTomorrowFresh": "Mañana: te espera un set nuevo de palabras.",
+  "session.alreadyDone": "Ya terminaste por hoy. Hasta mañana.",
+  "session.noSession": "Aún no hay set de palabras hoy — llegará a tu hora habitual.",
 
   "review.ask":
     '🔁 ¡Repaso rápido! ¿Cómo se dice "{translation}" en {language}?\n(Responde por voz o texto)',

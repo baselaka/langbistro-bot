@@ -1,14 +1,18 @@
+import type { Api } from "grammy";
 import { AssistantResponse, ChatMessage, generateResponse, generateVoice, getVoiceSpeedForLevel } from "../ai/openai";
 import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 import { parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
+import { processDailyUtterance } from "./dailyLoop";
 import { recordDailySessionUserTurn } from "./dailySession";
+import { CLOSING_TURN_HINT, unusedWords, unusedWordsPromptInjection } from "./sessionWrapUp";
 
 type MessageType = "text" | "voice";
 
 type AssistantTurnResult = {
   structured: AssistantResponse;
   responseVoice: Buffer;
+  wrapUpText: string | null;
 };
 
 export async function runAssistantTurn(
@@ -18,11 +22,15 @@ export async function runAssistantTurn(
   userMessageType: MessageType,
   isSubscribed: boolean,
   interfaceLanguage: InterfaceLanguage = "en",
-  level: string = "beginner"
+  level: string = "beginner",
+  options?: {
+    api?: Api;
+    chatId?: number;
+  }
 ): Promise<AssistantTurnResult> {
   const { data: userRow, error: userError } = await supabase
     .from("users")
-    .select("level, interface_language")
+    .select("level, interface_language, preferred_word_timezone")
     .eq("id", userId)
     .single();
   if (userError) {
@@ -30,6 +38,16 @@ export async function runAssistantTurn(
   }
   const effectiveLevel = userRow?.level ?? level ?? "beginner";
   const locale = parseInterfaceLanguage(userRow?.interface_language, interfaceLanguage);
+  const timezone = userRow?.preferred_word_timezone ?? "America/New_York";
+
+  const loop = await processDailyUtterance({
+    userId,
+    timezone,
+    locale,
+    text: userContent,
+    api: options?.api,
+    chatId: options?.chatId,
+  });
 
   const { data: historyRows, error: historyError } = await supabase
     .from("messages")
@@ -50,9 +68,20 @@ export async function runAssistantTurn(
       content: row.content,
     }));
 
+  const systemExtras: ChatMessage[] = [];
+  if (loop.closingTurn) {
+    systemExtras.push({ role: "system", content: CLOSING_TURN_HINT });
+  } else if (!loop.session.completed_at) {
+    const leftover = unusedWords(loop.wordsSent, loop.wordsUsed);
+    const injection = unusedWordsPromptInjection(leftover);
+    if (injection) {
+      systemExtras.push({ role: "system", content: injection });
+    }
+  }
+
   const model = isSubscribed ? CHAT_MODEL_PRO : CHAT_MODEL_FREE;
   const structured = await generateResponse(
-    [...history, { role: "user", content: userContent }],
+    [...systemExtras, ...history, { role: "user", content: userContent }],
     targetLanguage,
     model,
     effectiveLevel,
@@ -83,5 +112,5 @@ export async function runAssistantTurn(
   const responseVoice = await generateVoice(structured.reply, {
     speed: getVoiceSpeedForLevel(effectiveLevel),
   });
-  return { structured, responseVoice };
+  return { structured, responseVoice, wrapUpText: loop.wrapUpText };
 }

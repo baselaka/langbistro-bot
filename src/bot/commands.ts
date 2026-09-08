@@ -6,6 +6,7 @@ const COMMAND_DEFS: ReadonlyArray<{ command: string; key: MessageKey }> = [
   { command: "language", key: "command.language" },
   { command: "interface", key: "command.interface" },
   { command: "settings", key: "command.settings" },
+  { command: "done", key: "command.done" },
   { command: "subscribe", key: "command.subscribe" },
 ];
 

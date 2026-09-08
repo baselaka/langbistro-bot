@@ -25,14 +25,44 @@ export type DailySession = {
   user_id: number;
   date: string;
   words_sent: unknown;
+  words_used: unknown;
   fill_blank_word_id: number | null;
   review_word_id: number | null;
   engaged: boolean;
   delivered_at: string | null;
   engaged_at: string | null;
   user_turns: number;
+  completed_at: string | null;
+  checklist_message_id: number | null;
+  session_win: string | null;
   created_at: string;
 };
+
+export type SentWordRow = {
+  id: number;
+  word: string;
+};
+
+/** Normalize jsonb words_sent / words_used into {id, word}[]. */
+export function parseSentWords(raw: unknown): SentWordRow[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const out: SentWordRow[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const row = item as Record<string, unknown>;
+    const id = typeof row.id === "number" ? row.id : Number(row.id);
+    const word = typeof row.word === "string" ? row.word : null;
+    if (!Number.isFinite(id) || !word) {
+      continue;
+    }
+    out.push({ id, word });
+  }
+  return out;
+}
 
 const gradeSchema = z.object({
   correct: z.boolean(),
@@ -90,13 +120,29 @@ export async function getOrCreateDailySession(userId: number, timezone: string):
 }
 
 /** Claim same-day delivery. Returns false if another cron tick already claimed it. */
-export async function markDailyWordDelivered(sessionId: number, deliveredAt: Date = new Date()): Promise<boolean> {
+export async function markDailyWordDelivered(
+  sessionId: number,
+  options: {
+    deliveredAt?: Date;
+    wordsSent?: SentWordRow[];
+    fillBlankWordId?: number | null;
+  } = {}
+): Promise<boolean> {
+  const deliveredAt = options.deliveredAt ?? new Date();
+  const patch: Record<string, unknown> = {
+    engaged: true,
+    delivered_at: deliveredAt.toISOString(),
+  };
+  if (options.wordsSent) {
+    patch.words_sent = options.wordsSent;
+  }
+  if (options.fillBlankWordId !== undefined) {
+    patch.fill_blank_word_id = options.fillBlankWordId;
+  }
+
   const { data, error } = await supabase
     .from("daily_sessions")
-    .update({
-      engaged: true,
-      delivered_at: deliveredAt.toISOString(),
-    })
+    .update(patch)
     .eq("id", sessionId)
     .is("delivered_at", null)
     .select("id");

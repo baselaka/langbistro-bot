@@ -49,6 +49,7 @@ export const ru: Record<MessageKey, string> = {
   "command.interface": "Язык меню, подсказок и пояснений",
   "command.settings": "Уровень и время слов дня",
   "command.subscribe": "Подписка Pro",
+  "command.done": "Завершить сегодняшнюю сессию",
   "language.switchedRestored":
     "✅ Переключено на {language}!\n\nПрогресс по {language} восстановлен (уровень: {level}, ярус {tier}).",
   "language.switchedFresh":
@@ -91,6 +92,16 @@ export const ru: Record<MessageKey, string> = {
   "daily.wordsHeader": "📚 *Твои 10 слов на сегодня:*",
   "daily.fillBlank": 'Заполни пропуск:\n"{blanked}"\n(Ответь голосом или текстом!)',
   "daily.fillBlankFallback": "Дополни предложение, используя: {word}\n_____",
+
+  "session.checklistHeader": "{used}/{total} слов использовано сегодня",
+  "session.wrapUpHeader": "Сессия завершена — отличная работа.",
+  "session.wrapUpWords": "Слов сегодня: {used}/{total}",
+  "session.wrapUpWin": "Успех: ты правильно сказал(а) «{win}».",
+  "session.wrapUpStreak": "Серия: {streak} дн.",
+  "session.wrapUpTomorrowWord": "Завтра: попробуй вставить «{word}».",
+  "session.wrapUpTomorrowFresh": "Завтра: ждёт новый набор слов.",
+  "session.alreadyDone": "На сегодня ты уже закончил(а). До завтра.",
+  "session.noSession": "Сегодня ещё нет набора слов — он придёт в твоё обычное время.",
 
   "review.ask":
     '🔁 Быстрое повторение! Как сказать «{translation}» на языке: {language}?\n(Ответь голосом или текстом!)',

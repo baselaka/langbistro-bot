@@ -11,6 +11,7 @@ describe("bot command menu", () => {
         "language",
         "interface",
         "settings",
+        "done",
         "subscribe",
       ]);
       expect(commands.every((item) => item.description.length > 0)).toBe(true);

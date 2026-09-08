@@ -49,6 +49,7 @@ Qual idioma você gostaria de aprender?`,
   "command.interface": "Idioma dos menus, dicas e explicações",
   "command.settings": "Nível e horário das palavras do dia",
   "command.subscribe": "Assinar o Pro",
+  "command.done": "Encerrar a sessão de hoje",
   "language.switchedRestored":
     "✅ Você mudou para {language}!\n\nSeu progresso de {language} foi restaurado (Nível: {level}, faixa {tier}).",
   "language.switchedFresh":
@@ -91,6 +92,16 @@ Qual idioma você gostaria de aprender?`,
   "daily.wordsHeader": "📚 *Suas 10 palavras de hoje:*",
   "daily.fillBlank": 'Preencha a lacuna:\n"{blanked}"\n(Responda por voz ou texto!)',
   "daily.fillBlankFallback": "Complete esta frase usando: {word}\n_____",
+
+  "session.checklistHeader": "{used}/{total} palavras usadas hoje",
+  "session.wrapUpHeader": "Sessão completa — bom trabalho.",
+  "session.wrapUpWords": "Palavras usadas hoje: {used}/{total}",
+  "session.wrapUpWin": "Vitória: você acertou “{win}”.",
+  "session.wrapUpStreak": "Sequência: {streak} dia(s)",
+  "session.wrapUpTomorrowWord": "Amanhã: tente usar “{word}”.",
+  "session.wrapUpTomorrowFresh": "Amanhã: um novo conjunto de palavras te espera.",
+  "session.alreadyDone": "Você já terminou por hoje. Até amanhã.",
+  "session.noSession": "Ainda não há palavras hoje — elas chegam no seu horário habitual.",
 
   "review.ask":
     '🔁 Revisão rápida! Como se diz "{translation}" em {language}?\n(Responda por voz ou texto!)',
