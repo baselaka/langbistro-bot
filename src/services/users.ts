@@ -1,5 +1,6 @@
 import { supabase } from "../db/client";
 import { defaultInterfaceLanguage, parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
+import { WINBACK_REARM_FIELDS } from "./dailySessionMetrics";
 import { loadEntitlementRow, shouldRevokeEntitlement } from "./subscription";
 
 type TelegramUserInput = {
@@ -112,7 +113,7 @@ export async function getOrCreateUserByTelegram(
   const withSub = await applySubscriptionExpiry(user);
 
   if (touchLastActive && withSub.inactivity_stage > 0) {
-    await supabase.from("users").update({ inactivity_stage: 0 }).eq("telegram_id", input.telegramId);
+    await supabase.from("users").update({ ...WINBACK_REARM_FIELDS }).eq("telegram_id", input.telegramId);
     return { ...withSub, inactivity_stage: 0 };
   }
 

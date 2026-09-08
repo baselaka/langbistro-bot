@@ -15,12 +15,6 @@ export { catalogFor, catalogKeys, interpolate, t, tMd2, type MessageKey, type Me
 export {
   conversationNudgeExplanation,
   getMilestoneMessage,
-  inactivityFinalPause,
-  inactivityMonthProgress,
-  inactivityNeverStarted24h,
-  inactivityNeverStarted72h,
-  inactivityRecall,
-  inactivityWeekPause,
   languageDisplayLabel,
   localizedLevelName,
   localizedTargetName,
@@ -32,4 +26,7 @@ export {
   reviewAsk,
   settingsLevelAsk,
   buildMetaExplanationRule,
+  winbackFinal,
+  winbackHook,
+  winbackSettings,
 } from "./copy";

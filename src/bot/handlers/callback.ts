@@ -18,6 +18,7 @@ import {
 } from "../../services/onboarding";
 import { clearQuizState } from "../../services/quizState";
 import { getInterfaceLocaleByTelegramId } from "../../services/users";
+import { WINBACK_REARM_FIELDS } from "../../services/dailySessionMetrics";
 import { etToUtc } from "../../utils/timeConvert";
 import { getCallbackMeta } from "../ux-memory";
 
@@ -196,7 +197,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
 
     await supabase
       .from("users")
-      .update({ inactivity_stage: 0, last_active_at: new Date().toISOString() })
+      .update({ ...WINBACK_REARM_FIELDS, last_active_at: new Date().toISOString() })
       .eq("telegram_id", ctx.from.id);
 
     const isRestored = !!newLangProgress;
@@ -271,7 +272,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
 
     await supabase
       .from("users")
-      .update({ inactivity_stage: 0, last_active_at: new Date().toISOString() })
+      .update({ ...WINBACK_REARM_FIELDS, last_active_at: new Date().toISOString() })
       .eq("telegram_id", ctx.from.id);
 
     await ctx.reply(t(locale, "callback.timeUpdated", { time: `${hh}:${mm}` }));
@@ -295,7 +296,7 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
 
     await supabase
       .from("users")
-      .update({ inactivity_stage: 0, last_active_at: new Date().toISOString() })
+      .update({ ...WINBACK_REARM_FIELDS, last_active_at: new Date().toISOString() })
       .eq("telegram_id", ctx.from.id);
 
     await ctx.answerCallbackQuery(t(locale, "callback.levelUpdated", { level: localizedLevelName(locale, level) }));

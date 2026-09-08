@@ -121,17 +121,12 @@ Te ayudo a desarrollar habilidades reales de conversación con:
   "nudge.explanation":
     "Te animé a responder en {language} y te dije que está bien cometer errores.",
 
-  "inactivity.neverStarted24h": "{greeting} ¿Listo para empezar a practicar? Envíame un mensaje {flag}",
-  "inactivity.neverStarted72h":
-    "Sigo aquí cuando quieras. Incluso 5 minutos de {language} marcan la diferencia 💪",
-  "inactivity.weekPause":
-    "{greeting} 👋 Llevas una semana sin practicar, así que pauso las palabras del día por ahora. Cuando quieras continuar, envíame cualquier mensaje y seguimos donde lo dejamos.",
-  "inactivity.recall":
-    '¿Todavía recuerdas qué significa "{word}"? Significa "{translation}" — ¡y ya lo aprendiste! Vuelve y sigue. 💪',
-  "inactivity.monthProgress":
-    "Ya aprendiste {count} palabras de {language}. Es progreso de verdad — no lo dejes perder. La siguiente palabra te espera. 👀",
-  "inactivity.finalPause":
-    "¡Lo intentamos de verdad! 😄 Pauso todos los mensajes por ahora para no molestarte. Cuando quieras retomar {language}, envíame un mensaje — aquí estaré.",
+  "winback.hook":
+    'Rápido: "{word}" significa "{translation}". Responde con lo que sea y practicamos juntos.',
+  "winback.settings":
+    "¿Quieres cambiar la hora de la palabra del día o el idioma? Abre /settings — o envía un mensaje y seguimos donde lo dejamos.",
+  "winback.final":
+    "Dejaré de escribirte para no molestarte. Cuando quieras retomar {language}, envía /start o cualquier mensaje — aquí estaré.",
 
   "target.es": "español",
   "target.fr": "francés",

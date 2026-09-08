@@ -117,17 +117,12 @@ Which language would you like to learn?`,
   "nudge.explanation":
     "I encouraged you to try replying in {language}, letting you know it's okay to make mistakes.",
 
-  "inactivity.neverStarted24h": "{greeting} Ready to start practicing? Just send me a message {flag}",
-  "inactivity.neverStarted72h":
-    "Still here when you're ready! Even 5 minutes of {language} practice makes a difference 💪",
-  "inactivity.weekPause":
-    "{greeting} 👋 You haven't practiced in a week, so I'm pausing your daily words for now. When you're ready to continue, just send me any message and we'll pick up right where you left off.",
-  "inactivity.recall":
-    'Do you still remember what "{word}" means? It means "{translation}" — and you learned it! Come back and keep going. 💪',
-  "inactivity.monthProgress":
-    "You've already learned {count} {language} words. That's real progress — don't let it go to waste. The next word is waiting for you. 👀",
-  "inactivity.finalPause":
-    "We gave it our best shot! 😄 I'm pausing all messages for now so I don't bother you. Whenever you want to pick up {language} again, just send me a message — I'll be here.",
+  "winback.hook":
+    'Quick one: "{word}" means "{translation}". Reply with anything and we\'ll practice together.',
+  "winback.settings":
+    "Want to change your daily word time, or switch language? Open /settings — or just send a message to pick up where you left off.",
+  "winback.final":
+    "I'll stop messaging so I don't bother you. Whenever you want to pick up {language} again, send /start or any message — I'll be here.",
 
   "target.es": "Spanish",
   "target.fr": "French",
