@@ -66,7 +66,7 @@ Qual idioma você gostaria de aprender?`,
   "quota.text":
     "Você atingiu o limite gratuito de texto de hoje (10/dia). Faça upgrade para praticar sem limites.",
   "quota.voice":
-    "Você atingiu o limite gratuito de voz de hoje (3/dia). Faça upgrade para praticar voz sem limites.",
+    "Você terminou a sessão de hoje — o Pro deixa você continuar com voz ilimitada.",
 
   "voice.processFailed": "Não consegui processar essa mensagem de voz. Tente de novo.",
   "voice.downloadFailed": "Não consegui baixar essa mensagem de voz. Tente de novo.",

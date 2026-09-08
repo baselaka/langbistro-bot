@@ -1,14 +1,34 @@
 import { supabase } from "../db/client";
+import { getLocalDateString } from "../utils/dateTz";
+import {
+  decideFreeUsageAllowance,
+  TEXT_LIMIT,
+  VOICE_LIMIT,
+  type UsageType,
+} from "./usageRules";
 
-const TEXT_LIMIT = 10;
-const VOICE_LIMIT = 3;
-
-type UsageType = "text" | "voice";
+export { TEXT_LIMIT, VOICE_LIMIT } from "./usageRules";
 
 type UsageCheckResult = {
   allowed: boolean;
   remaining: number;
 };
+
+async function isTodaysSessionCompleted(userId: number, timezone: string): Promise<boolean> {
+  const today = getLocalDateString(timezone);
+  const { data, error } = await supabase
+    .from("daily_sessions")
+    .select("completed_at")
+    .eq("user_id", userId)
+    .eq("date", today)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch today's session completion: ${error.message}`);
+  }
+
+  return Boolean(data?.completed_at);
+}
 
 export async function checkAndIncrementUsage(
   userId: number,
@@ -18,7 +38,7 @@ export async function checkAndIncrementUsage(
 
   const { data: user, error: userError } = await supabase
     .from("users")
-    .select("is_subscribed")
+    .select("is_subscribed, preferred_word_timezone")
     .eq("id", userId)
     .single();
 
@@ -53,12 +73,22 @@ export async function checkAndIncrementUsage(
   }
 
   const currentCount = type === "text" ? usage.text_count : usage.voice_count;
-  const limit = type === "text" ? TEXT_LIMIT : VOICE_LIMIT;
+  const sessionCompleted =
+    type === "voice"
+      ? await isTodaysSessionCompleted(userId, user.preferred_word_timezone ?? "UTC")
+      : false;
 
-  if (currentCount >= limit) {
+  const decision = decideFreeUsageAllowance({
+    type,
+    currentCount,
+    sessionCompleted,
+  });
+
+  if (!decision.allowed) {
     return { allowed: false, remaining: 0 };
   }
 
+  const limit = type === "text" ? TEXT_LIMIT : VOICE_LIMIT;
   const nextCount = currentCount + 1;
   const updatePayload = type === "text" ? { text_count: nextCount } : { voice_count: nextCount };
 

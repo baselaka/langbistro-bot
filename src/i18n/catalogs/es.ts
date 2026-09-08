@@ -66,7 +66,7 @@ Te ayudo a desarrollar habilidades reales de conversación con:
   "quota.text":
     "Llegaste al límite gratuito de texto de hoy (10/día). Mejora tu plan para practicar sin límites.",
   "quota.voice":
-    "Llegaste al límite gratuito de voz de hoy (3/día). Mejora tu plan para practicar voz sin límites.",
+    "Terminaste la sesión de hoy — Pro te deja seguir practicando con voz ilimitada.",
 
   "voice.processFailed": "No pude procesar ese mensaje de voz. Inténtalo de nuevo.",
   "voice.downloadFailed": "No pude descargar ese mensaje de voz. Inténtalo de nuevo.",
