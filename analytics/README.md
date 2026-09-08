@@ -45,15 +45,15 @@ Run [`retention.sql`](./retention.sql) in the Supabase SQL editor (whole file or
 | 4 | Median `user_turns` per engaged session |
 | 5 | Voice share of user messages (from `messages`, not `usage_daily`) |
 | 6 | Free→paid conversion among ever-engaged learners; payer `days_since_signup` (true time-to-conversion needs `subscriptions.created_at`) |
-| 7 | Cost per MAU: voice × $0.003 + TTS char proxy (~$15/1M chars of assistant text). `alert_over_75_usd` is the budget tripwire |
+| 7 | Cost per MAU: voice × $0.003 + TTS chars at the PRS-90 empiric rate. `alert_over_75_usd` is the budget tripwire |
 
-TTS character spend is **not instrumented** in the DB. Section 7’s TTS term is an upper-bound proxy until char spend is stored.
+## Voice / TTS cost (PRS-90)
 
-## Voice cost (PRS-84)
+Run [`voiceCost.sql`](./voiceCost.sql) in the Supabase SQL editor for a day-by-day TTS rollup.
 
-Run [`voiceCost.sql`](./voiceCost.sql) in the Supabase SQL editor for a day-by-day voice-only rollup.
-
-- Estimates spend as `voice_turns × $0.003` for learner accounts only (`usage_daily`).
+- Estimates TTS spend from learner **assistant** message lengths (`char_length(content)`), matching post-truncation text spoken by TTS.
+- Rate: ~`$0.0015 / 83 chars` ≈ `$0.0000181` per character (PRS-90 empiric).
 - `monthly_projection_usd` extrapolates from the last 30 days of usage.
 - Treat `alert_over_75_usd = true` as the budget tripwire.
-- For cost **per active user** (voice + TTS proxy), prefer section 7 of [`retention.sql`](./retention.sql).
+- Per-turn Railway logs: `[TTS] chars=N` (all `generateVoice` calls) and conversation-path logs with `max` / `truncated` / `level`.
+- For cost **per active user** (voice STT budget + TTS), prefer section 7 of [`retention.sql`](./retention.sql).

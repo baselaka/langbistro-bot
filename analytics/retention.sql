@@ -291,11 +291,11 @@ FROM (
 ORDER BY p.signed_up_at;
 
 -- =============================================================================
--- 7. Cost per active user (voice × $0.003 + TTS char proxy)
+-- 7. Cost per active user (voice × $0.003 + TTS chars)
 -- =============================================================================
--- Voice: learner user voice messages in last 30d × $0.003 (same budget as PRS-84).
--- TTS chars are not stored; SUM(char_length) of assistant content is an upper-bound
--- proxy at ~$15 / 1M chars (~gpt-4o-mini-tts effective). Not all assistant text is TTS'd.
+-- Voice STT budget: learner user voice messages in last 30d × $0.003 (PRS-84).
+-- TTS: SUM(char_length) of assistant content × $0.0000181 (PRS-90 empiric;
+-- same rate as analytics/voiceCost.sql). Assistant text is post-truncation.
 WITH mau AS (
   SELECT COUNT(DISTINCT ds.user_id)::numeric AS n
   FROM daily_sessions ds
@@ -312,7 +312,7 @@ voice AS (
     AND m.created_at >= (NOW() - INTERVAL '30 days')
 ),
 tts AS (
-  SELECT COALESCE(SUM(char_length(m.content)), 0)::bigint AS tts_chars_proxy_30d
+  SELECT COALESCE(SUM(char_length(m.content)), 0)::bigint AS tts_chars_30d
   FROM messages m
   INNER JOIN learners l ON l.id = m.user_id
   WHERE m.role = 'assistant'
@@ -321,13 +321,10 @@ tts AS (
 costs AS (
   SELECT
     v.voice_turns_30d,
-    t.tts_chars_proxy_30d,
+    t.tts_chars_30d,
     ROUND(v.voice_turns_30d * 0.003, 4) AS voice_cost_30d_usd,
-    ROUND(t.tts_chars_proxy_30d * (15.0 / 1000000.0), 4) AS tts_proxy_cost_30d_usd,
-    ROUND(
-      v.voice_turns_30d * 0.003 + t.tts_chars_proxy_30d * (15.0 / 1000000.0),
-      4
-    ) AS total_cost_30d_usd,
+    ROUND(t.tts_chars_30d * 0.0000181, 4) AS tts_cost_30d_usd,
+    ROUND(v.voice_turns_30d * 0.003 + t.tts_chars_30d * 0.0000181, 4) AS total_cost_30d_usd,
     m.n AS mau
   FROM voice v
   CROSS JOIN tts t
@@ -335,9 +332,9 @@ costs AS (
 )
 SELECT
   voice_turns_30d,
-  tts_chars_proxy_30d,
+  tts_chars_30d,
   voice_cost_30d_usd,
-  tts_proxy_cost_30d_usd,
+  tts_cost_30d_usd,
   total_cost_30d_usd,
   mau,
   CASE
