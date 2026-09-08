@@ -3,7 +3,7 @@ import {
   parseGrantDuration,
   periodEndFromGrantDuration,
   shouldRevokeEntitlement,
-} from "../subscription";
+} from "../subscriptionRules";
 
 const NOW = Date.parse("2026-09-08T12:00:00.000Z");
 const PAST = "2026-09-01T00:00:00.000Z";
