@@ -1,20 +1,50 @@
 import { parseTargetLanguage } from "../config/languages";
 import { getMilestoneMessage } from "../i18n";
 import { supabase } from "../db/client";
+import {
+  buildDailyWordSet,
+  productionFailurePatch,
+  productionSuccessPatch,
+  type DailyWord,
+  type VocabRow,
+} from "./srs";
 
 export { getMilestoneMessage };
 
-export type Vocabulary = {
-  id: number;
-  word: string;
-  translation: string | null;
-  example_sentence: string | null;
-  tier: number;
-  frequency_rank: number;
-  language: string;
-};
+export type Vocabulary = VocabRow;
 
-export async function getDailyWords(userId: number, tier: number, language: string = "es"): Promise<Vocabulary[]> {
+export type DailyVocabulary = DailyWord;
+
+const VOCAB_SELECT = "id, word, translation, example_sentence, tier, frequency_rank, language";
+
+async function fetchVocabByIds(ids: number[], language: string): Promise<VocabRow[]> {
+  if (ids.length === 0) {
+    return [];
+  }
+  const lang = parseTargetLanguage(language);
+  const { data, error } = await supabase
+    .from("vocabulary")
+    .select(VOCAB_SELECT)
+    .in("id", ids)
+    .eq("language", lang);
+
+  if (error) {
+    throw new Error(`Failed to fetch vocabulary by id: ${error.message}`);
+  }
+
+  const byId = new Map((data ?? []).map((row) => [row.id as number, row as VocabRow]));
+  // Preserve caller order (due_at ascending).
+  return ids.map((id) => byId.get(id)).filter((row): row is VocabRow => Boolean(row));
+}
+
+export async function getDailyWords(
+  userId: number,
+  tier: number,
+  language: string = "es"
+): Promise<DailyVocabulary[]> {
+  const lang = parseTargetLanguage(language);
+  const nowIso = new Date().toISOString();
+
   const { data: learnedRows, error: learnedError } = await supabase
     .from("user_vocabulary")
     .select("vocabulary_id")
@@ -24,12 +54,27 @@ export async function getDailyWords(userId: number, tier: number, language: stri
     throw new Error(`Failed to fetch learned words: ${learnedError.message}`);
   }
 
-  const learnedIds = new Set((learnedRows ?? []).map((r) => r.vocabulary_id));
-  const lang = parseTargetLanguage(language);
+  const learnedIds = new Set((learnedRows ?? []).map((r) => r.vocabulary_id as number));
+
+  const { data: dueRows, error: dueError } = await supabase
+    .from("user_vocabulary")
+    .select("vocabulary_id, due_at")
+    .eq("user_id", userId)
+    .not("due_at", "is", null)
+    .lte("due_at", nowIso)
+    .order("due_at", { ascending: true })
+    .limit(12);
+
+  if (dueError) {
+    throw new Error(`Failed to fetch due vocabulary: ${dueError.message}`);
+  }
+
+  const dueIds = (dueRows ?? []).map((r) => r.vocabulary_id as number);
+  const dueWords = await fetchVocabByIds(dueIds, lang);
 
   const { data: candidates, error: vocabError } = await supabase
     .from("vocabulary")
-    .select("id, word, translation, example_sentence, tier, frequency_rank, language")
+    .select(VOCAB_SELECT)
     .eq("tier", tier)
     .eq("language", lang);
 
@@ -37,53 +82,144 @@ export async function getDailyWords(userId: number, tier: number, language: stri
     throw new Error(`Failed to fetch vocabulary: ${vocabError.message}`);
   }
 
-  const pool = (candidates ?? []).filter((row) => !learnedIds.has(row.id));
-  const shuffled = pool.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 10) as Vocabulary[];
+  const newPool = ((candidates ?? []) as VocabRow[])
+    .filter((row) => !learnedIds.has(row.id))
+    .sort(() => Math.random() - 0.5);
+
+  return buildDailyWordSet(dueWords, newPool);
 }
 
-export async function markWordsLearned(userId: number, vocabularyIds: number[]): Promise<void> {
+/**
+ * Grade a successful production: enroll at interval 1 or advance the ladder.
+ * Bumps words_learned_count only when inserting a new user_vocabulary row.
+ */
+export async function recordProductionSuccess(
+  userId: number,
+  vocabularyIds: number[],
+  now: Date = new Date()
+): Promise<void> {
   if (vocabularyIds.length === 0) {
     return;
   }
 
+  const uniqueIds = [...new Set(vocabularyIds)];
+
   const { data: existingRows, error: existingError } = await supabase
     .from("user_vocabulary")
-    .select("vocabulary_id")
+    .select("vocabulary_id, interval_days")
     .eq("user_id", userId)
-    .in("vocabulary_id", vocabularyIds);
+    .in("vocabulary_id", uniqueIds);
 
   if (existingError) {
     throw new Error(`Failed to check existing vocabulary: ${existingError.message}`);
   }
 
-  const existing = new Set((existingRows ?? []).map((r) => r.vocabulary_id));
-  const newIds = vocabularyIds.filter((id) => !existing.has(id));
+  const existingById = new Map(
+    (existingRows ?? []).map((r) => [r.vocabulary_id as number, r.interval_days as number])
+  );
 
-  if (newIds.length > 0) {
-    const rows = newIds.map((vocabulary_id) => ({ user_id: userId, vocabulary_id }));
-    const { error: insertError } = await supabase.from("user_vocabulary").insert(rows);
-    if (insertError) {
-      throw new Error(`Failed to mark words learned: ${insertError.message}`);
+  const toInsert: Array<{
+    user_id: number;
+    vocabulary_id: number;
+    interval_days: number;
+    last_produced_at: string;
+    due_at: string;
+  }> = [];
+  const toUpdate: Array<{ vocabulary_id: number; patch: ReturnType<typeof productionSuccessPatch> }> =
+    [];
+
+  for (const vocabularyId of uniqueIds) {
+    const current = existingById.get(vocabularyId);
+    if (current === undefined) {
+      const patch = productionSuccessPatch(null, now);
+      toInsert.push({
+        user_id: userId,
+        vocabulary_id: vocabularyId,
+        interval_days: patch.interval_days,
+        last_produced_at: patch.last_produced_at,
+        due_at: patch.due_at,
+      });
+    } else {
+      toUpdate.push({ vocabulary_id: vocabularyId, patch: productionSuccessPatch(current, now) });
     }
   }
 
-  const { data: userRow, error: userError } = await supabase
-    .from("users")
-    .select("words_learned_count")
-    .eq("id", userId)
-    .single();
+  if (toInsert.length > 0) {
+    const { error: insertError } = await supabase.from("user_vocabulary").insert(toInsert);
+    if (insertError) {
+      throw new Error(`Failed to enroll vocabulary: ${insertError.message}`);
+    }
 
-  if (userError) {
-    throw new Error(`Failed to read words_learned_count: ${userError.message}`);
+    const { data: userRow, error: userError } = await supabase
+      .from("users")
+      .select("words_learned_count")
+      .eq("id", userId)
+      .single();
+
+    if (userError) {
+      throw new Error(`Failed to read words_learned_count: ${userError.message}`);
+    }
+
+    const next = (userRow?.words_learned_count ?? 0) + toInsert.length;
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ words_learned_count: next })
+      .eq("id", userId);
+
+    if (updateError) {
+      throw new Error(`Failed to update words_learned_count: ${updateError.message}`);
+    }
   }
 
-  const next = (userRow?.words_learned_count ?? 0) + newIds.length;
+  for (const { vocabulary_id, patch } of toUpdate) {
+    const { error: updateError } = await supabase
+      .from("user_vocabulary")
+      .update({
+        interval_days: patch.interval_days,
+        last_produced_at: patch.last_produced_at,
+        due_at: patch.due_at,
+      })
+      .eq("user_id", userId)
+      .eq("vocabulary_id", vocabulary_id);
 
-  const { error: updateError } = await supabase.from("users").update({ words_learned_count: next }).eq("id", userId);
+    if (updateError) {
+      throw new Error(`Failed to advance vocabulary SRS: ${updateError.message}`);
+    }
+  }
+}
 
-  if (updateError) {
-    throw new Error(`Failed to update words_learned_count: ${updateError.message}`);
+/** Alias for quiz / legacy callers — production success is the only graduation path. */
+export async function markWordsLearned(userId: number, vocabularyIds: number[]): Promise<void> {
+  await recordProductionSuccess(userId, vocabularyIds);
+}
+
+/**
+ * Reset due words that were missed or answered wrong.
+ * Only updates existing user_vocabulary rows (never inserts).
+ */
+export async function recordProductionFailure(
+  userId: number,
+  vocabularyIds: number[],
+  now: Date = new Date()
+): Promise<void> {
+  if (vocabularyIds.length === 0) {
+    return;
+  }
+
+  const uniqueIds = [...new Set(vocabularyIds)];
+  const patch = productionFailurePatch(now);
+
+  const { error } = await supabase
+    .from("user_vocabulary")
+    .update({
+      interval_days: patch.interval_days,
+      due_at: patch.due_at,
+    })
+    .eq("user_id", userId)
+    .in("vocabulary_id", uniqueIds);
+
+  if (error) {
+    throw new Error(`Failed to reset vocabulary SRS: ${error.message}`);
   }
 }
 
@@ -105,7 +241,7 @@ export async function getReviewWord(userId: number, language: string = "es"): Pr
 
   const { data: words, error: wError } = await supabase
     .from("vocabulary")
-    .select("id, word, translation, example_sentence, tier, frequency_rank, language")
+    .select(VOCAB_SELECT)
     .in("id", ids)
     .eq("language", lang);
 
