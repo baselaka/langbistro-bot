@@ -7,7 +7,7 @@ import { supabase } from "../db/client";
 import { sendUxFlow } from "../bot/handlers/ux-flow";
 import { formatCorrectionMarkdownV2 } from "../utils/correction";
 import { escapeMarkdownV2 } from "../utils/markdown";
-import { evaluateFillBlank, evaluateReviewAnswer } from "./dailySession";
+import { evaluateFillBlank, evaluateReviewAnswer, recordDailySessionUserTurn } from "./dailySession";
 import { markWordsLearned } from "./vocabulary";
 import { clearQuizState, getQuizState } from "./quizState";
 import { resolveGloss } from "./vocabGloss";
@@ -135,6 +135,8 @@ Instructions:
   if (saveError) {
     throw new Error(`Failed to save quiz messages: ${saveError.message}`);
   }
+
+  await recordDailySessionUserTurn(userId);
 
   clearQuizState(telegramId);
 

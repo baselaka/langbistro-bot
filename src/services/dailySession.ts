@@ -17,7 +17,9 @@ import { escapeMarkdownV2 } from "../utils/markdown";
 import { checkAnswerMatch, startsWithExpectedPhrase } from "../utils/text";
 import { type Vocabulary } from "./vocabulary";
 import { resolveGloss } from "./vocabGloss";
+import { isDailyWordDelivered, nextUserTurnFields } from "./dailySessionMetrics";
 
+export { isDailyWordDelivered };
 export type DailySession = {
   id: number;
   user_id: number;
@@ -26,6 +28,9 @@ export type DailySession = {
   fill_blank_word_id: number | null;
   review_word_id: number | null;
   engaged: boolean;
+  delivered_at: string | null;
+  engaged_at: string | null;
+  user_turns: number;
   created_at: string;
 };
 
@@ -82,6 +87,53 @@ export async function getOrCreateDailySession(userId: number, timezone: string):
   }
 
   return data as DailySession;
+}
+
+/** Claim same-day delivery. Returns false if another cron tick already claimed it. */
+export async function markDailyWordDelivered(sessionId: number, deliveredAt: Date = new Date()): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("daily_sessions")
+    .update({
+      engaged: true,
+      delivered_at: deliveredAt.toISOString(),
+    })
+    .eq("id", sessionId)
+    .is("delivered_at", null)
+    .select("id");
+
+  if (error) {
+    throw new Error(`Failed to mark daily session delivered: ${error.message}`);
+  }
+
+  return (data?.length ?? 0) > 0;
+}
+
+/** Count a learner reply against today's session (timezone calendar date). */
+export async function recordDailySessionUserTurn(userId: number): Promise<void> {
+  const { data: user, error: userError } = await supabase
+    .from("users")
+    .select("preferred_word_timezone")
+    .eq("id", userId)
+    .single();
+
+  if (userError || !user) {
+    throw new Error(`Failed to load user timezone for session turn: ${userError?.message ?? "unknown"}`);
+  }
+
+  const session = await getOrCreateDailySession(userId, user.preferred_word_timezone);
+  const patch = nextUserTurnFields(
+    {
+      user_turns: session.user_turns ?? 0,
+      engaged_at: session.engaged_at ?? null,
+    },
+    new Date().toISOString()
+  );
+
+  const { error: updateError } = await supabase.from("daily_sessions").update(patch).eq("id", session.id);
+
+  if (updateError) {
+    throw new Error(`Failed to record daily session user turn: ${updateError.message}`);
+  }
 }
 
 function keycapForIndex(index: number): string {

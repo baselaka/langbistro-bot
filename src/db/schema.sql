@@ -117,6 +117,9 @@ CREATE TABLE IF NOT EXISTS daily_sessions (
   fill_blank_word_id BIGINT REFERENCES vocabulary(id),
   review_word_id BIGINT REFERENCES vocabulary(id),
   engaged BOOLEAN NOT NULL DEFAULT FALSE,
+  delivered_at TIMESTAMPTZ,
+  engaged_at TIMESTAMPTZ,
+  user_turns INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, date)
 );
@@ -383,4 +386,37 @@ $$;
 DROP POLICY IF EXISTS allow_all_vocabulary_translations ON vocabulary_translations;
 DROP INDEX IF EXISTS idx_vocab_translations_vocab;
 DROP TABLE IF EXISTS vocabulary_translations;
+*/
+
+-- MIGRATION 008
+/*
+-- UP
+-- delivered_at is the same-day word-send guard. engaged_at / user_turns are
+-- real reply metrics. Keep legacy `engaged` for one deploy (still written by
+-- word delivery) so a code rollback keeps dedup working.
+ALTER TABLE daily_sessions
+  ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS engaged_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS user_turns INTEGER NOT NULL DEFAULT 0;
+
+UPDATE daily_sessions SET delivered_at = created_at WHERE engaged = true AND delivered_at IS NULL;
+
+UPDATE daily_sessions d
+SET engaged_at = s.first_msg, user_turns = s.n
+FROM (
+  SELECT ds.id, MIN(m.created_at) AS first_msg, COUNT(*) AS n
+  FROM daily_sessions ds
+  JOIN messages m ON m.user_id = ds.user_id AND m.role = 'user'
+   AND m.created_at >= ds.created_at
+   AND m.created_at <  ds.created_at + interval '24 hours'
+  GROUP BY ds.id
+) s WHERE d.id = s.id;
+
+NOTIFY pgrst, 'reload schema';
+
+-- DOWN
+ALTER TABLE daily_sessions
+  DROP COLUMN IF EXISTS delivered_at,
+  DROP COLUMN IF EXISTS engaged_at,
+  DROP COLUMN IF EXISTS user_turns;
 */
