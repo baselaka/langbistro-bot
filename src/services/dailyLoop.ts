@@ -16,6 +16,7 @@ import {
   unusedWords,
 } from "./sessionWrapUp";
 import { nextStreakState } from "./streak";
+import { recordProductionFailure, recordProductionSuccess } from "./vocabulary";
 
 export type DailyLoopResult = {
   session: DailySession;
@@ -154,6 +155,14 @@ export async function completeSession(
 
   const wordsSent = parseSentWords(session.words_sent);
   const wordsUsed = parseSentWords(session.words_used);
+  const usedIds = new Set(wordsUsed.map((w) => w.id));
+  const missedDueIds = wordsSent
+    .filter((w) => w.kind === "due" && !usedIds.has(w.id))
+    .map((w) => w.id);
+  if (missedDueIds.length > 0) {
+    await recordProductionFailure(userId, missedDueIds);
+  }
+
   const leftovers = unusedWords(wordsSent, wordsUsed);
   const streak = streakUpdate.applied ? streakUpdate.streak_current : (userRow.streak_current ?? 0);
 
@@ -224,6 +233,13 @@ export async function processDailyUtterance(options: ProcessUtteranceOptions): P
     if (sessionWin !== undefined && sessionWin !== null) {
       session.session_win = sessionWin;
     }
+  }
+
+  if (!session.completed_at && newlyMatched.length > 0) {
+    await recordProductionSuccess(
+      options.userId,
+      newlyMatched.map((w) => w.id)
+    );
   }
 
   if (options.api && options.chatId != null && !session.completed_at) {

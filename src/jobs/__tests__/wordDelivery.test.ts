@@ -74,6 +74,7 @@ const sampleWord = {
   tier: 1,
   frequency_rank: 1,
   language: "es",
+  kind: "new" as const,
 };
 
 const user: DeliveryUser = {
@@ -176,7 +177,7 @@ describe("deliverDailyWordsForUser", () => {
     expect(sendMessage).toHaveBeenCalled();
     expect(markDailyWordDeliveredMock).toHaveBeenCalledTimes(1);
     expect(markDailyWordDeliveredMock).toHaveBeenCalledWith(42, {
-      wordsSent: [{ id: 101, word: "casa" }],
+      wordsSent: [{ id: 101, word: "casa", kind: "new" }],
       fillBlankWordId: 101,
     });
     expect(callOrder.indexOf("send")).toBeLessThan(callOrder.indexOf("mark"));

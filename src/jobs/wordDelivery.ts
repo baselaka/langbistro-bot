@@ -75,7 +75,7 @@ export async function deliverDailyWordsForUser(bot: Bot, user: DeliveryUser): Pr
       return;
     }
 
-    const wordsSent = words.map((w) => ({ id: w.id, word: w.word }));
+    const wordsSent = words.map((w) => ({ id: w.id, word: w.word, kind: w.kind }));
     const { text: wordListText, keyboard: wordListKeyboard } = buildWordMessage(words, locale);
     const checklistText = buildChecklistMessage(locale, wordsSent, []);
     const fillBlankState = {
