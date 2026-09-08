@@ -58,11 +58,13 @@ describe("buildWrapUpMessage", () => {
       streak: 4,
       sessionWin: "comer → como",
       leftoverWord: "hablar",
+      sessionsCompleted: 4,
     });
     expect(text).toContain("7/10");
     expect(text).toContain("4");
     expect(text).toContain("comer → como");
     expect(text).toContain("hablar");
+    expect(text).not.toContain("first session");
     expect(text.trim().endsWith("?")).toBe(false);
   });
 
@@ -73,11 +75,36 @@ describe("buildWrapUpMessage", () => {
       streak: 1,
       sessionWin: null,
       leftoverWord: null,
+      sessionsCompleted: 2,
     });
     expect(text).toContain("10/10");
     expect(text.toLowerCase()).not.toContain("win:");
     expect(text).toMatch(/tomorrow|new/i);
+    expect(text).not.toContain("first session");
     expect(text.trim().endsWith("?")).toBe(false);
+  });
+
+  it("appends the streak explainer only on the first completed session", () => {
+    const first = buildWrapUpMessage("en", {
+      wordsUsed: 5,
+      wordsSent: 10,
+      streak: 1,
+      sessionWin: null,
+      leftoverWord: null,
+      sessionsCompleted: 1,
+    });
+    expect(first).toContain("first session");
+    expect(first).toMatch(/streak grows/i);
+
+    const later = buildWrapUpMessage("en", {
+      wordsUsed: 5,
+      wordsSent: 10,
+      streak: 2,
+      sessionWin: null,
+      leftoverWord: null,
+      sessionsCompleted: 2,
+    });
+    expect(later).not.toContain("first session");
   });
 });
 

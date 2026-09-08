@@ -7,6 +7,7 @@ export type WrapUpInput = {
   streak: number;
   sessionWin: string | null;
   leftoverWord: string | null;
+  sessionsCompleted: number;
 };
 
 /** Build the one-shot wrap-up message. No trailing question. */
@@ -21,6 +22,10 @@ export function buildWrapUpMessage(locale: InterfaceLanguage, input: WrapUpInput
   }
 
   lines.push(t(locale, "session.wrapUpStreak", { streak: input.streak }));
+
+  if (input.sessionsCompleted === 1) {
+    lines.push(t(locale, "session.wrapUpStreakExplainer"));
+  }
 
   if (input.leftoverWord?.trim()) {
     lines.push(t(locale, "session.wrapUpTomorrowWord", { word: input.leftoverWord.trim() }));

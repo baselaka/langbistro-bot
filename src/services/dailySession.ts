@@ -16,6 +16,7 @@ import { getLocalDateString } from "../utils/dateTz";
 import { escapeMarkdownV2 } from "../utils/markdown";
 import { checkAnswerMatch, startsWithExpectedPhrase } from "../utils/text";
 import { type Vocabulary } from "./vocabulary";
+import { type DailyWord } from "./srs";
 import { resolveGloss } from "./vocabGloss";
 import { isDailyWordDelivered, nextUserTurnFields } from "./dailySessionMetrics";
 
@@ -170,7 +171,7 @@ function keycapForIndex(index: number): string {
 }
 
 export function buildWordMessage(
-  words: Vocabulary[],
+  words: DailyWord[],
   locale: InterfaceLanguage = "en"
 ): {
   text: string;
@@ -183,9 +184,12 @@ export function buildWordMessage(
     const word = escapeMarkdownV2(w.word);
     const translation = escapeMarkdownV2(w.translation ?? "");
     const example = escapeMarkdownV2(w.example_sentence ?? "");
-    blocks.push(`${emoji} *${word}* — ${translation}\n   _"${example}"_`);
+    const dueMark = w.kind === "due" ? " 🔁" : "";
+    blocks.push(`${emoji} *${word}*${dueMark} — ${translation}\n   _"${example}"_`);
     blocks.push("");
   });
+
+  blocks.push(escapeMarkdownV2(t(locale, "daily.goalLine")));
 
   const keyboard = new InlineKeyboard();
   words.forEach((w, i) => {
