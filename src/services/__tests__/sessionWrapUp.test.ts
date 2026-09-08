@@ -14,16 +14,30 @@ const sent = [
 ];
 
 describe("shouldAutoComplete", () => {
-  it("completes when all sent words are used", () => {
-    expect(shouldAutoComplete(sent, sent)).toBe(true);
+  const tenWords = Array.from({ length: 10 }, (_, i) => ({
+    id: i + 1,
+    word: `w${i + 1}`,
+  }));
+
+  it("completes when all sent words are used, even with few turns", () => {
+    expect(shouldAutoComplete(tenWords, tenWords, 1)).toBe(true);
   });
 
-  it("does not complete on empty words_sent", () => {
-    expect(shouldAutoComplete([], [])).toBe(false);
+  it("completes when enough target-language turns even if words remain", () => {
+    expect(shouldAutoComplete(tenWords, tenWords.slice(0, 2), 5)).toBe(true);
   });
 
-  it("does not complete when some words remain", () => {
-    expect(shouldAutoComplete(sent, [{ id: 1, word: "comer" }])).toBe(false);
+  it("does not complete on partial words below the turn floor", () => {
+    expect(shouldAutoComplete(tenWords, tenWords.slice(0, 2), 3)).toBe(false);
+  });
+
+  it("does not complete on empty words_sent regardless of turns", () => {
+    expect(shouldAutoComplete([], [], 5)).toBe(false);
+    expect(shouldAutoComplete([], [], 0)).toBe(false);
+  });
+
+  it("does not complete when some words remain and turns are below floor", () => {
+    expect(shouldAutoComplete(sent, [{ id: 1, word: "comer" }], 1)).toBe(false);
   });
 });
 

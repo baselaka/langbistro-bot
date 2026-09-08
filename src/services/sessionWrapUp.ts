@@ -36,9 +36,20 @@ export function unusedWords(wordsSent: SentWord[], wordsUsed: SentWord[]): SentW
   return wordsSent.filter((w) => !usedIds.has(w.id));
 }
 
-/** True when the checklist is full and there was something to complete. */
-export function shouldAutoComplete(wordsSent: SentWord[], wordsUsed: SentWord[]): boolean {
-  return wordsSent.length > 0 && wordsUsed.length >= wordsSent.length;
+/** Tunable floor: enough real TL conversation to earn a wrap-up/streak without finishing the checklist. */
+export const AUTO_COMPLETE_TARGET_TURNS = 5;
+
+/** True when the checklist is full, or enough target-language turns, and there was something to complete. */
+export function shouldAutoComplete(
+  wordsSent: SentWord[],
+  wordsUsed: SentWord[],
+  targetLanguageTurns: number
+): boolean {
+  return (
+    wordsSent.length > 0 &&
+    (wordsUsed.length >= wordsSent.length ||
+      targetLanguageTurns >= AUTO_COMPLETE_TARGET_TURNS)
+  );
 }
 
 /** Compact in-place checklist body. */

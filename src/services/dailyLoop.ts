@@ -246,8 +246,11 @@ export async function processDailyUtterance(options: ProcessUtteranceOptions): P
     await editChecklistMessage(options.api, options.chatId, session, options.locale, wordsSent, wordsUsed);
   }
 
+  // Callers persist user_turns after this function returns; include this utterance now.
+  const targetLanguageTurns = (session.user_turns ?? 0) + 1;
   const wantsComplete =
-    Boolean(options.forceComplete) || shouldAutoComplete(wordsSent, wordsUsed);
+    Boolean(options.forceComplete) ||
+    shouldAutoComplete(wordsSent, wordsUsed, targetLanguageTurns);
   let completedJustNow = false;
   let wrapUpText: string | null = null;
   let closingTurn = false;
