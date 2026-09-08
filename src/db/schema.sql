@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS users (
   inactivity_stage INTEGER NOT NULL DEFAULT 0,
   target_language TEXT NOT NULL DEFAULT 'es',
   interface_language TEXT NOT NULL DEFAULT 'en',
+  streak_current INTEGER NOT NULL DEFAULT 0,
+  streak_best INTEGER NOT NULL DEFAULT 0,
+  last_completed_date DATE,
+  sessions_completed INTEGER NOT NULL DEFAULT 0,
+  last_freeze_week TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -114,12 +119,16 @@ CREATE TABLE IF NOT EXISTS daily_sessions (
   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   words_sent JSONB NOT NULL DEFAULT '[]',
+  words_used JSONB NOT NULL DEFAULT '[]'::jsonb,
   fill_blank_word_id BIGINT REFERENCES vocabulary(id),
   review_word_id BIGINT REFERENCES vocabulary(id),
   engaged BOOLEAN NOT NULL DEFAULT FALSE,
   delivered_at TIMESTAMPTZ,
   engaged_at TIMESTAMPTZ,
   user_turns INTEGER NOT NULL DEFAULT 0,
+  completed_at TIMESTAMPTZ,
+  checklist_message_id BIGINT,
+  session_win TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, date)
 );
@@ -419,4 +428,38 @@ ALTER TABLE daily_sessions
   DROP COLUMN IF EXISTS delivered_at,
   DROP COLUMN IF EXISTS engaged_at,
   DROP COLUMN IF EXISTS user_turns;
+*/
+
+-- MIGRATION 009
+/*
+-- UP
+-- PRS-86 checklist + PRS-88 session wrap-up / streak.
+ALTER TABLE daily_sessions
+  ADD COLUMN IF NOT EXISTS words_used JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS checklist_message_id BIGINT,
+  ADD COLUMN IF NOT EXISTS session_win TEXT;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS streak_current INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS streak_best INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_completed_date DATE,
+  ADD COLUMN IF NOT EXISTS sessions_completed INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_freeze_week TEXT;
+
+NOTIFY pgrst, 'reload schema';
+
+-- DOWN
+ALTER TABLE daily_sessions
+  DROP COLUMN IF EXISTS words_used,
+  DROP COLUMN IF EXISTS completed_at,
+  DROP COLUMN IF EXISTS checklist_message_id,
+  DROP COLUMN IF EXISTS session_win;
+
+ALTER TABLE users
+  DROP COLUMN IF EXISTS streak_current,
+  DROP COLUMN IF EXISTS streak_best,
+  DROP COLUMN IF EXISTS last_completed_date,
+  DROP COLUMN IF EXISTS sessions_completed,
+  DROP COLUMN IF EXISTS last_freeze_week;
 */

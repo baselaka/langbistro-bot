@@ -8,6 +8,8 @@ import { sendUxFlow } from "../bot/handlers/ux-flow";
 import { formatCorrectionMarkdownV2 } from "../utils/correction";
 import { escapeMarkdownV2 } from "../utils/markdown";
 import { evaluateFillBlank, evaluateReviewAnswer, recordDailySessionUserTurn } from "./dailySession";
+import { processDailyUtterance } from "./dailyLoop";
+import { CLOSING_TURN_HINT, unusedWords, unusedWordsPromptInjection } from "./sessionWrapUp";
 import { markWordsLearned } from "./vocabulary";
 import { clearQuizState, getQuizState } from "./quizState";
 import { resolveGloss } from "./vocabGloss";
@@ -62,6 +64,22 @@ export async function handleQuizResponse(
       )
     : "";
 
+  const { data: userRowForTz } = await supabase
+    .from("users")
+    .select("preferred_word_timezone")
+    .eq("id", userId)
+    .single();
+  const timezone = userRowForTz?.preferred_word_timezone ?? "America/New_York";
+  const chatId = ctx.chat?.id;
+  const loop = await processDailyUtterance({
+    userId,
+    timezone,
+    locale,
+    text,
+    api: ctx.api,
+    chatId,
+  });
+
   const contextInjection = isCorrect
     ? `[QUIZ CONTEXT: The user answered a ${cfg.name} quiz correctly.
 Quiz type: ${state.type}
@@ -105,8 +123,21 @@ Instructions:
   }
 
   const dbMessages = historyRows ?? [];
+  const systemExtras: Array<{ role: "system"; content: string }> = [
+    { role: "system", content: contextInjection },
+  ];
+  if (loop.closingTurn) {
+    systemExtras.push({ role: "system", content: CLOSING_TURN_HINT });
+  } else if (!loop.session.completed_at) {
+    const leftover = unusedWords(loop.wordsSent, loop.wordsUsed);
+    const injection = unusedWordsPromptInjection(leftover);
+    if (injection) {
+      systemExtras.push({ role: "system", content: injection });
+    }
+  }
+
   const messagesForGpt = [
-    { role: "system" as const, content: contextInjection },
+    ...systemExtras,
     ...dbMessages.reverse().map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -173,4 +204,8 @@ Instructions:
 
   const responseVoice = await generateVoice(structuredResponse.reply);
   await sendUxFlow(ctx, structuredResponse, responseVoice, true, explanationOverride, targetLanguage, locale);
+
+  if (loop.wrapUpText) {
+    await ctx.reply(loop.wrapUpText);
+  }
 }

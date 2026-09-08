@@ -10,6 +10,8 @@ import {
   isDailyWordDelivered,
   markDailyWordDelivered,
 } from "../services/dailySession";
+import { saveChecklistMessageId } from "../services/dailyLoop";
+import { buildChecklistMessage } from "../services/sessionWrapUp";
 import { replaceQuizAfterWordSet } from "../services/quizState";
 import { attachGlosses } from "../services/vocabGloss";
 import { getDailyWords } from "../services/vocabulary";
@@ -70,12 +72,17 @@ export function startWordDeliveryJob(bot: Bot): void {
           continue;
         }
 
-        const claimed = await markDailyWordDelivered(session.id);
+        const wordsSent = words.map((w) => ({ id: w.id, word: w.word }));
+        const claimed = await markDailyWordDelivered(session.id, {
+          wordsSent,
+          fillBlankWordId: fillBlankWord.id,
+        });
         if (!claimed) {
           continue;
         }
 
         const { text: wordListText, keyboard: wordListKeyboard } = buildWordMessage(words, locale);
+        const checklistText = buildChecklistMessage(locale, wordsSent, []);
         const fillBlankState = {
           type: "fill_blank" as const,
           word: fillBlankWord.word,
@@ -91,6 +98,8 @@ export function startWordDeliveryJob(bot: Bot): void {
               parse_mode: "MarkdownV2",
               reply_markup: wordListKeyboard,
             });
+            const checklistMsg = await bot.api.sendMessage(user.telegram_id, checklistText);
+            await saveChecklistMessageId(session.id, checklistMsg.message_id);
           },
           async () => {
             const fillBlank = await buildFillBlank(fillBlankWord, targetLanguage, locale);

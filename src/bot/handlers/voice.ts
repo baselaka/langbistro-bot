@@ -120,16 +120,23 @@ export async function handleVoice(ctx: Context): Promise<void> {
     return;
   }
 
-  const { structured, responseVoice } = await runAssistantTurn(
+  const chatId = ctx.chat?.id;
+  const { structured, responseVoice, wrapUpText } = await runAssistantTurn(
     user.id,
     targetLang,
     transcript,
     "voice",
     user.is_subscribed,
-    locale
+    locale,
+    "beginner",
+    { api: ctx.api, chatId }
   );
 
   await sendStructuredUxResponse(ctx, structured, responseVoice, false, undefined, targetLang, locale);
+
+  if (wrapUpText) {
+    await ctx.reply(wrapUpText);
+  }
 
   const { data: updatedUser } = await supabase
     .from("users")
