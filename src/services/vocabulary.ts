@@ -26,7 +26,8 @@ async function fetchVocabByIds(ids: number[], language: string): Promise<VocabRo
     .from("vocabulary")
     .select(VOCAB_SELECT)
     .in("id", ids)
-    .eq("language", lang);
+    .eq("language", lang)
+    .eq("is_active", true);
 
   if (error) {
     throw new Error(`Failed to fetch vocabulary by id: ${error.message}`);
@@ -76,7 +77,8 @@ export async function getDailyWords(
     .from("vocabulary")
     .select(VOCAB_SELECT)
     .eq("tier", tier)
-    .eq("language", lang);
+    .eq("language", lang)
+    .eq("is_active", true);
 
   if (vocabError) {
     throw new Error(`Failed to fetch vocabulary: ${vocabError.message}`);
@@ -243,7 +245,8 @@ export async function getReviewWord(userId: number, language: string = "es"): Pr
     .from("vocabulary")
     .select(VOCAB_SELECT)
     .in("id", ids)
-    .eq("language", lang);
+    .eq("language", lang)
+    .eq("is_active", true);
 
   if (wError || !words || words.length === 0) {
     return null;
@@ -263,7 +266,8 @@ export async function checkTierCompletion(
     .from("vocabulary")
     .select("id")
     .eq("tier", tier)
-    .eq("language", lang);
+    .eq("language", lang)
+    .eq("is_active", true);
 
   if (twError) {
     throw new Error(`Failed to fetch tier words: ${twError.message}`);

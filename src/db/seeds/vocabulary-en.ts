@@ -4,6 +4,7 @@ import { z } from "zod";
 import { openai } from "../../ai/openai";
 import { CHAT_MODEL_FREE, chatParams } from "../../config/models";
 import { supabase } from "../../db/client";
+import { assertEnglishSeedWords } from "./validateEnglishWord";
 
 const TXT_PATH = path.resolve(__dirname, "data/en_5k.txt");
 const BATCH_SIZE = 100;
@@ -129,6 +130,9 @@ export async function seedVocabularyEn(): Promise<number> {
     console.log("[vocabulary-en] No words found in text file.");
     return 0;
   }
+
+  // PRS-99: fail loudly on tokenizer junk / invalid candidates before any GPT spend.
+  assertEnglishSeedWords(wordsWithRank.map((entry) => entry.word));
 
   const batches = chunk(wordsWithRank, BATCH_SIZE);
   console.log(`[vocabulary-en] Loaded ${wordsWithRank.length} words, ${batches.length} batches.`);

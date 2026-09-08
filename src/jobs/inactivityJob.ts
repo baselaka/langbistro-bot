@@ -53,6 +53,7 @@ async function pickHookWord(
     .select("id, word, translation, language")
     .eq("id", pick.vocabulary_id)
     .eq("language", targetLang)
+    .eq("is_active", true)
     .single();
 
   if (!vocabRow?.word) {
