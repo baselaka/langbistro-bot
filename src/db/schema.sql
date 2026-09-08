@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_completed_date DATE,
   sessions_completed INTEGER NOT NULL DEFAULT 0,
   last_freeze_week TEXT,
+  is_internal BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -462,4 +463,16 @@ ALTER TABLE users
   DROP COLUMN IF EXISTS last_completed_date,
   DROP COLUMN IF EXISTS sessions_completed,
   DROP COLUMN IF EXISTS last_freeze_week;
+*/
+
+-- MIGRATION 010
+/*
+-- UP
+-- PRS-91: exclude QA / internal accounts from retention & funnel analytics.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE users SET is_internal = true WHERE id = 2;
+NOTIFY pgrst, 'reload schema';
+
+-- DOWN
+ALTER TABLE users DROP COLUMN IF EXISTS is_internal;
 */
