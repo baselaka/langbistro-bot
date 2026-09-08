@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_completed_date DATE,
   sessions_completed INTEGER NOT NULL DEFAULT 0,
   last_freeze_week TEXT,
+  is_internal BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -563,4 +564,16 @@ ALTER TABLE public.subscriptions
   DROP COLUMN IF EXISTS source;
 -- Re-adding UNIQUE(user_id) requires at most one row per user; clean duplicates first if rolling back.
 ALTER TABLE public.subscriptions ADD CONSTRAINT subscriptions_user_id_key UNIQUE (user_id);
+*/
+
+-- MIGRATION 011
+/*
+-- UP
+-- PRS-91: exclude QA / internal accounts from retention & funnel analytics.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE users SET is_internal = true WHERE id = 2;
+NOTIFY pgrst, 'reload schema';
+
+-- DOWN
+ALTER TABLE users DROP COLUMN IF EXISTS is_internal;
 */
