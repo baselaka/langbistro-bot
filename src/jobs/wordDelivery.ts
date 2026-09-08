@@ -7,6 +7,8 @@ import {
   buildFillBlank,
   buildWordMessage,
   getOrCreateDailySession,
+  isDailyWordDelivered,
+  markDailyWordDelivered,
 } from "../services/dailySession";
 import { replaceQuizAfterWordSet } from "../services/quizState";
 import { attachGlosses } from "../services/vocabGloss";
@@ -54,8 +56,8 @@ export function startWordDeliveryJob(bot: Bot): void {
       console.log(`[WordDelivery] Processing user ${user.id}`);
       try {
         const session = await getOrCreateDailySession(user.id, user.preferred_word_timezone);
-        console.log(`[WordDelivery] Session for user ${user.id}:`, session.engaged, user.words_learned_count);
-        if (session.engaged) {
+        console.log(`[WordDelivery] Session for user ${user.id}:`, session.delivered_at, user.words_learned_count);
+        if (isDailyWordDelivered(session)) {
           continue;
         }
 
@@ -68,10 +70,10 @@ export function startWordDeliveryJob(bot: Bot): void {
           continue;
         }
 
-        await supabase
-          .from("daily_sessions")
-          .update({ engaged: true })
-          .eq("id", session.id);
+        const claimed = await markDailyWordDelivered(session.id);
+        if (!claimed) {
+          continue;
+        }
 
         const { text: wordListText, keyboard: wordListKeyboard } = buildWordMessage(words, locale);
         const fillBlankState = {

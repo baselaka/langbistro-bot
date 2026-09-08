@@ -2,6 +2,7 @@ import { AssistantResponse, ChatMessage, generateResponse, generateVoice, getVoi
 import { CHAT_MODEL_FREE, CHAT_MODEL_PRO } from "../config/models";
 import { supabase } from "../db/client";
 import { parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
+import { recordDailySessionUserTurn } from "./dailySession";
 
 type MessageType = "text" | "voice";
 
@@ -76,6 +77,8 @@ export async function runAssistantTurn(
   if (saveMessagesError) {
     throw new Error(`Failed to save conversation messages: ${saveMessagesError.message}`);
   }
+
+  await recordDailySessionUserTurn(userId);
 
   const responseVoice = await generateVoice(structured.reply, {
     speed: getVoiceSpeedForLevel(effectiveLevel),
