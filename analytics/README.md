@@ -4,7 +4,10 @@ On-demand SQL for retention and funnel metrics. No dashboard app — run these i
 
 ## Prerequisites
 
-1. Apply **migration 011** from [`src/db/schema.sql`](../src/db/schema.sql) (`users.is_internal`, flag user id 2).
+1. Apply **migrations 008, 009, and 011** from [`src/db/schema.sql`](../src/db/schema.sql):
+   - 008 — `daily_sessions.delivered_at` / `engaged_at` / `user_turns`
+   - 009 — `daily_sessions.words_used` / `completed_at`
+   - 011 — `users.is_internal` (flag user id 2)
 2. Apply [`learners.sql`](./learners.sql) so queries can use the `learners` view.
 
 Always filter with `is_internal = false` (or join `learners`). Never include QA/admin accounts in retention numbers.
@@ -29,16 +32,28 @@ WHERE telegram_id = <new_id>;
 
 Do not insert a fake user row without a real `telegram_id` — Telegram delivery requires a real chat.
 
+## Retention metrics (PRS-92)
+
+Run [`retention.sql`](./retention.sql) in the Supabase SQL editor (whole file or section-by-section).
+
+| Section | Metric |
+| -- | -- |
+| 0 | Baseline funnel snapshot (comparable to the 2026-09-06 ticket baseline; that run included the internal account) |
+| 1 | Cohort D1 / D7 / D30 by signup week, on `engaged_at` |
+| 2 | Session completion rate (`completed_at` ÷ `delivered_at`) |
+| 3 | Median words produced per delivered session |
+| 4 | Median `user_turns` per engaged session |
+| 5 | Voice share of user messages (from `messages`, not `usage_daily`) |
+| 6 | Free→paid conversion among ever-engaged learners; payer `days_since_signup` (true time-to-conversion needs `subscriptions.created_at`) |
+| 7 | Cost per MAU: voice × $0.003 + TTS chars at the PRS-90 empiric rate. `alert_over_75_usd` is the budget tripwire |
+
 ## Voice / TTS cost (PRS-90)
 
-Run [`voiceCost.sql`](./voiceCost.sql) in the Supabase SQL editor.
+Run [`voiceCost.sql`](./voiceCost.sql) in the Supabase SQL editor for a day-by-day TTS rollup.
 
 - Estimates TTS spend from learner **assistant** message lengths (`char_length(content)`), matching post-truncation text spoken by TTS.
 - Rate: ~`$0.0015 / 83 chars` ≈ `$0.0000181` per character (PRS-90 empiric).
 - `monthly_projection_usd` extrapolates from the last 30 days of usage.
 - Treat `alert_over_75_usd = true` as the budget tripwire.
 - Per-turn Railway logs: `[TTS] chars=N` (all `generateVoice` calls) and conversation-path logs with `max` / `truncated` / `level`.
-
-## Next
-
-[PRS-92](https://linear.app/kp-knowledge/issue/PRS-92) ships `analytics/retention.sql` (D1/D7/D30 and related metrics) filtered on learners.
+- For cost **per active user** (voice STT budget + TTS), prefer section 7 of [`retention.sql`](./retention.sql).
