@@ -1,6 +1,8 @@
 # LangBistro
 
-A voice-first, AI-powered language learning Telegram bot. LangBistro delivers daily vocabulary, fill-in-the-blank quizzes, and text-to-speech pronunciation — all inside Telegram, no app download required.
+LangBistro is the open-source codebase behind [@LangBistroBot](https://t.me/LangBistroBot), a voice-first Telegram language tutor. You can self-host it; this repo is a reference implementation of that product — not a generic language-learning framework.
+
+It delivers daily vocabulary, fill-in-the-blank quizzes, and spoken pronunciation inside Telegram. No separate app is required.
 
 **Supported languages:** Spanish 🇪🇸 · French 🇫🇷 · English 🇬🇧
 
@@ -11,22 +13,24 @@ A voice-first, AI-powered language learning Telegram bot. LangBistro delivers da
 ## Features
 
 - 📚 10 new words delivered daily, ranked by real-world frequency
-- 🎧 Text-to-speech pronunciation for every word (OpenAI TTS)
+- 🎧 Text-to-speech pronunciation for every word
 - ✏️ AI-generated fill-in-the-blank quizzes
-- 🎤 Voice message support (Whisper transcription)
+- 🎤 Voice message support (speech-to-text)
 - 📈 Progress tracking across 5 vocabulary tiers
-- 💳 Freemium model with Paddle subscription paywall
+- 💳 Freemium model with a subscription paywall
 
-## Tech Stack
+## Infrastructure & Dependencies
 
-| Layer | Technology |
-|-------|-----------|
-| Bot framework | [GrammY](https://grammy.dev/) (Node.js / TypeScript) |
-| Database | [Supabase](https://supabase.com/) (Postgres) |
-| AI | OpenAI GPT-4o, Whisper, TTS |
-| Payments | [Paddle](https://paddle.com/) |
-| Hosting | [Railway](https://railway.app/) |
-| Vocabulary | [OpenSubtitles frequency lists](https://github.com/hermitdave/FrequencyWords) (CC BY 4.0) |
+This is not a batteries-included framework. To run your own instance you need **your own** accounts and keys for the services the code talks to (or you replace those integrations). See `src/config/env.ts` for required environment variables and `src/db/schema.sql` for the database schema. Do not copy production secrets, tokens, or checkout/price identifiers from anyone else's deployment.
+
+| Need | What you provide | Notes |
+|------|------------------|--------|
+| Runtime | Node.js 20+ | Required. See `engines` in `package.json`. |
+| Messaging | A Telegram bot token | Create one with [@BotFather](https://t.me/botfather). |
+| Database | Postgres (row-level security) | Schema lives in `src/db/schema.sql`. The default client is a hosted Postgres HTTP API; point env vars at your own project, or swap the client in `src/db/client.ts`. |
+| AI | Chat, speech-to-text, and TTS | Conversation, transcription, and pronunciation go through `src/ai/openai.ts`. Use your own API key; swapping providers means changing that module. |
+| Payments | A checkout / Merchant of Record provider | Optional if you remove the paywall. The current wiring lives in `src/services/subscription.ts` and is validated at boot in `src/config/env.ts`. |
+| Hosting | A long-lived Node.js 20 process | Railway, Vercel, a VPS, Docker, or any similar host. The bot long-polls Telegram, serves HTTP for health checks and payment webhooks, and runs cron jobs. Short-lived request-only platforms need extra work to match that process model. |
 
 ---
 
@@ -34,11 +38,11 @@ A voice-first, AI-powered language learning Telegram bot. LangBistro delivers da
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - A Telegram bot token ([create one via @BotFather](https://t.me/botfather))
-- A Supabase project
-- An OpenAI API key
-- A Paddle account (optional — required only for payments)
+- A Postgres database (see Infrastructure & Dependencies)
+- An API key for chat, transcription, and TTS
+- A payment-provider account if you keep the paywall (required at boot today; skip by changing `src/config/env.ts` and removing the paywall)
 
 ### 1. Clone the repo
 
@@ -54,33 +58,22 @@ npm install
 cp .env.example .env
 ```
 
-Open `.env` and fill in your values. See `.env.example` for the full list of required variables.
-
-Key variables:
-
-```
-TELEGRAM_BOT_TOKEN=       # from @BotFather
-OPENAI_API_KEY=           # from platform.openai.com
-SUPABASE_URL=             # your Supabase project URL
-SUPABASE_SERVICE_ROLE_KEY= # from Supabase project settings
-PADDLE_API_KEY=           # from Paddle dashboard (optional)
-PADDLE_WEBHOOK_SECRET=    # from Paddle webhook settings (optional)
-```
+Open `.env` and fill in your values. The full set required to boot is validated in `src/config/env.ts` — do not commit `.env` or production secrets.
 
 ### 3. Set up the database
 
-Run the schema migration against your Supabase project:
+Apply the schema to your Postgres project:
 
 ```bash
 # Apply schema
 psql $DATABASE_URL < src/db/schema.sql
 ```
 
-Or paste the contents of `src/db/schema.sql` into the Supabase SQL editor.
+Or paste the contents of `src/db/schema.sql` into your database SQL editor.
 
 ### 4. Seed vocabulary
 
-This calls OpenAI to generate translations and example sentences — expect ~$2–5 in API costs for the full dataset.
+This calls the configured AI API to generate translations and example sentences — expect a few dollars of API cost for the full dataset.
 
 ```bash
 npm run seed:vocab   # Spanish (5,000 words)
@@ -94,13 +87,18 @@ npm run seed:en      # English (5,000 words)
 npm run dev
 ```
 
-### 6. Deploy to Railway
+Do not run a local `npm run dev` against the same bot token as a live instance — two pollers will conflict and messages get lost.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/)
+### 6. Deploy
 
-1. Create a new Railway project and connect your GitHub repo
-2. Add all environment variables from `.env` to the Railway service
-3. Railway will auto-deploy on every push to `main`
+Build, then start a long-lived process:
+
+```bash
+npm run build
+npm run start
+```
+
+That works on Railway, Vercel, a VPS, Docker, or any other host that can run Node.js 20 continuously. Copy the same environment variables you use locally into the platform's secret store. Give the process an HTTP port for `/health` and payment webhooks.
 
 ---
 
@@ -138,15 +136,15 @@ Contributions are welcome. Please follow this process:
 2. Add word frequency data to `src/db/seeds/data/` (see existing `.txt` files for format)
 3. Create a seed script following the pattern in `src/db/seeds/vocabulary-en.ts`
 4. Add system prompts in `src/ai/openai.ts`
-5. Open a PR with seed instructions and estimated OpenAI seeding cost
+5. Open a PR with seed instructions and estimated AI seeding cost
 
 ### Good first issues
 
 - Improving quiz difficulty progression
 - Adding new message templates
 - Improving error messages and edge case handling
-- Add Ollama support for local models
-- Add Docker Compose for full local stack (bot + Postgres + Ollama)
+- Add local-model support for chat, transcription, and TTS
+- Add Docker Compose for a full local stack (bot + Postgres + local models)
 
 ---
 
