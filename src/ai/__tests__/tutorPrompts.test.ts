@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTutorSystemPrompt, CORRECTION_RULES, SYSTEM_PROMPTS } from "../tutorPrompts";
+import { REPLY_CHAR_CAPS } from "../../utils/replyLength";
 
 const LEVELS = ["beginner", "intermediate", "advanced"] as const;
 const LANGS = ["en", "es", "fr"] as const;
@@ -35,5 +36,15 @@ describe("tutor system prompts", () => {
     expect(SYSTEM_PROMPTS.es.beginner).toContain("missing articles");
     expect(SYSTEM_PROMPTS.fr.beginner).toContain("grammatical native French");
     expect(SYSTEM_PROMPTS.fr.beginner).toContain("missing articles");
+  });
+
+  it("includes level-scaled reply character caps for TTS cost control", () => {
+    for (const lang of LANGS) {
+      for (const level of LEVELS) {
+        const prompt = buildTutorSystemPrompt(lang, level, "en");
+        const max = REPLY_CHAR_CAPS[level];
+        expect(prompt).toContain(`at most ${max} characters`);
+      }
+    }
   });
 });

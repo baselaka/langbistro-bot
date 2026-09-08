@@ -134,6 +134,7 @@ export async function generateVoice(
   text: string,
   options?: { voice?: string; speed?: number }
 ): Promise<Buffer> {
+  console.log(`[TTS] chars=${text.length}`);
   const response = await openai.audio.speech.create({
     model: TTS_MODEL,
     voice: (options?.voice ?? "alloy") as "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer",
