@@ -3,6 +3,25 @@ import { z } from "zod";
 
 dotenv.config();
 
+function parseAdminTelegramIds(raw: string | undefined): number[] {
+  if (!raw || raw.trim() === "") {
+    return [];
+  }
+  const ids: number[] = [];
+  for (const part of raw.split(",")) {
+    const trimmed = part.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const id = Number(trimmed);
+    if (!Number.isFinite(id)) {
+      throw new Error(`ADMIN_TELEGRAM_IDS contains invalid id: ${trimmed}`);
+    }
+    ids.push(id);
+  }
+  return ids;
+}
+
 const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z
     .string()
@@ -26,6 +45,7 @@ const envSchema = z.object({
   PADDLE_YEARLY_PRICE_ID: z
     .string()
     .min(1, "PADDLE_YEARLY_PRICE_ID is required and cannot be empty"),
+  ADMIN_TELEGRAM_IDS: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -35,4 +55,7 @@ if (!parsed.success) {
   throw new Error(`Invalid environment configuration:\n${issues}`);
 }
 
-export const env = parsed.data;
+export const env = {
+  ...parsed.data,
+  adminTelegramIds: parseAdminTelegramIds(parsed.data.ADMIN_TELEGRAM_IDS),
+};

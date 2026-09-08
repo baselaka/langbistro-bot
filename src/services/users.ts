@@ -1,5 +1,6 @@
 import { supabase } from "../db/client";
 import { defaultInterfaceLanguage, parseInterfaceLanguage, type InterfaceLanguage } from "../i18n";
+import { loadEntitlementRow, shouldRevokeEntitlement } from "./subscription";
 
 type TelegramUserInput = {
   telegramId: number;
@@ -49,30 +50,16 @@ async function applySubscriptionExpiry(user: AppUser): Promise<AppUser> {
     return user;
   }
 
-  const { data: subscriptionRow, error: subscriptionError } = await supabase
-    .from("subscriptions")
-    .select("status, current_period_end")
-    .eq("user_id", user.id)
-    .single();
-
-  if (subscriptionError && subscriptionError.code !== "PGRST116") {
-    throw new Error(`Failed to read subscription for user: ${subscriptionError.message}`);
+  const entitlement = await loadEntitlementRow(user.id);
+  if (!shouldRevokeEntitlement(entitlement)) {
+    return user;
   }
 
-  const isCanceled = subscriptionRow?.status === "canceled";
-  const periodEnd = subscriptionRow?.current_period_end;
-  const periodEndMs = periodEnd ? Date.parse(periodEnd) : Number.NaN;
-  const isExpired = Number.isFinite(periodEndMs) && periodEndMs < Date.now();
-
-  if (isCanceled && isExpired) {
-    const { error: revokeError } = await supabase.from("users").update({ is_subscribed: false }).eq("id", user.id);
-    if (revokeError) {
-      throw new Error(`Failed to revoke expired canceled subscription: ${revokeError.message}`);
-    }
-    return { ...user, is_subscribed: false };
+  const { error: revokeError } = await supabase.from("users").update({ is_subscribed: false }).eq("id", user.id);
+  if (revokeError) {
+    throw new Error(`Failed to revoke expired subscription: ${revokeError.message}`);
   }
-
-  return user;
+  return { ...user, is_subscribed: false };
 }
 
 export async function getOrCreateUserByTelegram(
