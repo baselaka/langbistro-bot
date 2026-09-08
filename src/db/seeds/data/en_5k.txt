@@ -5,11 +5,9 @@ i
 the
 to
 a
-'s
 it
 and
 that
-'t
 of
 is
 in
@@ -25,13 +23,13 @@ have
 your
 do
 was
-'m
+i'm
 no
 not
 be
 are
-don
-'re
+don't
+you're
 know
 can
 with
@@ -43,7 +41,7 @@ there
 here
 they
 like
-'ll
+i'll
 get
 she
 go
@@ -62,7 +60,7 @@ well
 her
 how
 yeah
-'ve
+i've
 will
 got
 want
@@ -103,8 +101,8 @@ some
 say
 hey
 could
-'d
-didn
+i'd
+didn't
 by
 need
 something
@@ -152,7 +150,6 @@ day
 god
 work
 their
-uh
 again
 maybe
 must
@@ -162,7 +159,7 @@ wait
 stop
 call
 after
-won
+won't
 talk
 away
 than
@@ -176,7 +173,6 @@ last
 better
 everything
 told
-mr.
 new
 things
 always
@@ -187,7 +183,7 @@ leave
 does
 money
 around
-doesn
+doesn't
 name
 place
 ever
@@ -197,7 +193,7 @@ father
 guy
 made
 old
-isn
+isn't
 which
 big
 lot
@@ -258,7 +254,7 @@ hi
 dead
 many
 mind
-wasn
+wasn't
 friend
 best
 mom
@@ -275,7 +271,7 @@ real
 without
 baby
 room
-wouldn
+wouldn't
 already
 move
 most
@@ -283,7 +279,6 @@ seen
 live
 miss
 actually
-huh
 shit
 both
 heard
@@ -304,7 +299,7 @@ also
 pretty
 bit
 took
-haven
+haven't
 yet
 men
 whole
@@ -324,18 +319,16 @@ everyone
 run
 wanna
 hard
-ah
 alone
 myself
 school
 gone
-um
 end
 saying
 phone
 play
 looks
-couldn
+couldn't
 fucking
 problem
 few
@@ -404,7 +397,7 @@ its
 whatever
 eyes
 shut
-aren
+aren't
 hit
 taking
 easy
@@ -431,7 +424,7 @@ quite
 four
 anyway
 close
-ain
+ain't
 party
 fun
 against
@@ -457,7 +450,6 @@ married
 fire
 game
 nobody
-mr
 children
 side
 stand
@@ -491,7 +483,6 @@ city
 walk
 town
 trust
-dr.
 met
 office
 question
@@ -535,7 +526,6 @@ hate
 food
 outside
 light
-l
 needs
 dog
 country
@@ -549,7 +539,6 @@ six
 hot
 funny
 black
-mrs.
 alive
 pick
 feeling
@@ -563,7 +552,7 @@ dinner
 sighs
 sort
 leaving
-shouldn
+shouldn't
 running
 boss
 alright
@@ -578,11 +567,9 @@ hour
 anybody
 small
 perfect
-'cause
 lives
 special
 parents
-s
 john
 himself
 perhaps
@@ -609,7 +596,6 @@ asking
 win
 glad
 control
-hmm
 human
 drive
 hair
@@ -654,7 +640,6 @@ sign
 lucky
 somewhere
 bet
-o
 jesus
 longer
 calling
@@ -669,7 +654,7 @@ coffee
 return
 secret
 weeks
-weren
+weren't
 date
 seeing
 fall
@@ -736,7 +721,6 @@ wedding
 strange
 general
 pain
-'am
 kidding
 decided
 ya
@@ -748,7 +732,6 @@ kept
 wake
 worse
 busy
-eh
 mistake
 kiss
 court
@@ -768,12 +751,10 @@ suppose
 evidence
 movie
 ride
-t
 completely
 mouth
 totally
 birthday
-tv
 forgive
 born
 imagine
@@ -794,7 +775,7 @@ michael
 hotel
 christmas
 attack
-hasn
+hasn't
 round
 expect
 sing
@@ -857,7 +838,6 @@ sitting
 marriage
 join
 fear
-d
 peace
 forgot
 force
@@ -960,7 +940,6 @@ cell
 drunk
 share
 camera
-mm-hmm
 within
 card
 fly
@@ -974,7 +953,6 @@ honest
 often
 starting
 calls
-y
 spent
 third
 english
@@ -990,11 +968,9 @@ prove
 private
 wall
 seat
-i-i
 position
 lieutenant
 realize
-lt
 especially
 machine
 walking
@@ -1023,7 +999,6 @@ teach
 apartment
 upset
 green
-la
 liked
 cute
 evil
@@ -1070,7 +1045,6 @@ mmm
 singing
 eating
 north
-mrs
 tree
 madam
 gift
@@ -1114,7 +1088,6 @@ suddenly
 usually
 lots
 shoes
-er
 jump
 rid
 yo
@@ -1130,7 +1103,6 @@ kitchen
 aah
 fat
 passed
-m
 final
 summer
 bob
@@ -1141,14 +1113,12 @@ moon
 arms
 turns
 address
-ow
 match
 gasps
 grand
 yep
 shh
 nervous
-de
 choose
 themselves
 decide
@@ -1157,7 +1127,7 @@ drinking
 press
 bother
 foot
-hadn
+hadn't
 blame
 crap
 drugs
@@ -1166,7 +1136,6 @@ rings
 mission
 named
 heaven
-'ii
 picked
 paris
 race
@@ -1286,7 +1255,6 @@ pressure
 fresh
 weapon
 sky
-ms.
 stole
 study
 burn
@@ -1378,7 +1346,6 @@ skin
 excellent
 asshole
 beach
-c
 faith
 beg
 fuckin
@@ -1425,7 +1392,6 @@ faster
 cars
 folks
 bullshit
-i.
 fellow
 several
 grandma
@@ -1451,7 +1417,6 @@ stories
 health
 advice
 held
-uh-huh
 murdered
 beyond
 rule
@@ -1515,7 +1480,6 @@ color
 monster
 loud
 photo
-aw
 nearly
 sight
 greatest
@@ -1564,7 +1528,6 @@ bobby
 target
 feed
 nurse
-e
 fake
 records
 breathing
@@ -1596,7 +1559,6 @@ roger
 fill
 condition
 mountain
-dr
 nowhere
 sheriff
 kim
@@ -1605,7 +1567,7 @@ brown
 recognize
 heads
 audience
-'all
+y'all
 jealous
 pretend
 society
@@ -1654,7 +1616,6 @@ cream
 selling
 believed
 create
-h
 afford
 sunday
 total
@@ -1783,7 +1744,6 @@ style
 community
 sees
 basically
-al
 signal
 nope
 spare
@@ -1810,7 +1770,6 @@ damage
 silence
 doors
 pete
-ed
 success
 wet
 nah
@@ -2000,7 +1959,6 @@ rachel
 giant
 insurance
 woods
-n
 scare
 pleased
 period
@@ -2027,7 +1985,6 @@ bath
 hired
 site
 knowledge
-b
 led
 guests
 celebrate
@@ -2054,7 +2011,7 @@ positive
 attorney
 direction
 families
-'clock
+o'clock
 doin
 forces
 location
@@ -2345,7 +2302,6 @@ fallen
 stranger
 presence
 tear
-st.
 internet
 monsieur
 therefore
@@ -2397,7 +2353,6 @@ separate
 cleaning
 california
 lf
-ll
 shift
 elizabeth
 chicago
@@ -2464,7 +2419,7 @@ unusual
 county
 stairs
 campaign
-'mon
+c'mon
 vision
 reporter
 equipment
@@ -2509,7 +2464,7 @@ chosen
 engaged
 julia
 charming
-mustn
+mustn't
 anger
 spending
 learning
@@ -2563,7 +2518,6 @@ estate
 customers
 maggie
 gunshot
-i-
 device
 troops
 hug
@@ -2716,7 +2670,6 @@ guarantee
 barking
 gather
 policy
-u.s.
 violent
 maid
 embarrassing
@@ -2728,7 +2681,6 @@ sara
 disaster
 revolution
 online
-f
 demon
 heavily
 coincidence
@@ -2792,7 +2744,6 @@ massive
 pathetic
 species
 approaching
-jo
 loan
 struggle
 dish
@@ -2831,7 +2782,6 @@ shy
 punishment
 los
 clicks
-'you
 closet
 bye-bye
 fever
@@ -2852,8 +2802,6 @@ roy
 dollar
 tone
 voices
-g
-'i
 cheating
 confess
 demand
@@ -2897,7 +2845,6 @@ hong
 jokes
 breaks
 argue
-you-
 trail
 option
 recall
@@ -2982,7 +2929,6 @@ costs
 deserves
 dreaming
 bust
-el
 teddy
 kong
 messages
@@ -3034,7 +2980,6 @@ bills
 therapy
 lifetime
 throughout
-a.m.
 nathan
 toward
 sauce
@@ -3057,7 +3002,6 @@ catherine
 steel
 wipe
 burns
-j
 generation
 cabin
 financial
@@ -3217,7 +3161,6 @@ worries
 nephew
 miller
 units
-just-
 proceed
 landing
 traitor
@@ -3277,7 +3220,6 @@ anniversary
 beth
 election
 warrior
-r
 forth
 fetch
 banks
@@ -3317,7 +3259,6 @@ homes
 festival
 tradition
 cigarettes
-le
 beside
 harvey
 motive
@@ -3336,7 +3277,6 @@ jonathan
 dennis
 benefit
 adventure
-p
 territory
 ve
 apology
@@ -3350,7 +3290,6 @@ developed
 busted
 pipe
 gray
-no.
 goods
 favourite
 salad
@@ -3425,7 +3364,6 @@ yay
 mistaken
 limit
 bothering
-st
 uncomfortable
 wednesday
 gifts
@@ -3458,7 +3396,6 @@ comin
 cried
 traveling
 bells
-x
 impact
 robbed
 relief
@@ -3569,12 +3506,10 @@ theatre
 scientific
 lovers
 chaos
-l.a.
 rocket
 math
 stubborn
 august
-oi
 chips
 intense
 grey
@@ -3771,15 +3706,12 @@ humming
 washed
 drives
 talented
-li
 aid
 elephant
 troubles
 core
 serial
-'s-
 painted
-'the
 divine
 jam
 goat
@@ -3797,7 +3729,6 @@ brief
 punish
 eternal
 lois
-'and
 required
 victoria
 fabulous
@@ -3842,7 +3773,6 @@ survival
 gloves
 tracking
 zoe
-u
 bend
 review
 connect
@@ -3878,7 +3808,6 @@ porn
 miami
 fifteen
 visitors
-bo
 net
 insult
 owen
@@ -3930,7 +3859,6 @@ stroke
 whistling
 buildings
 shaking
-p.m.
 facility
 appropriate
 remarkable
@@ -4044,7 +3972,6 @@ brush
 nelson
 pill
 concept
-w
 delay
 quarters
 korea
@@ -4179,14 +4106,12 @@ largest
 washing
 achieve
 causes
-k
 mo
 dope
 nest
 palm
 logan
 constant
-b.
 boo
 medication
 gravity
@@ -4244,7 +4169,6 @@ poker
 wrapped
 korean
 graham
-mi
 fu
 ivan
 focused
@@ -4281,7 +4205,6 @@ leslie
 lauren
 grandson
 repair
-a.
 brandon
 executive
 colin
@@ -4318,7 +4241,6 @@ gunfire
 shining
 backwards
 skill
-uh-
 baron
 kidnapping
 iike
@@ -4470,7 +4392,6 @@ explode
 immediate
 belonged
 identified
-di
 hunger
 closest
 combination
@@ -4486,7 +4407,6 @@ franklin
 gut
 splendid
 dismissed
-pm
 yang
 halloween
 ellie
@@ -4560,7 +4480,6 @@ homer
 tara
 christopher
 toes
-'t-
 shield
 shooter
 instant
@@ -4673,7 +4592,6 @@ rely
 singh
 fooled
 arrives
-i.d.
 leon
 walt
 eastern
@@ -4685,7 +4603,6 @@ anderson
 lip
 acid
 nora
-si
 december
 anonymous
 inn
@@ -4836,7 +4753,6 @@ ladder
 alternative
 raid
 dining
-ms
 corporate
 folk
 jon
@@ -4885,7 +4801,6 @@ arriving
 kindness
 ties
 items
-and-
 grip
 relations
 rumor
@@ -5005,3 +4920,88 @@ prey
 so-called
 graduate
 anyways
+genuine
+judging
+doubts
+ceiling
+practicing
+somewhat
+established
+attempted
+generations
+gathering
+electrical
+couples
+depend
+institute
+principle
+fixing
+therapist
+compete
+compliment
+worship
+residence
+democracy
+published
+myth
+helpless
+execution
+appetite
+formal
+strictly
+chickens
+technical
+meets
+brutal
+vain
+switched
+deer
+dresses
+retire
+overcome
+inspiration
+thrilled
+suggestion
+sailor
+destination
+picnic
+trucks
+rank
+blocked
+strict
+formula
+clerk
+disturbed
+cafe
+wandering
+consciousness
+bare
+butcher
+arrangement
+chased
+ministry
+sweater
+locate
+apologise
+examine
+trains
+candle
+prior
+stream
+passage
+reaching
+organ
+directions
+outer
+proves
+luxury
+funds
+sunset
+strings
+fortunately
+gotcha
+tomb
+horizon
+engineering
+element
+balloon
