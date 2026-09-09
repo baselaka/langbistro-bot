@@ -30,9 +30,12 @@ const envSchema = z.object({
     .string()
     .min(1, "OPENAI_API_KEY is required and cannot be empty"),
   SUPABASE_URL: z.string().url("SUPABASE_URL must be a valid URL"),
-  SUPABASE_ANON_KEY: z
+  /** Server-only. Bypasses RLS — never ship to browsers or client code. */
+  SUPABASE_SERVICE_ROLE_KEY: z
     .string()
-    .min(1, "SUPABASE_ANON_KEY is required and cannot be empty"),
+    .min(1, "SUPABASE_SERVICE_ROLE_KEY is required and cannot be empty"),
+  /** Deprecated: optional for Railway rollback only. Prefer SUPABASE_SERVICE_ROLE_KEY. */
+  SUPABASE_ANON_KEY: z.string().optional(),
   PADDLE_API_KEY: z
     .string()
     .min(1, "PADDLE_API_KEY is required and cannot be empty"),

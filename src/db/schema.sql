@@ -91,7 +91,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_user_active_idx
   ON subscriptions(user_id) WHERE status = 'active';
 
 -- Conversion / MRR: use this view (or filter source = 'paddle'), never raw is_subscribed alone.
-CREATE OR REPLACE VIEW paying_subscribers AS
+-- security_invoker: callers use their own privileges (not the view owner's).
+CREATE OR REPLACE VIEW paying_subscribers
+WITH (security_invoker = true) AS
 SELECT
   u.id AS user_id,
   u.telegram_id,
@@ -178,114 +180,14 @@ CREATE INDEX IF NOT EXISTS idx_usage_daily_user_date ON usage_daily(user_id, dat
 CREATE INDEX IF NOT EXISTS idx_word_sets_user_id ON word_sets(user_id);
 CREATE INDEX IF NOT EXISTS idx_violations_user_id ON violations(user_id);
 
+-- RLS enabled with no policies = deny-all for anon/authenticated.
+-- The bot uses the service_role key, which bypasses RLS.
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE violations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vocabulary ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vocabulary_translations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_vocabulary ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_sessions ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'users'
-      AND policyname = 'allow_all_users'
-  ) THEN
-    CREATE POLICY allow_all_users ON users
-      FOR ALL
-      USING (true)
-      WITH CHECK (true);
-  END IF;
-END;
-$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'violations'
-      AND policyname = 'allow_all_violations'
-  ) THEN
-    CREATE POLICY allow_all_violations ON violations
-      FOR ALL
-      USING (true)
-      WITH CHECK (true);
-  END IF;
-END;
-$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'vocabulary'
-      AND policyname = 'allow_all_vocabulary'
-  ) THEN
-    CREATE POLICY allow_all_vocabulary ON vocabulary
-      FOR ALL
-      USING (true)
-      WITH CHECK (true);
-  END IF;
-END;
-$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'vocabulary_translations'
-      AND policyname = 'allow_all_vocabulary_translations'
-  ) THEN
-    CREATE POLICY allow_all_vocabulary_translations ON vocabulary_translations
-      FOR ALL
-      USING (true)
-      WITH CHECK (true);
-  END IF;
-END;
-$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'user_vocabulary'
-      AND policyname = 'allow_all_user_vocabulary'
-  ) THEN
-    CREATE POLICY allow_all_user_vocabulary ON user_vocabulary
-      FOR ALL
-      USING (true)
-      WITH CHECK (true);
-  END IF;
-END;
-$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'daily_sessions'
-      AND policyname = 'allow_all_daily_sessions'
-  ) THEN
-    CREATE POLICY allow_all_daily_sessions ON daily_sessions
-      FOR ALL
-      USING (true)
-      WITH CHECK (true);
-  END IF;
-END;
-$$;
 
 -- =========================
 -- DOWN
@@ -409,22 +311,6 @@ CREATE TABLE IF NOT EXISTS vocabulary_translations (
 );
 CREATE INDEX IF NOT EXISTS idx_vocab_translations_vocab ON vocabulary_translations(vocabulary_id);
 ALTER TABLE vocabulary_translations ENABLE ROW LEVEL SECURITY;
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'vocabulary_translations'
-      AND policyname = 'allow_all_vocabulary_translations'
-  ) THEN
-    CREATE POLICY allow_all_vocabulary_translations ON vocabulary_translations
-      FOR ALL
-      USING (true)
-      WITH CHECK (true);
-  END IF;
-END;
-$$;
 
 -- DOWN
 DROP POLICY IF EXISTS allow_all_vocabulary_translations ON vocabulary_translations;
@@ -543,7 +429,8 @@ UPDATE subscriptions
 SET status = 'canceled', source = 'paddle'
 WHERE user_id = 2;
 
-CREATE OR REPLACE VIEW paying_subscribers AS
+CREATE OR REPLACE VIEW paying_subscribers
+WITH (security_invoker = true) AS
 SELECT
   u.id AS user_id,
   u.telegram_id,

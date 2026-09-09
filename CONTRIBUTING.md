@@ -62,7 +62,8 @@ Fill in all values required by `src/config/env.ts`:
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot API token |
 | `OPENAI_API_KEY` | GPT, Whisper, and TTS |
 | `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_ANON_KEY` | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only service role key (bypasses RLS; never use in browsers) |
+| `SUPABASE_ANON_KEY` | Deprecated / optional — kept for Railway rollback only |
 | `PADDLE_API_KEY` | Paddle API access |
 | `PADDLE_WEBHOOK_SECRET` | Paddle webhook verification |
 | `PADDLE_MONTHLY_PRICE_ID` | Monthly subscription price ID |
@@ -78,6 +79,10 @@ psql $DATABASE_URL < src/db/schema.sql
 
 # Option B: paste src/db/schema.sql into the Supabase SQL editor
 ```
+
+Existing projects that still have permissive `allow_all` RLS policies must apply
+[`src/db/migrations/PRS-101-drop-allow-all.sql`](src/db/migrations/PRS-101-drop-allow-all.sql)
+**after** the bot is running with `SUPABASE_SERVICE_ROLE_KEY` (see that file's deploy order).
 
 ### 4. Seed vocabulary (optional for local dev)
 
