@@ -1,26 +1,7 @@
 import type { Context } from "grammy";
-import { env } from "../../config/env";
 import { supabase } from "../../db/client";
 import { grantCompSubscription, parseGrantDuration } from "../../services/subscription";
-
-function isAdmin(telegramId: number): boolean {
-  return env.adminTelegramIds.includes(telegramId);
-}
-
-function parseTarget(raw: string): { kind: "username"; username: string } | { kind: "telegramId"; telegramId: number } | null {
-  const value = raw.trim();
-  if (!value) {
-    return null;
-  }
-  if (/^\d+$/.test(value)) {
-    return { kind: "telegramId", telegramId: Number(value) };
-  }
-  const username = value.startsWith("@") ? value.slice(1) : value;
-  if (!username) {
-    return null;
-  }
-  return { kind: "username", username };
-}
+import { isAdmin, parseTelegramTarget } from "../admin";
 
 /**
  * Admin-only: `/grant @user 30d` or `/grant @user forever` [optional note…]
@@ -40,7 +21,7 @@ export async function handleGrant(ctx: Context): Promise<void> {
     return;
   }
 
-  const target = parseTarget(parts[0] ?? "");
+  const target = parseTelegramTarget(parts[0] ?? "");
   const duration = parseGrantDuration(parts[1] ?? "");
   if (!target || !duration) {
     await ctx.reply("Usage: /grant @username 30d|forever [note]");

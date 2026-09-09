@@ -50,6 +50,8 @@ const envSchema = z.object({
     .min(1, "PADDLE_YEARLY_PRICE_ID is required and cannot be empty"),
   ADMIN_TELEGRAM_IDS: z.string().optional(),
   WINBACK_SUPPRESS_ENABLED: z.string().optional(),
+  /** When true, hard-set hits block the turn and count strikes. Default false = shadow-only. */
+  MODERATION_ENFORCE: z.string().optional(),
 });
 
 /** undefined/empty → true; false/0/no/off → false; otherwise true. */
@@ -64,6 +66,15 @@ export function parseWinbackSuppressEnabled(raw: string | undefined): boolean {
   return true;
 }
 
+/** undefined/empty → false; true/1/yes/on → true; otherwise false. */
+export function parseModerationEnforce(raw: string | undefined): boolean {
+  if (raw === undefined || raw.trim() === "") {
+    return false;
+  }
+  const normalized = raw.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+}
+
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
@@ -75,4 +86,5 @@ export const env = {
   ...parsed.data,
   adminTelegramIds: parseAdminTelegramIds(parsed.data.ADMIN_TELEGRAM_IDS),
   winbackSuppressEnabled: parseWinbackSuppressEnabled(parsed.data.WINBACK_SUPPRESS_ENABLED),
+  moderationEnforce: parseModerationEnforce(parsed.data.MODERATION_ENFORCE),
 };

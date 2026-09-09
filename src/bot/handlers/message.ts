@@ -2,7 +2,7 @@ import type { Context } from "grammy";
 import type { AssistantResponse } from "../../ai/openai";
 import { generateVoice } from "../../ai/openai";
 import { getLanguageConfig, parseTargetLanguage } from "../../config/languages";
-import { checkViolation, handleViolation } from "../../services/moderation";
+import { runModerationGate } from "../../services/moderation";
 import { conversationNudgeExplanation, getMilestoneMessage, t } from "../../i18n";
 import { checkAndIncrementUsage } from "../../services/usage";
 import { getOrCreateUserByTelegram, interfaceLocaleOf } from "../../services/users";
@@ -45,15 +45,15 @@ export async function handleMessage(ctx: Context): Promise<void> {
   }
 
   const targetLang = parseTargetLanguage(user.target_language);
-  const moderation = await checkViolation(text);
-  if (moderation.flagged) {
-    const violationReply = await handleViolation(
-      user.id,
-      moderation.violationType ?? "restricted_content",
-      targetLang,
-      locale
-    );
-    await ctx.reply(violationReply);
+  const moderation = await runModerationGate({
+    userId: user.id,
+    text,
+    locale,
+    targetLanguage: targetLang,
+    api: ctx.api,
+  });
+  if (moderation.action === "block") {
+    await ctx.reply(moderation.reply);
     return;
   }
 

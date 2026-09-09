@@ -64,6 +64,7 @@ Fill in all values required by `src/config/env.ts`:
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only service role key (bypasses RLS; never use in browsers) |
 | `SUPABASE_ANON_KEY` | Deprecated / optional — kept for Railway rollback only |
+| `MODERATION_ENFORCE` | Optional — `true`/`1`/`yes`/`on` to block hard-set hits; default off (shadow-only) |
 | `PADDLE_API_KEY` | Paddle API access |
 | `PADDLE_WEBHOOK_SECRET` | Paddle webhook verification |
 | `PADDLE_MONTHLY_PRICE_ID` | Monthly subscription price ID |
