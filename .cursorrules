@@ -79,7 +79,7 @@ LangBistro is a voice-first, AI-powered Telegram language learning bot for Engli
 ## Supabase patterns
 
 - Always check RLS policies first when debugging silent DB failures — they can block operations without errors.
-- Use `SUPABASE_ANON_KEY` from env. Never hardcode credentials.
+- Use `SUPABASE_SERVICE_ROLE_KEY` from env for the bot client (service_role bypasses RLS). Never hardcode credentials. Never construct this client in browser-facing code.
 - Read-modify-write sequences (usage quotas, session flags, message counts) are **not atomic**. Add `FOR UPDATE` locking or use Postgres functions before scaling beyond ~500 DAU.
 - Write `daily_sessions.delivered_at` **only after** the daily word Telegram sends succeed. Same-day catch-up uses `preferred_word_time <= now` so transient send failures can retry on the next cron tick; an in-process set plus the `.is("delivered_at", null)` CAS prevents duplicate delivery.
 - `target_language` is on the `users` table. Always filter vocabulary queries by `vocabulary.language` when fetching language-specific content.
@@ -176,12 +176,14 @@ Required in `.env` and Railway service variables:
 TELEGRAM_BOT_TOKEN
 OPENAI_API_KEY
 SUPABASE_URL
-SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
 PADDLE_API_KEY
 PADDLE_WEBHOOK_SECRET
 NODE_ENV=production
 NODE_VERSION=20
 ```
+
+`SUPABASE_ANON_KEY` is optional (Railway rollback only). Prefer `SUPABASE_SERVICE_ROLE_KEY`.
 
 Never commit `.env`. Never log any of these values.
 
