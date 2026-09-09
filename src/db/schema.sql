@@ -113,9 +113,32 @@ WHERE u.is_subscribed = true
 CREATE TABLE IF NOT EXISTS violations (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-  violation_type TEXT NOT NULL,
+  violation_type TEXT,
+  content TEXT,
+  categories JSONB,
+  category_scores JSONB,
+  category_applied_input_types JSONB,
+  model TEXT NOT NULL DEFAULT 'omni-moderation-latest',
+  enforced BOOLEAN NOT NULL DEFAULT FALSE,
+  content_purged_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Atomic strike + ban at count >= 5. Used by moderation enforcement.
+CREATE OR REPLACE FUNCTION increment_violation_count(p_user_id BIGINT)
+RETURNS TABLE(violation_count INTEGER, is_banned BOOLEAN)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  UPDATE users u
+  SET
+    violation_count = u.violation_count + 1,
+    is_banned = CASE WHEN u.violation_count + 1 >= 5 THEN TRUE ELSE u.is_banned END
+  WHERE u.id = p_user_id
+  RETURNING u.violation_count, u.is_banned;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS vocabulary (
   id BIGSERIAL PRIMARY KEY,

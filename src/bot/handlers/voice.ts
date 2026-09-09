@@ -5,7 +5,7 @@ import { env } from "../../config/env";
 import { getLanguageConfig, parseTargetLanguage } from "../../config/languages";
 import { supabase } from "../../db/client";
 import { conversationNudgeExplanation, getMilestoneMessage, t } from "../../i18n";
-import { checkViolation, handleViolation } from "../../services/moderation";
+import { runModerationGate } from "../../services/moderation";
 import { runAssistantTurn } from "../../services/conversation";
 import { checkAndIncrementUsage } from "../../services/usage";
 import { getOrCreateUserByTelegram, interfaceLocaleOf } from "../../services/users";
@@ -89,15 +89,15 @@ export async function handleVoice(ctx: Context): Promise<void> {
   );
   console.log(`[Voice] Whisper transcript (${targetLang}):`, transcript);
 
-  const moderation = await checkViolation(transcript);
-  if (moderation.flagged) {
-    const violationReply = await handleViolation(
-      user.id,
-      moderation.violationType ?? "restricted_content",
-      targetLang,
-      locale
-    );
-    await ctx.reply(violationReply);
+  const moderation = await runModerationGate({
+    userId: user.id,
+    text: transcript,
+    locale,
+    targetLanguage: targetLang,
+    api: ctx.api,
+  });
+  if (moderation.action === "block") {
+    await ctx.reply(moderation.reply);
     return;
   }
 
