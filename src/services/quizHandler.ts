@@ -116,6 +116,7 @@ Instructions:
     .from("messages")
     .select("role, content")
     .eq("user_id", userId)
+    .eq("target_language", targetLanguage)
     .order("created_at", { ascending: false })
     .limit(10);
 
@@ -162,12 +163,14 @@ Instructions:
       role: "user",
       content: text,
       message_type: messageType,
+      target_language: targetLanguage,
     },
     {
       user_id: userId,
       role: "assistant",
       content: structuredResponse.reply,
       message_type: "text",
+      target_language: targetLanguage,
     },
   ]);
 

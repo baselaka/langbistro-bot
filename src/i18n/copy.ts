@@ -143,8 +143,8 @@ export function buildMetaExplanationRule(
   const ifaceName = INTERFACE_LANGUAGE_ENGLISH_NAME[interfaceLang];
 
   if (targetLang === "en" && interfaceLang === "en") {
-    return "Always provide `replyExplanation` and any correction.explanation in simpler English speaking directly to the learner, paraphrasing what you said in your reply so a lower-level learner can follow. Use 'I said...' or 'I asked you...' phrasing. Never refer to the learner as 'the user'. Do not translate into another language.";
+    return "CRITICAL — Always provide `replyExplanation` and any correction.explanation in simpler English speaking directly to the learner, paraphrasing what you said in your reply so a lower-level learner can follow. Use 'I said...' or 'I asked you...' phrasing. Never refer to the learner as 'the user'. Do not translate into another language. This applies regardless of the language used in earlier messages in this conversation.";
   }
 
-  return `Always provide \`replyExplanation\` and any correction.explanation in ${ifaceName} speaking directly to the learner, explaining what you said in your ${targetName} reply. Use the equivalent of 'I said...' or 'I asked you...' phrasing in ${ifaceName}. Never refer to the learner as 'the user'.`;
+  return `CRITICAL — Always provide \`replyExplanation\` and any correction.explanation in ${ifaceName} only — never in ${targetName} or any other language — speaking directly to the learner, explaining what you said in your ${targetName} reply. Use the equivalent of 'I said...' or 'I asked you...' phrasing in ${ifaceName}. Never refer to the learner as 'the user'. This applies regardless of the language used in earlier messages in this conversation.`;
 }

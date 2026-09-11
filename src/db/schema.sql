@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS messages (
   role message_role NOT NULL,
   content TEXT NOT NULL,
   message_type message_type NOT NULL,
+  target_language TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -199,6 +200,8 @@ CREATE INDEX IF NOT EXISTS idx_user_vocabulary_user_id ON user_vocabulary(user_i
 CREATE INDEX IF NOT EXISTS idx_daily_sessions_user_date ON daily_sessions(user_id, date);
 
 CREATE INDEX IF NOT EXISTS idx_messages_user_id ON messages(user_id);
+CREATE INDEX IF NOT EXISTS messages_user_target_created_idx
+  ON messages (user_id, target_language, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_usage_daily_user_date ON usage_daily(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_word_sets_user_id ON word_sets(user_id);
 CREATE INDEX IF NOT EXISTS idx_violations_user_id ON violations(user_id);
