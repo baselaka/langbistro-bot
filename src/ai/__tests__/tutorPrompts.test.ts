@@ -56,4 +56,34 @@ describe("tutor system prompts", () => {
     expect(prompt).toContain('"followUpQuestion":string');
     expect(prompt).toContain("exactly ONE short follow-up question");
   });
+
+  it("hardens meta-explanation for target EN + interface RU", () => {
+    const prompt = buildTutorSystemPrompt("en", "beginner", "ru");
+    expect(prompt).toContain("CRITICAL —");
+    expect(prompt).toContain("in Russian only");
+    expect(prompt).toContain("never in English or any other language");
+    expect(prompt).toContain(
+      "This applies regardless of the language used in earlier messages in this conversation."
+    );
+  });
+
+  it("hardens meta-explanation for target FR + interface RU", () => {
+    const prompt = buildTutorSystemPrompt("fr", "beginner", "ru");
+    expect(prompt).toContain("CRITICAL —");
+    expect(prompt).toContain("in Russian only");
+    expect(prompt).toContain("never in French or any other language");
+    expect(prompt).toContain(
+      "This applies regardless of the language used in earlier messages in this conversation."
+    );
+  });
+
+  it("keeps simplified-English explanation rule for target EN + interface EN", () => {
+    const prompt = buildTutorSystemPrompt("en", "beginner", "en");
+    expect(prompt).toContain("CRITICAL —");
+    expect(prompt).toContain("simpler English");
+    expect(prompt).toContain("Do not translate into another language.");
+    expect(prompt).toContain(
+      "This applies regardless of the language used in earlier messages in this conversation."
+    );
+  });
 });

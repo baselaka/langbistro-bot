@@ -74,6 +74,7 @@ export async function runAssistantTurn(
     .from("messages")
     .select("role, content")
     .eq("user_id", userId)
+    .eq("target_language", targetLanguage)
     .order("created_at", { ascending: false })
     .limit(10);
 
@@ -119,6 +120,9 @@ export async function runAssistantTurn(
   console.log(
     `[TTS] chars=${structured.reply.length} statementMax=${maxChars} followUp=${followUp.length} truncated=${originalReply.trim().length > maxChars} level=${effectiveLevel}`
   );
+  console.log(
+    `[prompt] target=${targetLanguage} iface=${locale} level=${effectiveLevel} historyRows=${history.length}`
+  );
 
   const { error: saveMessagesError } = await supabase.from("messages").insert([
     {
@@ -126,12 +130,14 @@ export async function runAssistantTurn(
       role: "user",
       content: userContent,
       message_type: userMessageType,
+      target_language: targetLanguage,
     },
     {
       user_id: userId,
       role: "assistant",
       content: structured.reply,
       message_type: "text",
+      target_language: targetLanguage,
     },
   ]);
 
