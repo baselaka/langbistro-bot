@@ -42,9 +42,31 @@ const JUNK_FORM_TAGS = new Set([
   "class",
   "auxiliary",
   "includes-article",
+  "alternative",
+  "obsolete",
 ]);
 
-/** Standalone article tokens that appear as forms on many noun tables. */
+const PLURAL_BAD_TAGS = new Set([
+  "colloquial",
+  "dated",
+  "rare",
+  "humorous",
+  "archaic",
+  "nonstandard",
+]);
+
+const ARCHAIC_SENSE_TAGS = new Set([
+  "dated",
+  "archaic",
+  "obsolete",
+  "historical",
+]);
+
+const PROFANE_TAGS = new Set(["vulgar", "offensive", "derogatory"]);
+
+const GENDER_TAGS = ["masculine", "feminine", "neuter"] as const;
+type Gender = (typeof GENDER_TAGS)[number];
+
 const BARE_ARTICLES = new Set([
   "der",
   "die",
@@ -60,27 +82,45 @@ const BARE_ARTICLES = new Set([
   "eines",
 ]);
 
-const PROFANE_TAGS = new Set(["vulgar", "offensive", "derogatory"]);
+/** Pure sound / filler tokens — dropped. Other interjections are kept. */
+const SOUND_STOPLIST = new Set(
+  [
+    "ah",
+    "oh",
+    "äh",
+    "ähm",
+    "hm",
+    "hmm",
+    "uh",
+    "huh",
+    "ha",
+    "haha",
+    "hehe",
+    "aha",
+    "ey",
+    "na",
+    "pst",
+    "uff",
+    "au",
+    "oje",
+  ].map((s) => s.normalize("NFC").toLowerCase()),
+);
 
-const GENDER_TAGS = ["masculine", "feminine", "neuter"] as const;
-type Gender = (typeof GENDER_TAGS)[number];
+/** POS dropped from the learner list. */
+const DROP_POS = new Set(["pron", "article", "det", "name", "abbrev", "symbol", "punct", "character"]);
 
-const CONTENT_POS = new Set([
+const KEEP_POS = new Set([
   "noun",
   "verb",
   "adj",
   "adv",
-  "pron",
-  "det",
-  "num",
   "prep",
   "conj",
   "particle",
-  "article",
+  "intj",
+  "num",
   "postp",
 ]);
-
-const DROP_POS = new Set(["name", "intj", "abbrev", "symbol", "punct", "character"]);
 
 type KaikkiForm = {
   form?: string;
@@ -90,6 +130,7 @@ type KaikkiForm = {
 
 type KaikkiSense = {
   tags?: string[];
+  form_of?: Array<{ word?: string }>;
 };
 
 type KaikkiEntry = {
@@ -103,25 +144,32 @@ type KaikkiEntry = {
 };
 
 type LemmaEntry = {
-  lemma: string;
+  lemma: string; // surface casing from kaikiki headword
   pos: string;
   gender: Gender | null;
+  genders: Gender[]; // all distinct genders seen (for multi-gender report)
   plural: string | null;
   forms: string[];
   isProfane: boolean;
+  isArchaicOnly: boolean;
+  isFormOfOnly: boolean;
 };
 
 type DropReason =
   | "single_letter"
+  | "sound_stoplist"
   | "no_lemma"
   | "proper_noun"
   | "abbreviation"
-  | "interjection"
+  | "dropped_pos"
   | "profanity"
+  | "archaic_only"
+  | "form_of_only"
   | "non_content_pos";
 
 type LexiconRow = {
   word: string;
+  pos: string[];
   translation: null;
   example_sentence: null;
   tier: number;
@@ -160,7 +208,6 @@ function isRealWordForm(form: string): boolean {
   const t = form.trim();
   if (!t) return false;
   if (t === "-" || t === "—") return false;
-  // Template / meta strings from wiktextract conjugation tables.
   if (/^de-[a-z]+$/i.test(t)) return false;
   if (/^no-table-tags$/i.test(t)) return false;
   if (/^\d+\s+strong$/i.test(t)) return false;
@@ -168,20 +215,18 @@ function isRealWordForm(form: string): boolean {
   return true;
 }
 
-/** Lemmas that should never enter the learner list. */
-function isUsableLemma(lemma: string): boolean {
+function isUsableLemmaSurface(lemma: string): boolean {
   const t = lemma.trim();
   if (t.length < 2) return false;
-  if (/\s/.test(t)) return false; // multi-word phrases
+  if (/\s/.test(t)) return false;
   if (t.includes("/") || t.includes("\\")) return false;
   if (t.includes("{") || t.includes("}")) return false;
   return true;
 }
 
-function shouldIndexForm(lemma: string, form: string): boolean {
+function shouldKeepForm(lemma: string, form: string, tags: string[]): boolean {
   if (!isRealWordForm(form)) return false;
-  // Separable-verb splits ("ruft an") are kept as forms but only indexed as the full string.
-  // Never index a bare article onto an unrelated longer lemma.
+  if (tags.some((t) => JUNK_FORM_TAGS.has(t))) return false;
   if (BARE_ARTICLES.has(nfcLower(form)) && nfcLower(form) !== nfcLower(lemma)) {
     return false;
   }
@@ -197,13 +242,16 @@ function collectTags(entry: KaikkiEntry): string[] {
   return out;
 }
 
-function extractGender(entry: KaikkiEntry): Gender | null {
+function extractGenders(entry: KaikkiEntry): Gender[] {
+  const seen = new Set<Gender>();
+  const ordered: Gender[] = [];
   for (const tag of collectTags(entry)) {
-    if ((GENDER_TAGS as readonly string[]).includes(tag)) {
-      return tag as Gender;
+    if ((GENDER_TAGS as readonly string[]).includes(tag) && !seen.has(tag as Gender)) {
+      seen.add(tag as Gender);
+      ordered.push(tag as Gender);
     }
   }
-  return null;
+  return ordered;
 }
 
 function extractPlural(forms: KaikkiForm[]): string | null {
@@ -215,6 +263,7 @@ function extractPlural(forms: KaikkiForm[]): string | null {
     if (!tags.includes("plural")) continue;
     if (tags.includes("diminutive")) continue;
     if (tags.some((t) => JUNK_FORM_TAGS.has(t))) continue;
+    if (tags.some((t) => PLURAL_BAD_TAGS.has(t))) continue;
     return form;
   }
   return null;
@@ -234,13 +283,24 @@ function extractForms(lemma: string, forms: KaikkiForm[]): string[] {
     const form = f.form?.trim();
     if (!form) continue;
     const tags = f.tags ?? [];
-    if (tags.some((t) => JUNK_FORM_TAGS.has(t))) continue;
-    if (!shouldIndexForm(lemma, form)) continue;
-    // Keep separable splits ("ruft an") in the forms array; skip other multi-word tables.
+    if (!shouldKeepForm(lemma, form, tags)) continue;
+    // Keep two-token separable splits ("ruft an"); skip longer table phrases.
     if (/\s/.test(form) && !/^[^\s]+ [^\s]+$/.test(form)) continue;
     push(form);
   }
   return out;
+}
+
+function isFormOfOnlyEntry(entry: KaikkiEntry): boolean {
+  const senses = entry.senses ?? [];
+  if (senses.length === 0) return false;
+  return senses.every((s) => Array.isArray(s.form_of) && s.form_of.length > 0);
+}
+
+function isArchaicOnlyEntry(entry: KaikkiEntry): boolean {
+  const senses = entry.senses ?? [];
+  if (senses.length === 0) return false;
+  return senses.every((s) => (s.tags ?? []).some((t) => ARCHAIC_SENSE_TAGS.has(t)));
 }
 
 function isProfaneEntry(entry: KaikkiEntry): boolean {
@@ -281,15 +341,26 @@ async function ensureFile(filePath: string, url: string): Promise<void> {
   console.log(`Downloaded ${(fs.statSync(filePath).size / 1e6).toFixed(1)} MB`);
 }
 
-async function loadKaikki(): Promise<{
+type KaikkiIndex = {
+  /** Real lemmas (not form_of-only), keyed by nfcLower(lemma). */
+  lemmasByLower: Map<string, LemmaEntry[]>;
+  /** Inflected form (nfc lower) → candidate real lemmas. */
   byForm: Map<string, LemmaEntry[]>;
-  byLemma: Map<string, LemmaEntry[]>;
-}> {
+  /** Surfaces that appear ONLY as form_of headwords (never a real lemma). */
+  formOfOnlySurfaces: Set<string>;
+};
+
+async function loadKaikki(): Promise<KaikkiIndex> {
+  const lemmasByLower = new Map<string, LemmaEntry[]>();
   const byForm = new Map<string, LemmaEntry[]>();
-  const byLemma = new Map<string, LemmaEntry[]>();
-  const lemmaPosSeen = new Set<string>();
-  const headwords = new Set<string>(); // nfcLower(lemma)::pos
+  const formOfOnlySurfaces = new Set<string>();
+  const realLemmaKeys = new Set<string>(); // nfcLower(lemma)::pos
   const pending: LemmaEntry[] = [];
+  const seenLemmaPos = new Set<string>();
+
+  // Surfaces that appear as any headword (including form_of pages).
+  const anyHeadwordLower = new Set<string>();
+  const realHeadwordLower = new Set<string>();
 
   const input = fs.createReadStream(KAIKKI_PATH).pipe(createGunzip());
   const rl = readline.createInterface({ input, crlfDelay: Infinity });
@@ -308,42 +379,58 @@ async function loadKaikki(): Promise<{
     const lemma = entry.word?.trim();
     const pos = entry.pos?.trim();
     if (!lemma || !pos) continue;
-    if (!isUsableLemma(lemma)) continue;
+    if (!isUsableLemmaSurface(lemma)) continue;
+
+    anyHeadwordLower.add(nfcLower(lemma));
+
+    const formOfOnly = isFormOfOnlyEntry(entry);
+    if (formOfOnly) {
+      continue; // do not treat conjugation pages as lemmas
+    }
+
+    realHeadwordLower.add(nfcLower(lemma));
 
     const formsRaw = entry.forms ?? [];
-    const gender = pos === "noun" ? extractGender(entry) : null;
-    const plural = pos === "noun" ? extractPlural(formsRaw) : null;
-    const forms = extractForms(lemma, formsRaw);
+    const genders = pos === "noun" ? extractGenders(entry) : [];
     const lemmaEntry: LemmaEntry = {
       lemma,
       pos,
-      gender,
-      plural,
-      forms,
+      gender: genders[0] ?? null,
+      genders,
+      plural: pos === "noun" ? extractPlural(formsRaw) : null,
+      forms: extractForms(lemma, formsRaw),
       isProfane: isProfaneEntry(entry),
+      isArchaicOnly: isArchaicOnlyEntry(entry),
+      isFormOfOnly: false,
     };
 
     const lemmaKey = `${nfcLower(lemma)}::${pos}`;
-    headwords.add(lemmaKey);
-    if (!lemmaPosSeen.has(lemmaKey)) {
-      lemmaPosSeen.add(lemmaKey);
+    realLemmaKeys.add(lemmaKey);
+    if (!seenLemmaPos.has(lemmaKey)) {
+      seenLemmaPos.add(lemmaKey);
       const lk = nfcLower(lemma);
-      const list = byLemma.get(lk) ?? [];
+      const list = lemmasByLower.get(lk) ?? [];
       list.push(lemmaEntry);
-      byLemma.set(lk, list);
+      lemmasByLower.set(lk, list);
       pending.push(lemmaEntry);
     }
   }
 
-  // Second pass: index inflections, but never attach a sibling headword
-  // (fixes pronoun paradigm tables that list du/er/sie as "forms" of ich).
+  for (const surface of anyHeadwordLower) {
+    if (!realHeadwordLower.has(surface)) {
+      formOfOnlySurfaces.add(surface);
+    }
+  }
+
+  // Index inflections; never attach a sibling headword of the same POS
+  // (pronoun paradigm tables list du/er as "forms" of ich).
   for (const lemmaEntry of pending) {
     const { lemma, pos, forms } = lemmaEntry;
     const indexForm = (surface: string): void => {
-      if (!shouldIndexForm(lemma, surface)) return;
       if (/\s/.test(surface)) return;
+      if (!shouldKeepForm(lemma, surface, [])) return;
       const key = nfcLower(surface);
-      if (key !== nfcLower(lemma) && headwords.has(`${key}::${pos}`)) {
+      if (key !== nfcLower(lemma) && realLemmaKeys.has(`${key}::${pos}`)) {
         return;
       }
       const list = byForm.get(key) ?? [];
@@ -353,34 +440,33 @@ async function loadKaikki(): Promise<{
       }
     };
     indexForm(lemma);
-    for (const f of forms) indexForm(f);
+    for (const f of forms) {
+      const tags: string[] = [];
+      if (!shouldKeepForm(lemma, f, tags)) continue;
+      indexForm(f);
+    }
   }
 
   console.log(
-    `Parsed kaikki: ${lines} lines, ${byLemma.size} lemma keys, ${byForm.size} form keys`,
+    `Parsed kaikki: ${lines} lines, ${lemmasByLower.size} lemma keys, ` +
+      `${byForm.size} form keys, ${formOfOnlySurfaces.size} form_of-only surfaces`,
   );
-  return { byForm, byLemma };
+  return { lemmasByLower, byForm, formOfOnlySurfaces };
 }
 
-function findLemma(
-  byLemma: Map<string, LemmaEntry[]>,
-  word: string,
-  preferPos?: string,
-): LemmaEntry | undefined {
-  const list = byLemma.get(nfcLower(word)) ?? [];
-  if (preferPos) {
-    const hit = list.find((e) => e.pos === preferPos && e.lemma === word);
-    if (hit) return hit;
-  }
-  return list.find((e) => e.lemma === word) ?? list[0];
-}
-
-function selfCheck(byLemma: Map<string, LemmaEntry[]>): void {
+function selfCheck(lemmasByLower: Map<string, LemmaEntry[]>): void {
   console.log("\n=== Self-check (Haus, gehen, anrufen, gut) ===");
-  const haus = findLemma(byLemma, "Haus", "noun");
-  const gehen = findLemma(byLemma, "gehen", "verb");
-  const anrufen = findLemma(byLemma, "anrufen", "verb");
-  const gut = findLemma(byLemma, "gut", "adj");
+  const pick = (word: string, pos?: string): LemmaEntry | undefined => {
+    const list = lemmasByLower.get(nfcLower(word)) ?? [];
+    if (pos) {
+      return list.find((e) => e.lemma === word && e.pos === pos) ?? list.find((e) => e.pos === pos);
+    }
+    return list.find((e) => e.lemma === word) ?? list[0];
+  };
+  const haus = pick("Haus", "noun");
+  const gehen = pick("gehen", "verb");
+  const anrufen = pick("anrufen", "verb");
+  const gut = pick("gut", "adj");
 
   for (const [label, entry] of [
     ["Haus", haus],
@@ -393,8 +479,8 @@ function selfCheck(byLemma: Map<string, LemmaEntry[]>): void {
       continue;
     }
     console.log(
-      `${label}: pos=${entry.pos} gender=${entry.gender} plural=${entry.plural} ` +
-        `forms(${entry.forms.length})=[${entry.forms.slice(0, 12).join(", ")}${entry.forms.length > 12 ? ", ..." : ""}]`,
+      `${label}: pos=${entry.pos} gender=${entry.gender} genders=${entry.genders.join("|")} ` +
+        `plural=${entry.plural} forms(${entry.forms.length})=[${entry.forms.slice(0, 10).join(", ")}${entry.forms.length > 10 ? ", ..." : ""}]`,
     );
   }
 
@@ -402,45 +488,17 @@ function selfCheck(byLemma: Map<string, LemmaEntry[]>): void {
   if (!haus || !haus.gender || !haus.plural) {
     errors.push("Haus: missing gender and/or plural");
   }
-  if (!gehen || gehen.forms.length === 0) {
-    errors.push("gehen: missing forms");
-  }
+  if (!gehen || gehen.forms.length === 0) errors.push("gehen: missing forms");
   if (!anrufen || anrufen.forms.length === 0) {
     errors.push("anrufen: missing forms");
   } else if (!anrufen.forms.some((f) => f.includes(" "))) {
     errors.push('anrufen: expected a separable form with a space (e.g. "ruft an")');
   }
-  if (!gut || gut.forms.length === 0) {
-    errors.push("gut: missing forms");
-  }
+  if (!gut || gut.forms.length === 0) errors.push("gut: missing forms");
   if (errors.length > 0) {
     throw new Error(`Self-check failed:\n- ${errors.join("\n- ")}`);
   }
   console.log("Self-check OK\n");
-}
-
-function classifyDrop(candidates: LemmaEntry[]): DropReason | null {
-  if (candidates.length === 0) return "no_lemma";
-  const nonProfane = candidates.filter((e) => !e.isProfane);
-  if (nonProfane.length === 0) return "profanity";
-
-  const content = nonProfane.filter((e) => CONTENT_POS.has(e.pos));
-  if (content.length > 0) return null;
-
-  if (nonProfane.every((e) => e.pos === "name")) return "proper_noun";
-  if (nonProfane.every((e) => e.pos === "abbrev")) return "abbreviation";
-  if (nonProfane.every((e) => e.pos === "intj")) return "interjection";
-  if (nonProfane.every((e) => DROP_POS.has(e.pos))) {
-    if (nonProfane.some((e) => e.pos === "name")) return "proper_noun";
-    if (nonProfane.some((e) => e.pos === "abbrev")) return "abbreviation";
-    if (nonProfane.some((e) => e.pos === "intj")) return "interjection";
-    return "non_content_pos";
-  }
-  return "non_content_pos";
-}
-
-function selectEntries(candidates: LemmaEntry[]): LemmaEntry[] {
-  return candidates.filter((e) => !e.isProfane && CONTENT_POS.has(e.pos));
 }
 
 function loadFrequencyTokens(): string[] {
@@ -455,29 +513,139 @@ function loadFrequencyTokens(): string[] {
   return tokens;
 }
 
+/** Best (lowest) 1-based frequency rank of a lemma surface in the freq list. */
+function buildLemmaFreqRanks(tokens: string[]): Map<string, number> {
+  const ranks = new Map<string, number>();
+  for (let i = 0; i < tokens.length; i++) {
+    const key = nfcLower(tokens[i]);
+    if (!ranks.has(key)) ranks.set(key, i + 1);
+  }
+  return ranks;
+}
+
+function lemmaFreqRank(lemma: string, ranks: Map<string, number>): number {
+  return ranks.get(nfcLower(lemma)) ?? Number.POSITIVE_INFINITY;
+}
+
+function outputWordFor(entry: LemmaEntry): string {
+  return entry.pos === "noun" ? capitalizeNoun(entry.lemma) : entry.lemma;
+}
+
+function isKeepable(entry: LemmaEntry): boolean {
+  if (entry.isProfane) return false;
+  if (entry.isArchaicOnly) return false;
+  if (entry.isFormOfOnly) return false;
+  if (DROP_POS.has(entry.pos)) return false;
+  if (!KEEP_POS.has(entry.pos)) return false;
+  return true;
+}
+
+function dropReasonFor(entries: LemmaEntry[]): DropReason | null {
+  if (entries.length === 0) return "no_lemma";
+  if (entries.every((e) => e.isProfane)) return "profanity";
+  if (entries.every((e) => e.isArchaicOnly)) return "archaic_only";
+  if (entries.every((e) => e.isFormOfOnly)) return "form_of_only";
+  const keepable = entries.filter(isKeepable);
+  if (keepable.length > 0) return null;
+  if (entries.every((e) => e.pos === "name")) return "proper_noun";
+  if (entries.every((e) => e.pos === "abbrev")) return "abbreviation";
+  if (entries.every((e) => DROP_POS.has(e.pos))) return "dropped_pos";
+  return "non_content_pos";
+}
+
+/**
+ * Resolve a frequency token to one or more real lemmas to accept.
+ * - If the token is itself a lemma (ci): all keepable lemmas for that headword
+ *   (Essen + essen stay separate via different `word` surfaces).
+ * - Else: exactly one inflection candidate — best lemma frequency rank.
+ */
+function resolveToken(
+  token: string,
+  index: KaikkiIndex,
+  lemmaRanks: Map<string, number>,
+): LemmaEntry[] {
+  const key = nfcLower(token);
+  const asLemma = (index.lemmasByLower.get(key) ?? []).filter(isKeepable);
+  if (asLemma.length > 0) {
+    return asLemma;
+  }
+
+  const candidates = (index.byForm.get(key) ?? []).filter(isKeepable);
+  if (candidates.length === 0) return [];
+
+  // Dedupe by lemma surface + pos, then pick the single best lemma surface
+  // by frequency rank of that lemma's own headword.
+  let bestRank = Number.POSITIVE_INFINITY;
+  let bestLemmaLower = "";
+  for (const c of candidates) {
+    const r = lemmaFreqRank(c.lemma, lemmaRanks);
+    const lk = nfcLower(c.lemma);
+    if (r < bestRank || (r === bestRank && lk < bestLemmaLower)) {
+      bestRank = r;
+      bestLemmaLower = lk;
+    }
+  }
+
+  // Among entries for that winning lemma surface, keep all keepable POS
+  // (will be merged into one row per output word casing).
+  // Actually: pick exactly ONE candidate lemma — meaning one lemma entry?
+  // "pick exactly ONE candidate lemma, the one whose own lemma has the best frequency rank"
+  // So one lemma headword. If that headword has multiple POS, we still have multiple
+  // LemmaEntries — but output is per word string. For inflection "waren" → sein (verb only).
+  // Take all POS entries that share the winning lemma surface (same casing group).
+  const winners = candidates.filter((c) => nfcLower(c.lemma) === bestLemmaLower);
+  // Prefer the exact kaikiki casing that matches noun capitalization rules later.
+  // If multiple casings of same lower exist (shouldn't for same lower key in candidates
+  // from different entries), pick the one with best lemmaFreqRank already tied.
+  // Collapse to entries that share the winning lemma *string* with best rank among casings.
+  let bestSurface = winners[0]?.lemma ?? "";
+  let bestSurfaceRank = lemmaFreqRank(bestSurface, lemmaRanks);
+  for (const w of winners) {
+    const r = lemmaFreqRank(w.lemma, lemmaRanks);
+    if (r < bestSurfaceRank || (r === bestSurfaceRank && w.lemma < bestSurface)) {
+      bestSurface = w.lemma;
+      bestSurfaceRank = r;
+    }
+  }
+  return winners.filter((c) => c.lemma === bestSurface);
+}
+
+type Accepted = {
+  word: string;
+  pos: Set<string>;
+  forms: Set<string>;
+  article: "der" | "die" | "das" | null;
+  plural: string | null;
+  gender: Gender | null;
+  genders: Gender[];
+  bestTokenRank: number;
+};
+
 function buildLexicon(
-  byForm: Map<string, LemmaEntry[]>,
+  index: KaikkiIndex,
   tokens: string[],
 ): {
   rows: LexiconRow[];
   rawTokensConsumed: number;
   drops: Record<DropReason, number>;
+  multiGenderNouns: Array<{ word: string; genders: Gender[] }>;
+  keptInterjections: string[];
 } {
   const drops: Record<DropReason, number> = {
     single_letter: 0,
+    sound_stoplist: 0,
     no_lemma: 0,
     proper_noun: 0,
     abbreviation: 0,
-    interjection: 0,
+    dropped_pos: 0,
     profanity: 0,
+    archaic_only: 0,
+    form_of_only: 0,
     non_content_pos: 0,
   };
 
-  type Accepted = {
-    entry: LemmaEntry;
-    bestRank: number; // 1-based token index in frequency list
-  };
-  const accepted = new Map<string, Accepted>(); // lemmaLower::pos
+  const lemmaRanks = buildLemmaFreqRanks(tokens);
+  const accepted = new Map<string, Accepted>(); // exact word string
   let rawTokensConsumed = 0;
 
   for (let i = 0; i < tokens.length; i++) {
@@ -490,60 +658,119 @@ function buildLexicon(
       drops.single_letter += 1;
       continue;
     }
-
-    const candidates = byForm.get(key) ?? [];
-    const drop = classifyDrop(candidates);
-    if (drop) {
-      drops[drop] += 1;
+    if (SOUND_STOPLIST.has(key)) {
+      drops.sound_stoplist += 1;
       continue;
     }
 
-    const selected = selectEntries(candidates);
-    // Keep all content POS; noun+verb pairs (essen/Essen) both survive.
-    const freqRank = i + 1;
-    for (const entry of selected) {
-      if (accepted.size >= TARGET_COUNT) break;
-      const id = `${nfcLower(entry.lemma)}::${entry.pos}`;
-      const prev = accepted.get(id);
-      if (!prev || freqRank < prev.bestRank) {
-        accepted.set(id, { entry, bestRank: freqRank });
+    // Collect raw candidates for drop accounting.
+    const lemmaHits = index.lemmasByLower.get(key) ?? [];
+    const formHits = index.byForm.get(key) ?? [];
+    const rawPool = lemmaHits.length > 0 ? lemmaHits : formHits;
+
+    if (rawPool.length === 0) {
+      drops.no_lemma += 1;
+      continue;
+    }
+
+    const reason = dropReasonFor(rawPool);
+    if (reason) {
+      drops[reason] += 1;
+      continue;
+    }
+
+    const resolved = resolveToken(token, index, lemmaRanks);
+    if (resolved.length === 0) {
+      // Had hits but none keepable after resolve (shouldn't happen if reason null)
+      drops.non_content_pos += 1;
+      continue;
+    }
+
+    const tokenRank = i + 1;
+    for (const entry of resolved) {
+      if (accepted.size >= TARGET_COUNT && !accepted.has(outputWordFor(entry))) {
+        break;
+      }
+      const word = outputWordFor(entry);
+      // Never emit a form_of-only surface as word.
+      if (index.formOfOnlySurfaces.has(nfcLower(word))) {
+        continue;
+      }
+      const existing = accepted.get(word);
+      if (existing) {
+        existing.pos.add(entry.pos);
+        for (const f of entry.forms) existing.forms.add(f);
+        if (tokenRank < existing.bestTokenRank) {
+          existing.bestTokenRank = tokenRank;
+        }
+        // Prefer first-seen noun article/plural; fill if missing.
+        if (existing.article === null && entry.pos === "noun") {
+          existing.article = articleFromGender(entry.gender);
+          existing.plural = entry.plural;
+          existing.gender = entry.gender;
+          existing.genders = entry.genders;
+        }
+      } else if (accepted.size < TARGET_COUNT) {
+        accepted.set(word, {
+          word,
+          pos: new Set([entry.pos]),
+          forms: new Set(entry.forms),
+          article: entry.pos === "noun" ? articleFromGender(entry.gender) : null,
+          plural: entry.pos === "noun" ? entry.plural : null,
+          gender: entry.pos === "noun" ? entry.gender : null,
+          genders: entry.pos === "noun" ? [...entry.genders] : [],
+          bestTokenRank: tokenRank,
+        });
       }
     }
   }
 
   if (accepted.size < TARGET_COUNT) {
     throw new Error(
-      `Only collected ${accepted.size} lemmas after ${rawTokensConsumed} tokens; need ${TARGET_COUNT}`,
+      `Only collected ${accepted.size} distinct words after ${rawTokensConsumed} tokens; need ${TARGET_COUNT}`,
     );
   }
 
   const sorted = [...accepted.values()].sort((a, b) => {
-    if (a.bestRank !== b.bestRank) return a.bestRank - b.bestRank;
-    const la = nfcLower(a.entry.lemma);
-    const lb = nfcLower(b.entry.lemma);
-    if (la !== lb) return la < lb ? -1 : 1;
-    return a.entry.pos < b.entry.pos ? -1 : 1;
+    if (a.bestTokenRank !== b.bestTokenRank) return a.bestTokenRank - b.bestTokenRank;
+    return a.word < b.word ? -1 : a.word > b.word ? 1 : 0;
   });
 
   const top = sorted.slice(0, TARGET_COUNT);
   const rows: LexiconRow[] = top.map((item, index) => {
     const rank = index + 1;
-    const { entry } = item;
-    const isNoun = entry.pos === "noun";
+    const pos = [...item.pos].sort();
+    const forms = [...item.forms];
+    // Stable form order: lemma/word first, then alphabetical by nfcLower.
+    forms.sort((a, b) => {
+      if (nfcLower(a) === nfcLower(item.word)) return -1;
+      if (nfcLower(b) === nfcLower(item.word)) return 1;
+      return nfcLower(a) < nfcLower(b) ? -1 : nfcLower(a) > nfcLower(b) ? 1 : 0;
+    });
     return {
-      word: isNoun ? capitalizeNoun(entry.lemma) : entry.lemma,
+      word: item.word,
+      pos,
       translation: null,
       example_sentence: null,
       tier: tierForRank(rank),
       frequency_rank: rank,
-      language: "de",
-      article: isNoun ? articleFromGender(entry.gender) : null,
-      plural: isNoun ? entry.plural : null,
-      forms: entry.forms,
+      language: "de" as const,
+      article: item.article,
+      plural: item.plural,
+      forms,
     };
   });
 
-  return { rows, rawTokensConsumed, drops };
+  const multiGenderNouns = top
+    .filter((a) => a.genders.length > 1)
+    .map((a) => ({ word: a.word, genders: a.genders }));
+
+  const keptInterjections = top
+    .filter((a) => a.pos.has("intj"))
+    .map((a) => a.word)
+    .sort((a, b) => nfcLower(a).localeCompare(nfcLower(b)));
+
+  return { rows, rawTokensConsumed, drops, multiGenderNouns, keptInterjections };
 }
 
 function assertTier(rows: LexiconRow[]): void {
@@ -565,10 +792,33 @@ function assertTier(rows: LexiconRow[]): void {
   }
 }
 
+function assertNoDuplicateWords(rows: LexiconRow[]): void {
+  const seen = new Set<string>();
+  const dups: string[] = [];
+  for (const r of rows) {
+    if (seen.has(r.word)) dups.push(r.word);
+    seen.add(r.word);
+  }
+  if (dups.length > 0) {
+    throw new Error(`Duplicate word values: ${dups.slice(0, 20).join(", ")}`);
+  }
+}
+
+function assertNoFormOfOnlyWords(rows: LexiconRow[], formOfOnly: Set<string>): void {
+  const bad = rows.filter((r) => formOfOnly.has(nfcLower(r.word))).map((r) => r.word);
+  if (bad.length > 0) {
+    throw new Error(
+      `Output words that are form_of-only in kaikiki: ${bad.slice(0, 20).join(", ")}`,
+    );
+  }
+}
+
 function printReport(
   rows: LexiconRow[],
   rawTokensConsumed: number,
   drops: Record<DropReason, number>,
+  multiGenderNouns: Array<{ word: string; genders: Gender[] }>,
+  keptInterjections: string[],
 ): void {
   console.log("=== Status report ===");
   console.log("Sources:");
@@ -583,32 +833,41 @@ function printReport(
     console.log(`  ${reason}: ${n}`);
   }
 
-  console.log("\nFirst 40 rows:");
-  for (const r of rows.slice(0, 40)) {
+  console.log("\nAssertions:");
+  console.log("  no duplicate word values: OK");
+  console.log("  no form_of-only output words: OK");
+
+  console.log("\nFirst 60 rows (rank | word | pos | article | plural):");
+  for (const r of rows.slice(0, 60)) {
     console.log(
-      `  #${r.frequency_rank} t${r.tier} ${r.word}` +
-        (r.article ? ` [${r.article}]` : "") +
-        (r.plural ? ` pl=${r.plural}` : "") +
-        ` forms=${r.forms.length}`,
+      `  ${String(r.frequency_rank).padStart(4)} | ${r.word.padEnd(20)} | ${r.pos.join(",").padEnd(16)} | ${String(r.article ?? "-").padEnd(4)} | ${r.plural ?? "-"}`,
     );
   }
 
-  const nouns = rows.filter((r) => r.article !== null);
+  const nouns = rows.filter((r) => r.article !== null || r.pos.includes("noun"));
   const rng = mulberry32(42);
-  const picked: LexiconRow[] = [];
-  const pool = [...nouns];
+  const pool = nouns.filter((r) => r.pos.includes("noun"));
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  for (const n of pool) {
-    if (picked.length >= 20) break;
-    picked.push(n);
-  }
   console.log("\n20 random nouns (seed=42):");
-  for (const n of picked) {
-    console.log(`  ${n.article} ${n.word} / pl=${n.plural ?? "null"} (rank ${n.frequency_rank})`);
+  for (const n of pool.slice(0, 20)) {
+    console.log(
+      `  ${n.article ?? "?"} ${n.word} / pl=${n.plural ?? "null"} (rank ${n.frequency_rank})`,
+    );
   }
+
+  console.log(`\nMulti-gender nouns (${multiGenderNouns.length}):`);
+  for (const n of multiGenderNouns.slice(0, 50)) {
+    console.log(`  ${n.word}: ${n.genders.join(", ")}`);
+  }
+  if (multiGenderNouns.length > 50) {
+    console.log(`  ... and ${multiGenderNouns.length - 50} more`);
+  }
+
+  console.log(`\nKept interjections (${keptInterjections.length}):`);
+  console.log(`  ${keptInterjections.join(", ") || "(none)"}`);
 }
 
 async function main(): Promise<void> {
@@ -616,20 +875,24 @@ async function main(): Promise<void> {
   await ensureFile(FREQ_PATH, FREQ_URL);
   await ensureFile(KAIKKI_PATH, KAIKKI_URL);
 
-  const { byForm, byLemma } = await loadKaikki();
-  selfCheck(byLemma);
+  const index = await loadKaikki();
+  selfCheck(index.lemmasByLower);
 
   const tokens = loadFrequencyTokens();
   console.log(`Frequency tokens: ${tokens.length}`);
 
-  const { rows, rawTokensConsumed, drops } = buildLexicon(byForm, tokens);
+  const { rows, rawTokensConsumed, drops, multiGenderNouns, keptInterjections } =
+    buildLexicon(index, tokens);
+
   assertTier(rows);
+  assertNoDuplicateWords(rows);
+  assertNoFormOfOnlyWords(rows, index.formOfOnlySurfaces);
 
   fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
   fs.writeFileSync(OUT_PATH, `${JSON.stringify(rows, null, 2)}\n`, "utf8");
   console.log(`\nWrote ${rows.length} rows → ${OUT_PATH}`);
 
-  printReport(rows, rawTokensConsumed, drops);
+  printReport(rows, rawTokensConsumed, drops, multiGenderNouns, keptInterjections);
 }
 
 main().catch((err) => {
