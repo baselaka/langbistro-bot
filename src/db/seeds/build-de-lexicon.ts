@@ -6,22 +6,29 @@
  *   - kaikki.org English-edition German JSONL.gz (Wiktionary via wiktextract)
  *
  * Output: src/db/seeds/data/de_5k.json
- *
- * No OpenAI. Deterministic given fixed inputs.
+ * Ambiguity cache: src/db/seeds/data/de_ambiguity_decisions.json
  */
 
+import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { createGunzip } from "node:zlib";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
+import {
+  type AmbiguityItem,
+  type DecisionsFile,
+  effectiveKeep,
+  ensureAmbiguityDecisions,
+} from "./deAmbiguity";
 
 const ROOT = path.resolve(__dirname, "../../..");
 const TMP_DIR = path.join(ROOT, "tmp");
 const FREQ_PATH = path.join(TMP_DIR, "de_50k.txt");
 const KAIKKI_PATH = path.join(TMP_DIR, "kaikki.org-dictionary-German.jsonl.gz");
 const OUT_PATH = path.join(__dirname, "data", "de_5k.json");
+const DECISIONS_PATH = path.join(__dirname, "data", "de_ambiguity_decisions.json");
 
 const FREQ_URL =
   "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/de/de_50k.txt";
@@ -196,6 +203,7 @@ type LemmaEntry = {
   genders: Gender[]; // all distinct genders seen (for multi-gender report)
   plural: string | null;
   forms: string[];
+  glossHint: string;
   isProfane: boolean;
   isArchaicOnly: boolean;
   isFormOfOnly: boolean;
@@ -362,6 +370,16 @@ function isProfaneEntry(entry: KaikkiEntry): boolean {
   return collectTags(entry).some((t) => PROFANE_TAGS.has(t));
 }
 
+function extractGlossHint(entry: KaikkiEntry): string {
+  for (const sense of entry.senses ?? []) {
+    const glosses = (sense as { glosses?: string[] }).glosses;
+    if (Array.isArray(glosses) && glosses[0]) {
+      return String(glosses[0]).slice(0, 120);
+    }
+  }
+  return "";
+}
+
 function isAbbreviationLemma(lemma: string, pos: string, entry: KaikkiEntry): boolean {
   if (lemma.includes(".")) return true;
   // All-caps token of 2+ letters (SMS, OK, AN) — not ordinary German noun capitalisation.
@@ -468,6 +486,7 @@ async function loadKaikki(): Promise<KaikkiIndex> {
       genders,
       plural: pos === "noun" ? extractPlural(formsRaw) : null,
       forms: extractForms(lemma, formsRaw),
+      glossHint: extractGlossHint(entry),
       isProfane: isProfaneEntry(entry),
       isArchaicOnly: isArchaicOnlyEntry(entry),
       isFormOfOnly: false,
@@ -702,17 +721,18 @@ function resolveToken(
   token: string,
   index: KaikkiIndex,
   lemmaRanks: Map<string, number>,
+  droppedCollisionNouns: Set<string>,
 ): LemmaEntry[] {
   const key = nfcLower(token);
   const asLemma = (index.lemmasByLower.get(key) ?? []).filter((e) =>
-    isKeepable(e, index.droppedCollisionNouns),
+    isKeepable(e, droppedCollisionNouns),
   );
   if (asLemma.length > 0) {
     return asLemma;
   }
 
   const candidates = (index.byForm.get(key) ?? []).filter((e) =>
-    isKeepable(e, index.droppedCollisionNouns),
+    isKeepable(e, droppedCollisionNouns),
   );
   if (candidates.length === 0) return [];
 
@@ -749,11 +769,148 @@ type Accepted = {
   gender: Gender | null;
   genders: Gender[];
   bestTokenRank: number;
+  sourceToken: string;
 };
+
+type AmbiguityApply = {
+  /** Case a: capitalised noun → redirect to this lowercase lemma surface. */
+  caseARedirect: Map<string, string>;
+  /** Case b: drop these words when keep=false. */
+  caseBDrop: Set<string>;
+  /** Case c: restore these capitalised nouns (remove from collision drop set). */
+  caseCRestore: Set<string>;
+};
+
+function lowercaseFormSiblings(token: string, index: KaikkiIndex): LemmaEntry[] {
+  return (index.byForm.get(nfcLower(token)) ?? []).filter((e) =>
+    isLowercaseLemmaSurface(e.lemma),
+  );
+}
+
+function droppedPosFormSiblings(token: string, index: KaikkiIndex): LemmaEntry[] {
+  return (index.byForm.get(nfcLower(token)) ?? []).filter((e) => DROP_POS.has(e.pos));
+}
+
+function findNounLemma(index: KaikkiIndex, word: string): LemmaEntry | undefined {
+  const list = index.lemmasByLower.get(nfcLower(word)) ?? [];
+  return (
+    list.find((e) => e.pos === "noun" && capitalizeNoun(e.lemma) === word) ??
+    list.find((e) => e.pos === "noun")
+  );
+}
+
+function findLemmaBySurface(index: KaikkiIndex, surface: string): LemmaEntry | undefined {
+  const list = index.lemmasByLower.get(nfcLower(surface)) ?? [];
+  return list.find((e) => e.lemma === surface) ?? list[0];
+}
+
+/**
+ * Provisional walk (no ambiguity apply) to discover case-a/b items among the
+ * first 5000 accepts, plus case-c from collision drops.
+ */
+function collectAmbiguities(index: KaikkiIndex, tokens: string[]): AmbiguityItem[] {
+  const provisional = buildLexicon(index, tokens, null);
+  const byId = new Map<string, AmbiguityItem>();
+
+  // Case c: every capitalised noun dropped by case-collision.
+  for (const c of index.collisions) {
+    if (c.decision !== "dropped") continue;
+    const noun = findNounLemma(index, c.capitalizedNoun);
+    const id = `c:${c.capitalizedNoun}`;
+    byId.set(id, {
+      id,
+      case: "c",
+      word: c.capitalizedNoun,
+      pos: noun ? [noun.pos] : ["noun"],
+      article: noun ? articleFromGender(noun.gender) : null,
+      gloss_hint: noun?.glossHint || c.lowercaseLemmas,
+    });
+  }
+
+  // Cases a/b from provisional accepts.
+  // Re-walk to recover sourceToken per word (stored on Accepted during build).
+  const acceptedMeta = provisional.acceptedMeta;
+  for (const meta of acceptedMeta) {
+    const token = meta.sourceToken;
+    const word = meta.word;
+
+    const firstUpper = word.charAt(0) !== word.charAt(0).toLocaleLowerCase("de-DE");
+    const isNoun = meta.pos.has("noun");
+
+    if (firstUpper && isNoun) {
+      const lowers = lowercaseFormSiblings(token, index);
+      const alt = lowers.find(
+        (e) => capitalizeNoun(e.lemma) !== word && isLowercaseLemmaSurface(e.lemma),
+      );
+      if (alt) {
+        const id = `a:${word}`;
+        if (!byId.has(id)) {
+          byId.set(id, {
+            id,
+            case: "a",
+            word,
+            pos: [...meta.pos],
+            article: meta.article,
+            gloss_hint: findNounLemma(index, word)?.glossHint || "",
+            altLemma: alt.lemma,
+            token,
+          });
+        }
+      }
+    }
+
+    if (isLowercaseLemmaSurface(word)) {
+      const dropped = droppedPosFormSiblings(token, index);
+      if (dropped.length > 0) {
+        const id = `b:${word}`;
+        if (!byId.has(id)) {
+          byId.set(id, {
+            id,
+            case: "b",
+            word,
+            pos: [...meta.pos],
+            article: meta.article,
+            gloss_hint: findLemmaBySurface(index, word)?.glossHint || "",
+            token,
+          });
+        }
+      }
+    }
+  }
+
+  return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function decisionsToApply(
+  items: AmbiguityItem[],
+  file: DecisionsFile,
+): AmbiguityApply {
+  const caseARedirect = new Map<string, string>();
+  const caseBDrop = new Set<string>();
+  const caseCRestore = new Set<string>();
+
+  for (const item of items) {
+    const rec = file.decisions[item.id];
+    if (!rec) continue;
+    const keep = effectiveKeep(rec);
+    if (item.case === "a") {
+      if (!keep && item.altLemma) {
+        caseARedirect.set(item.word, item.altLemma);
+      }
+    } else if (item.case === "b") {
+      if (!keep) caseBDrop.add(item.word);
+    } else if (item.case === "c") {
+      if (keep) caseCRestore.add(item.word);
+    }
+  }
+
+  return { caseARedirect, caseBDrop, caseCRestore };
+}
 
 function buildLexicon(
   index: KaikkiIndex,
   tokens: string[],
+  apply: AmbiguityApply | null,
 ): {
   rows: LexiconRow[];
   rawTokensConsumed: number;
@@ -761,6 +918,7 @@ function buildLexicon(
   multiGenderNouns: Array<{ word: string; genders: Gender[] }>;
   keptInterjections: string[];
   topNoLemma: Array<{ token: string; rank: number }>;
+  acceptedMeta: Accepted[];
 } {
   const drops: Record<DropReason, number> = {
     single_letter: 0,
@@ -776,10 +934,77 @@ function buildLexicon(
     non_content_pos: 0,
   };
 
+  // Case-c restore: pretend these nouns are no longer collision-dropped.
+  const droppedCollisionNouns = new Set(index.droppedCollisionNouns);
+  if (apply) {
+    for (const w of apply.caseCRestore) {
+      droppedCollisionNouns.delete(w);
+    }
+  }
+
   const lemmaRanks = buildLemmaFreqRanks(tokens);
-  const accepted = new Map<string, Accepted>(); // exact word string
+  const accepted = new Map<string, Accepted>();
   const noLemmaHits: Array<{ token: string; rank: number }> = [];
   let rawTokensConsumed = 0;
+
+  const tryAccept = (entry: LemmaEntry, token: string, tokenRank: number): void => {
+    let working = entry;
+    let word = outputWordFor(working);
+
+    if (apply?.caseARedirect.has(word)) {
+      const altSurface = apply.caseARedirect.get(word)!;
+      const alt =
+        findLemmaBySurface(index, altSurface) ??
+        lowercaseFormSiblings(token, index).find((e) => e.lemma === altSurface);
+      if (alt) {
+        working = alt;
+        word = outputWordFor(alt);
+      }
+    }
+
+    if (apply?.caseBDrop.has(word)) {
+      return;
+    }
+
+    if (index.formOfOnlySurfaces.has(nfcLower(word))) {
+      return;
+    }
+    if (!isKeepable(working, droppedCollisionNouns)) {
+      return;
+    }
+
+    if (accepted.size >= TARGET_COUNT && !accepted.has(word)) {
+      return;
+    }
+
+    const existing = accepted.get(word);
+    if (existing) {
+      existing.pos.add(working.pos);
+      for (const f of working.forms) existing.forms.add(f);
+      if (tokenRank < existing.bestTokenRank) {
+        existing.bestTokenRank = tokenRank;
+        existing.sourceToken = token;
+      }
+      if (existing.article === null && working.pos === "noun") {
+        existing.article = articleFromGender(working.gender);
+        existing.plural = working.plural;
+        existing.gender = working.gender;
+        existing.genders = working.genders;
+      }
+    } else if (accepted.size < TARGET_COUNT) {
+      accepted.set(word, {
+        word,
+        pos: new Set([working.pos]),
+        forms: new Set(working.forms),
+        article: working.pos === "noun" ? articleFromGender(working.gender) : null,
+        plural: working.pos === "noun" ? working.plural : null,
+        gender: working.pos === "noun" ? working.gender : null,
+        genders: working.pos === "noun" ? [...working.genders] : [],
+        bestTokenRank: tokenRank,
+        sourceToken: token,
+      });
+    }
+  };
 
   for (let i = 0; i < tokens.length; i++) {
     if (accepted.size >= TARGET_COUNT) break;
@@ -796,7 +1021,6 @@ function buildLexicon(
       continue;
     }
 
-    // Collect raw candidates for drop accounting.
     const lemmaHits = index.lemmasByLower.get(key) ?? [];
     const formHits = index.byForm.get(key) ?? [];
     const rawPool = lemmaHits.length > 0 ? lemmaHits : formHits;
@@ -807,52 +1031,41 @@ function buildLexicon(
       continue;
     }
 
-    const reason = dropReasonFor(rawPool, index.droppedCollisionNouns);
+    const reason = dropReasonFor(rawPool, droppedCollisionNouns);
     if (reason) {
-      drops[reason] += 1;
-      continue;
+      const restoredHit = rawPool.some(
+        (e) => e.pos === "noun" && apply?.caseCRestore.has(outputWordFor(e)),
+      );
+      if (!restoredHit) {
+        drops[reason] += 1;
+        continue;
+      }
     }
 
-    const resolved = resolveToken(token, index, lemmaRanks);
-    if (resolved.length === 0) {
+    const resolved = resolveToken(token, index, lemmaRanks, droppedCollisionNouns);
+
+    const restoredExtras = lemmaHits.filter(
+      (e) =>
+        e.pos === "noun" &&
+        apply?.caseCRestore.has(outputWordFor(e)) &&
+        isKeepable(e, droppedCollisionNouns),
+    );
+
+    const toAdd = [...resolved];
+    for (const e of restoredExtras) {
+      if (!toAdd.some((x) => x.lemma === e.lemma && x.pos === e.pos)) {
+        toAdd.push(e);
+      }
+    }
+
+    if (toAdd.length === 0) {
       drops.non_content_pos += 1;
       continue;
     }
 
     const tokenRank = i + 1;
-    for (const entry of resolved) {
-      if (accepted.size >= TARGET_COUNT && !accepted.has(outputWordFor(entry))) {
-        break;
-      }
-      const word = outputWordFor(entry);
-      if (index.formOfOnlySurfaces.has(nfcLower(word))) {
-        continue;
-      }
-      const existing = accepted.get(word);
-      if (existing) {
-        existing.pos.add(entry.pos);
-        for (const f of entry.forms) existing.forms.add(f);
-        if (tokenRank < existing.bestTokenRank) {
-          existing.bestTokenRank = tokenRank;
-        }
-        if (existing.article === null && entry.pos === "noun") {
-          existing.article = articleFromGender(entry.gender);
-          existing.plural = entry.plural;
-          existing.gender = entry.gender;
-          existing.genders = entry.genders;
-        }
-      } else if (accepted.size < TARGET_COUNT) {
-        accepted.set(word, {
-          word,
-          pos: new Set([entry.pos]),
-          forms: new Set(entry.forms),
-          article: entry.pos === "noun" ? articleFromGender(entry.gender) : null,
-          plural: entry.pos === "noun" ? entry.plural : null,
-          gender: entry.pos === "noun" ? entry.gender : null,
-          genders: entry.pos === "noun" ? [...entry.genders] : [],
-          bestTokenRank: tokenRank,
-        });
-      }
+    for (const entry of toAdd) {
+      tryAccept(entry, token, tokenRank);
     }
   }
 
@@ -906,7 +1119,6 @@ function buildLexicon(
     .map((a) => a.word)
     .sort((a, b) => nfcLower(a).localeCompare(nfcLower(b)));
 
-  // Most frequent no_lemma tokens first (lowest rank = higher frequency).
   const topNoLemma = [...noLemmaHits]
     .sort((a, b) => a.rank - b.rank)
     .slice(0, 30);
@@ -918,6 +1130,7 @@ function buildLexicon(
     multiGenderNouns,
     keptInterjections,
     topNoLemma,
+    acceptedMeta: top,
   };
 }
 
@@ -967,6 +1180,15 @@ function printReport(
   drops: Record<DropReason, number>,
   collisions: CollisionDecision[],
   topNoLemma: Array<{ token: string; rank: number }>,
+  ambiguityItems: AmbiguityItem[],
+  decisions: DecisionsFile,
+  cost: {
+    queried: number;
+    promptTokens: number;
+    completionTokens: number;
+    costUsdEstimate: number;
+  },
+  caseCRestored: string[],
 ): void {
   console.log("=== Status report ===");
   console.log("Sources:");
@@ -987,6 +1209,48 @@ function printReport(
   console.log(`  abbreviation drops > 0: OK (${drops.abbreviation})`);
   console.log("  tier counts 500/1000/1000/1000/1500: OK");
 
+  const byCase = { a: ambiguityItems.filter((i) => i.case === "a"), b: ambiguityItems.filter((i) => i.case === "b"), c: ambiguityItems.filter((i) => i.case === "c") };
+  const countKeep = (items: AmbiguityItem[]): { keep: number; drop: number } => {
+    let keep = 0;
+    let drop = 0;
+    for (const it of items) {
+      const rec = decisions.decisions[it.id];
+      if (rec && effectiveKeep(rec)) keep += 1;
+      else drop += 1;
+    }
+    return { keep, drop };
+  };
+  const ca = countKeep(byCase.a);
+  const cb = countKeep(byCase.b);
+  const cc = countKeep(byCase.c);
+
+  console.log("\nAmbiguity model:");
+  console.log(`  queried this run: ${cost.queried}`);
+  console.log(`  prompt_tokens: ${cost.promptTokens}, completion_tokens: ${cost.completionTokens}`);
+  console.log(`  cost USD estimate: $${cost.costUsdEstimate.toFixed(4)}`);
+  console.log(`  case a: ${byCase.a.length} (keep ${ca.keep}, drop ${ca.drop})`);
+  console.log(`  case b: ${byCase.b.length} (keep ${cb.keep}, drop ${cb.drop})`);
+  console.log(`  case c: ${byCase.c.length} (keep ${cc.keep}, drop ${cc.drop})`);
+
+  console.log("\nCase a (capitalised noun vs lowercase form) full table:");
+  console.log("  word | keep | reason");
+  for (const it of byCase.a) {
+    const rec = decisions.decisions[it.id];
+    const keep = rec ? effectiveKeep(rec) : false;
+    console.log(`  ${it.word.padEnd(20)} | ${String(keep).padEnd(5)} | ${rec?.reason ?? ""}`);
+  }
+
+  console.log("\nCase b (lowercase vs dropped-POS form) full table:");
+  console.log("  word | keep | reason");
+  for (const it of byCase.b) {
+    const rec = decisions.decisions[it.id];
+    const keep = rec ? effectiveKeep(rec) : false;
+    console.log(`  ${it.word.padEnd(20)} | ${String(keep).padEnd(5)} | ${rec?.reason ?? ""}`);
+  }
+
+  console.log(`\nCase c nouns restored (${caseCRestored.length}):`);
+  console.log(`  ${caseCRestored.join(", ") || "(none)"}`);
+
   console.log("\nFirst 60 rows (rank | word | pos | article | plural):");
   for (const r of rows.slice(0, 60)) {
     console.log(
@@ -994,14 +1258,17 @@ function printReport(
     );
   }
 
-  console.log(`\nCase collisions (${collisions.length}):`);
-  console.log("  decision | capitalized noun | lowercase lemma(s)");
-  for (const c of collisions) {
+  console.log("\nPresence check:");
+  for (const w of ["Deutsch", "Angst", "Vertrauen", "Einkommen", "Gewissen", "Wesen", "viel"]) {
+    const hit = rows.find((r) => r.word === w);
     console.log(
-      `  ${c.decision.padEnd(7)} | ${c.capitalizedNoun.padEnd(20)} | ${c.lowercaseLemmas}`,
+      hit
+        ? `  ${w}: present at rank ${hit.frequency_rank} pos=${hit.pos.join(",")}`
+        : `  ${w}: ABSENT`,
     );
   }
 
+  console.log(`\nCase collisions catalogued: ${collisions.length}`);
   console.log("\nTop 30 no_lemma tokens by frequency:");
   console.log("  rank | token");
   for (const t of topNoLemma) {
@@ -1020,7 +1287,30 @@ async function main(): Promise<void> {
   const tokens = loadFrequencyTokens();
   console.log(`Frequency tokens: ${tokens.length}`);
 
-  const { rows, rawTokensConsumed, drops, topNoLemma } = buildLexicon(index, tokens);
+  console.log("Collecting ambiguity set (provisional walk)...");
+  const ambiguityItems = collectAmbiguities(index, tokens);
+  console.log(
+    `Ambiguity items: a=${ambiguityItems.filter((i) => i.case === "a").length} ` +
+      `b=${ambiguityItems.filter((i) => i.case === "b").length} ` +
+      `c=${ambiguityItems.filter((i) => i.case === "c").length}`,
+  );
+
+  const resolveResult = await ensureAmbiguityDecisions(
+    DECISIONS_PATH,
+    ambiguityItems,
+    CAPITALIZED_NOUN_KEEP,
+  );
+
+  const apply = decisionsToApply(ambiguityItems, resolveResult.file);
+  console.log(
+    `Apply: caseA redirects=${apply.caseARedirect.size}, caseB drops=${apply.caseBDrop.size}, caseC restores=${apply.caseCRestore.size}`,
+  );
+
+  const { rows, rawTokensConsumed, drops, topNoLemma } = buildLexicon(
+    index,
+    tokens,
+    apply,
+  );
 
   assertTier(rows);
   assertNoDuplicateWords(rows);
@@ -1029,8 +1319,24 @@ async function main(): Promise<void> {
   fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
   fs.writeFileSync(OUT_PATH, `${JSON.stringify(rows, null, 2)}\n`, "utf8");
   console.log(`\nWrote ${rows.length} rows → ${OUT_PATH}`);
+  console.log(`Ambiguity decisions → ${DECISIONS_PATH}`);
 
-  printReport(rows, rawTokensConsumed, drops, index.collisions, topNoLemma);
+  printReport(
+    rows,
+    rawTokensConsumed,
+    drops,
+    index.collisions,
+    topNoLemma,
+    ambiguityItems,
+    resolveResult.file,
+    {
+      queried: resolveResult.queried,
+      promptTokens: resolveResult.promptTokens,
+      completionTokens: resolveResult.completionTokens,
+      costUsdEstimate: resolveResult.costUsdEstimate,
+    },
+    [...apply.caseCRestore].sort((a, b) => a.localeCompare(b, "de")),
+  );
 }
 
 main().catch((err) => {
