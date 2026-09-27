@@ -122,6 +122,52 @@ const KEEP_POS = new Set([
   "postp",
 ]);
 
+/**
+ * Capitalised nouns that collide with a lowercase lemma (any POS) but are
+ * still useful learner headwords — keep these; drop all other such collisions.
+ */
+const CAPITALIZED_NOUN_KEEP = new Set([
+  "Essen",
+  "Leben",
+  "Wissen",
+  "Treffen",
+  "Schreiben",
+  "Vertrauen",
+  "Verhalten",
+  "Verbrechen",
+  "Unternehmen",
+  "Vermögen",
+  "Vergnügen",
+  "Versprechen",
+  "Verfahren",
+  "Aussehen",
+  "Ansehen",
+  "Einkommen",
+  "Gewissen",
+  "Wesen",
+  "Fernsehen",
+  "Morgen",
+  "Weg",
+  "Arm",
+  "Kosten",
+  "Deutsch",
+  "Englisch",
+  "Mal",
+  "Recht",
+  "Schuld",
+  "Angst",
+  "Dank",
+  "Bitte",
+]);
+
+const ABBREV_TAGS = new Set([
+  "abbrev",
+  "abbreviation",
+  "initialism",
+  "acronym",
+  "contraction",
+]);
+
 type KaikkiForm = {
   form?: string;
   tags?: string[];
@@ -153,6 +199,7 @@ type LemmaEntry = {
   isProfane: boolean;
   isArchaicOnly: boolean;
   isFormOfOnly: boolean;
+  isAbbreviation: boolean;
 };
 
 type DropReason =
@@ -161,11 +208,19 @@ type DropReason =
   | "no_lemma"
   | "proper_noun"
   | "abbreviation"
+  | "case_collision"
   | "dropped_pos"
   | "profanity"
   | "archaic_only"
   | "form_of_only"
   | "non_content_pos";
+
+type CollisionDecision = {
+  key: string;
+  lowercaseLemmas: string; // "ich (pron), …"
+  capitalizedNoun: string;
+  decision: "kept" | "dropped";
+};
 
 type LexiconRow = {
   word: string;
@@ -307,15 +362,25 @@ function isProfaneEntry(entry: KaikkiEntry): boolean {
   return collectTags(entry).some((t) => PROFANE_TAGS.has(t));
 }
 
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return (): number => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function isAbbreviationLemma(lemma: string, pos: string, entry: KaikkiEntry): boolean {
+  if (lemma.includes(".")) return true;
+  // All-caps token of 2+ letters (SMS, OK, AN) — not ordinary German noun capitalisation.
+  if (lemma.length >= 2 && lemma === lemma.toLocaleUpperCase("de-DE") && /[A-ZÄÖÜ]/u.test(lemma)) {
+    return true;
+  }
+  if (pos === "abbrev") return true;
+  if (collectTags(entry).some((t) => ABBREV_TAGS.has(t))) return true;
+  return false;
+}
+
+function isLowercaseLemmaSurface(lemma: string): boolean {
+  return lemma === nfcLower(lemma);
+}
+
+function isCapitalizedNounLemma(entry: LemmaEntry): boolean {
+  if (entry.pos !== "noun") return false;
+  const first = entry.lemma.charAt(0);
+  return first !== first.toLocaleLowerCase("de-DE");
 }
 
 async function ensureFile(filePath: string, url: string): Promise<void> {
@@ -348,6 +413,10 @@ type KaikkiIndex = {
   byForm: Map<string, LemmaEntry[]>;
   /** Surfaces that appear ONLY as form_of headwords (never a real lemma). */
   formOfOnlySurfaces: Set<string>;
+  /** Output words for capitalised nouns dropped due to lowercase sibling. */
+  droppedCollisionNouns: Set<string>;
+  /** Full collision table for the status report. */
+  collisions: CollisionDecision[];
 };
 
 async function loadKaikki(): Promise<KaikkiIndex> {
@@ -402,6 +471,7 @@ async function loadKaikki(): Promise<KaikkiIndex> {
       isProfane: isProfaneEntry(entry),
       isArchaicOnly: isArchaicOnlyEntry(entry),
       isFormOfOnly: false,
+      isAbbreviation: isAbbreviationLemma(lemma, pos, entry),
     };
 
     const lemmaKey = `${nfcLower(lemma)}::${pos}`;
@@ -451,7 +521,58 @@ async function loadKaikki(): Promise<KaikkiIndex> {
     `Parsed kaikki: ${lines} lines, ${lemmasByLower.size} lemma keys, ` +
       `${byForm.size} form keys, ${formOfOnlySurfaces.size} form_of-only surfaces`,
   );
-  return { lemmasByLower, byForm, formOfOnlySurfaces };
+
+  const { droppedCollisionNouns, collisions } = buildCaseCollisions(lemmasByLower);
+  console.log(
+    `Case collisions: ${collisions.length} ` +
+      `(kept ${collisions.filter((c) => c.decision === "kept").length}, ` +
+      `dropped ${collisions.filter((c) => c.decision === "dropped").length})`,
+  );
+
+  return {
+    lemmasByLower,
+    byForm,
+    formOfOnlySurfaces,
+    droppedCollisionNouns,
+    collisions,
+  };
+}
+
+function buildCaseCollisions(lemmasByLower: Map<string, LemmaEntry[]>): {
+  droppedCollisionNouns: Set<string>;
+  collisions: CollisionDecision[];
+} {
+  const droppedCollisionNouns = new Set<string>();
+  const collisions: CollisionDecision[] = [];
+
+  for (const [key, entries] of lemmasByLower) {
+    const lowercaseLemmas = entries.filter((e) => isLowercaseLemmaSurface(e.lemma));
+    const capitalizedNouns = entries.filter(isCapitalizedNounLemma);
+    if (lowercaseLemmas.length === 0 || capitalizedNouns.length === 0) continue;
+
+    const lowerDesc = [...new Set(lowercaseLemmas.map((e) => `${e.lemma} (${e.pos})`))]
+      .sort()
+      .join(", ");
+
+    for (const noun of capitalizedNouns) {
+      const word = capitalizeNoun(noun.lemma);
+      const decision: "kept" | "dropped" = CAPITALIZED_NOUN_KEEP.has(word)
+        ? "kept"
+        : "dropped";
+      collisions.push({
+        key,
+        lowercaseLemmas: lowerDesc,
+        capitalizedNoun: word,
+        decision,
+      });
+      if (decision === "dropped") {
+        droppedCollisionNouns.add(word);
+      }
+    }
+  }
+
+  collisions.sort((a, b) => a.key.localeCompare(b.key, "de"));
+  return { droppedCollisionNouns, collisions };
 }
 
 function selfCheck(lemmasByLower: Map<string, LemmaEntry[]>): void {
@@ -531,22 +652,40 @@ function outputWordFor(entry: LemmaEntry): string {
   return entry.pos === "noun" ? capitalizeNoun(entry.lemma) : entry.lemma;
 }
 
-function isKeepable(entry: LemmaEntry): boolean {
+function isCollisionDroppedNoun(
+  entry: LemmaEntry,
+  droppedCollisionNouns: Set<string>,
+): boolean {
+  return entry.pos === "noun" && droppedCollisionNouns.has(outputWordFor(entry));
+}
+
+function isKeepable(entry: LemmaEntry, droppedCollisionNouns: Set<string>): boolean {
   if (entry.isProfane) return false;
   if (entry.isArchaicOnly) return false;
   if (entry.isFormOfOnly) return false;
+  if (entry.isAbbreviation) return false;
   if (DROP_POS.has(entry.pos)) return false;
   if (!KEEP_POS.has(entry.pos)) return false;
+  if (isCollisionDroppedNoun(entry, droppedCollisionNouns)) return false;
   return true;
 }
 
-function dropReasonFor(entries: LemmaEntry[]): DropReason | null {
+function dropReasonFor(
+  entries: LemmaEntry[],
+  droppedCollisionNouns: Set<string>,
+): DropReason | null {
   if (entries.length === 0) return "no_lemma";
+  const keepable = entries.filter((e) => isKeepable(e, droppedCollisionNouns));
+  if (keepable.length > 0) return null;
+
   if (entries.every((e) => e.isProfane)) return "profanity";
   if (entries.every((e) => e.isArchaicOnly)) return "archaic_only";
   if (entries.every((e) => e.isFormOfOnly)) return "form_of_only";
-  const keepable = entries.filter(isKeepable);
-  if (keepable.length > 0) return null;
+  if (entries.every((e) => e.isAbbreviation)) return "abbreviation";
+  if (entries.some((e) => e.isAbbreviation)) return "abbreviation";
+  if (entries.some((e) => isCollisionDroppedNoun(e, droppedCollisionNouns))) {
+    return "case_collision";
+  }
   if (entries.every((e) => e.pos === "name")) return "proper_noun";
   if (entries.every((e) => e.pos === "abbrev")) return "abbreviation";
   if (entries.every((e) => DROP_POS.has(e.pos))) return "dropped_pos";
@@ -565,16 +704,18 @@ function resolveToken(
   lemmaRanks: Map<string, number>,
 ): LemmaEntry[] {
   const key = nfcLower(token);
-  const asLemma = (index.lemmasByLower.get(key) ?? []).filter(isKeepable);
+  const asLemma = (index.lemmasByLower.get(key) ?? []).filter((e) =>
+    isKeepable(e, index.droppedCollisionNouns),
+  );
   if (asLemma.length > 0) {
     return asLemma;
   }
 
-  const candidates = (index.byForm.get(key) ?? []).filter(isKeepable);
+  const candidates = (index.byForm.get(key) ?? []).filter((e) =>
+    isKeepable(e, index.droppedCollisionNouns),
+  );
   if (candidates.length === 0) return [];
 
-  // Dedupe by lemma surface + pos, then pick the single best lemma surface
-  // by frequency rank of that lemma's own headword.
   let bestRank = Number.POSITIVE_INFINITY;
   let bestLemmaLower = "";
   for (const c of candidates) {
@@ -586,18 +727,7 @@ function resolveToken(
     }
   }
 
-  // Among entries for that winning lemma surface, keep all keepable POS
-  // (will be merged into one row per output word casing).
-  // Actually: pick exactly ONE candidate lemma — meaning one lemma entry?
-  // "pick exactly ONE candidate lemma, the one whose own lemma has the best frequency rank"
-  // So one lemma headword. If that headword has multiple POS, we still have multiple
-  // LemmaEntries — but output is per word string. For inflection "waren" → sein (verb only).
-  // Take all POS entries that share the winning lemma surface (same casing group).
   const winners = candidates.filter((c) => nfcLower(c.lemma) === bestLemmaLower);
-  // Prefer the exact kaikiki casing that matches noun capitalization rules later.
-  // If multiple casings of same lower exist (shouldn't for same lower key in candidates
-  // from different entries), pick the one with best lemmaFreqRank already tied.
-  // Collapse to entries that share the winning lemma *string* with best rank among casings.
   let bestSurface = winners[0]?.lemma ?? "";
   let bestSurfaceRank = lemmaFreqRank(bestSurface, lemmaRanks);
   for (const w of winners) {
@@ -630,6 +760,7 @@ function buildLexicon(
   drops: Record<DropReason, number>;
   multiGenderNouns: Array<{ word: string; genders: Gender[] }>;
   keptInterjections: string[];
+  topNoLemma: Array<{ token: string; rank: number }>;
 } {
   const drops: Record<DropReason, number> = {
     single_letter: 0,
@@ -637,6 +768,7 @@ function buildLexicon(
     no_lemma: 0,
     proper_noun: 0,
     abbreviation: 0,
+    case_collision: 0,
     dropped_pos: 0,
     profanity: 0,
     archaic_only: 0,
@@ -646,6 +778,7 @@ function buildLexicon(
 
   const lemmaRanks = buildLemmaFreqRanks(tokens);
   const accepted = new Map<string, Accepted>(); // exact word string
+  const noLemmaHits: Array<{ token: string; rank: number }> = [];
   let rawTokensConsumed = 0;
 
   for (let i = 0; i < tokens.length; i++) {
@@ -670,10 +803,11 @@ function buildLexicon(
 
     if (rawPool.length === 0) {
       drops.no_lemma += 1;
+      noLemmaHits.push({ token, rank: i + 1 });
       continue;
     }
 
-    const reason = dropReasonFor(rawPool);
+    const reason = dropReasonFor(rawPool, index.droppedCollisionNouns);
     if (reason) {
       drops[reason] += 1;
       continue;
@@ -681,7 +815,6 @@ function buildLexicon(
 
     const resolved = resolveToken(token, index, lemmaRanks);
     if (resolved.length === 0) {
-      // Had hits but none keepable after resolve (shouldn't happen if reason null)
       drops.non_content_pos += 1;
       continue;
     }
@@ -692,7 +825,6 @@ function buildLexicon(
         break;
       }
       const word = outputWordFor(entry);
-      // Never emit a form_of-only surface as word.
       if (index.formOfOnlySurfaces.has(nfcLower(word))) {
         continue;
       }
@@ -703,7 +835,6 @@ function buildLexicon(
         if (tokenRank < existing.bestTokenRank) {
           existing.bestTokenRank = tokenRank;
         }
-        // Prefer first-seen noun article/plural; fill if missing.
         if (existing.article === null && entry.pos === "noun") {
           existing.article = articleFromGender(entry.gender);
           existing.plural = entry.plural;
@@ -731,6 +862,12 @@ function buildLexicon(
     );
   }
 
+  if (drops.abbreviation <= 0) {
+    throw new Error(
+      "Abbreviation filter produced 0 drops — filter is broken (expected lemmas with '.', all-caps, or abbrev tags).",
+    );
+  }
+
   const sorted = [...accepted.values()].sort((a, b) => {
     if (a.bestTokenRank !== b.bestTokenRank) return a.bestTokenRank - b.bestTokenRank;
     return a.word < b.word ? -1 : a.word > b.word ? 1 : 0;
@@ -741,7 +878,6 @@ function buildLexicon(
     const rank = index + 1;
     const pos = [...item.pos].sort();
     const forms = [...item.forms];
-    // Stable form order: lemma/word first, then alphabetical by nfcLower.
     forms.sort((a, b) => {
       if (nfcLower(a) === nfcLower(item.word)) return -1;
       if (nfcLower(b) === nfcLower(item.word)) return 1;
@@ -770,7 +906,19 @@ function buildLexicon(
     .map((a) => a.word)
     .sort((a, b) => nfcLower(a).localeCompare(nfcLower(b)));
 
-  return { rows, rawTokensConsumed, drops, multiGenderNouns, keptInterjections };
+  // Most frequent no_lemma tokens first (lowest rank = higher frequency).
+  const topNoLemma = [...noLemmaHits]
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, 30);
+
+  return {
+    rows,
+    rawTokensConsumed,
+    drops,
+    multiGenderNouns,
+    keptInterjections,
+    topNoLemma,
+  };
 }
 
 function assertTier(rows: LexiconRow[]): void {
@@ -817,8 +965,8 @@ function printReport(
   rows: LexiconRow[],
   rawTokensConsumed: number,
   drops: Record<DropReason, number>,
-  multiGenderNouns: Array<{ word: string; genders: Gender[] }>,
-  keptInterjections: string[],
+  collisions: CollisionDecision[],
+  topNoLemma: Array<{ token: string; rank: number }>,
 ): void {
   console.log("=== Status report ===");
   console.log("Sources:");
@@ -836,6 +984,8 @@ function printReport(
   console.log("\nAssertions:");
   console.log("  no duplicate word values: OK");
   console.log("  no form_of-only output words: OK");
+  console.log(`  abbreviation drops > 0: OK (${drops.abbreviation})`);
+  console.log("  tier counts 500/1000/1000/1000/1500: OK");
 
   console.log("\nFirst 60 rows (rank | word | pos | article | plural):");
   for (const r of rows.slice(0, 60)) {
@@ -844,30 +994,19 @@ function printReport(
     );
   }
 
-  const nouns = rows.filter((r) => r.article !== null || r.pos.includes("noun"));
-  const rng = mulberry32(42);
-  const pool = nouns.filter((r) => r.pos.includes("noun"));
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  console.log("\n20 random nouns (seed=42):");
-  for (const n of pool.slice(0, 20)) {
+  console.log(`\nCase collisions (${collisions.length}):`);
+  console.log("  decision | capitalized noun | lowercase lemma(s)");
+  for (const c of collisions) {
     console.log(
-      `  ${n.article ?? "?"} ${n.word} / pl=${n.plural ?? "null"} (rank ${n.frequency_rank})`,
+      `  ${c.decision.padEnd(7)} | ${c.capitalizedNoun.padEnd(20)} | ${c.lowercaseLemmas}`,
     );
   }
 
-  console.log(`\nMulti-gender nouns (${multiGenderNouns.length}):`);
-  for (const n of multiGenderNouns.slice(0, 50)) {
-    console.log(`  ${n.word}: ${n.genders.join(", ")}`);
+  console.log("\nTop 30 no_lemma tokens by frequency:");
+  console.log("  rank | token");
+  for (const t of topNoLemma) {
+    console.log(`  ${String(t.rank).padStart(5)} | ${t.token}`);
   }
-  if (multiGenderNouns.length > 50) {
-    console.log(`  ... and ${multiGenderNouns.length - 50} more`);
-  }
-
-  console.log(`\nKept interjections (${keptInterjections.length}):`);
-  console.log(`  ${keptInterjections.join(", ") || "(none)"}`);
 }
 
 async function main(): Promise<void> {
@@ -881,8 +1020,7 @@ async function main(): Promise<void> {
   const tokens = loadFrequencyTokens();
   console.log(`Frequency tokens: ${tokens.length}`);
 
-  const { rows, rawTokensConsumed, drops, multiGenderNouns, keptInterjections } =
-    buildLexicon(index, tokens);
+  const { rows, rawTokensConsumed, drops, topNoLemma } = buildLexicon(index, tokens);
 
   assertTier(rows);
   assertNoDuplicateWords(rows);
@@ -892,7 +1030,7 @@ async function main(): Promise<void> {
   fs.writeFileSync(OUT_PATH, `${JSON.stringify(rows, null, 2)}\n`, "utf8");
   console.log(`\nWrote ${rows.length} rows → ${OUT_PATH}`);
 
-  printReport(rows, rawTokensConsumed, drops, multiGenderNouns, keptInterjections);
+  printReport(rows, rawTokensConsumed, drops, index.collisions, topNoLemma);
 }
 
 main().catch((err) => {
