@@ -15,7 +15,8 @@
     "seed:vocab": "ts-node src/db/seeds/vocabulary-5k.ts",
     "seed:fr": "ts-node -r tsconfig-paths/register src/db/seeds/run-seed-fr.ts",
     "seed:en": "ts-node -r tsconfig-paths/register src/db/seeds/run-seed-en.ts",
-    "seed:translations": "ts-node -r tsconfig-paths/register src/db/seeds/run-seed-translations.ts"
+    "seed:translations": "ts-node -r tsconfig-paths/register src/db/seeds/run-seed-translations.ts",
+    "build:de-lexicon": "ts-node src/db/seeds/build-de-lexicon.ts"
   },
   "repository": {
     "type": "git",
