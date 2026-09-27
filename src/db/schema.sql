@@ -150,6 +150,9 @@ CREATE TABLE IF NOT EXISTS vocabulary (
   frequency_rank INTEGER NOT NULL,
   language TEXT NOT NULL DEFAULT 'es',
   is_active BOOLEAN NOT NULL DEFAULT true,
+  article TEXT CHECK (article IN ('der','die','das')),
+  plural TEXT,
+  forms TEXT[],
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -195,6 +198,8 @@ CREATE INDEX IF NOT EXISTS idx_vocabulary_language_tier ON vocabulary(language, 
 CREATE INDEX IF NOT EXISTS idx_vocabulary_language_tier_active
   ON vocabulary (language, tier)
   WHERE is_active;
+CREATE UNIQUE INDEX IF NOT EXISTS vocabulary_word_language_unique
+  ON vocabulary (word, language);
 CREATE INDEX IF NOT EXISTS idx_vocab_translations_vocab ON vocabulary_translations(vocabulary_id);
 CREATE INDEX IF NOT EXISTS idx_user_vocabulary_user_id ON user_vocabulary(user_id);
 CREATE INDEX IF NOT EXISTS idx_daily_sessions_user_date ON daily_sessions(user_id, date);
@@ -228,6 +233,7 @@ DROP INDEX IF EXISTS idx_daily_sessions_user_date;
 DROP INDEX IF EXISTS idx_user_vocabulary_user_id_due_at;
 DROP INDEX IF EXISTS idx_user_vocabulary_user_id;
 DROP INDEX IF EXISTS idx_vocab_translations_vocab;
+DROP INDEX IF EXISTS vocabulary_word_language_unique;
 DROP INDEX IF EXISTS idx_vocabulary_rank;
 DROP INDEX IF EXISTS idx_vocabulary_tier;
 DROP INDEX IF EXISTS idx_vocabulary_language_tier;
